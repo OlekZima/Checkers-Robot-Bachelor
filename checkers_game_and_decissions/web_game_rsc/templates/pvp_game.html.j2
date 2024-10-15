@@ -1,0 +1,21 @@
+<link rel="stylesheet" type= "text/css" href="{{ url_for('static',filename='css/style.css') }}">
+<head>
+    <div>
+        <h1 id="main-head">CHECKERS ONLINE - PVP</h1>
+        <hr>
+    </div>
+</head>
+<body>
+    Game id = <b id="game_id">{{game_id}}</b> &emsp; Your name is <b id="user_name">{{name}}</b> &emsp; Your user id is <b id="user_uuid">{{user_uuid}}</b><br><hr><br>
+    
+    <center>
+    <h1 id="game_status">Game is in progress</h1>
+    <b><p id="turn_of">-</p></b>
+    <b><p id="opponent_name"> Waiting for opponent to join</p></b>
+        <canvas id="checker_canvas" width="600" height="600"
+            style="border:1px solid #c3c3c3;">
+            Your browser does not support the canvas element.
+        </canvas>
+    </center>
+    <script src="{{url_for('static', filename='js/pvp_game.js') }}"></script> 
+</body>
