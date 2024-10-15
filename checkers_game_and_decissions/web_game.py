@@ -19,10 +19,10 @@ class GameType(Enum):
 
 
 class Game:
-    games =[]
+    games = []
 
     @classmethod
-    def create_game(cls, type = GameType.PVP):
+    def create_game(cls, type=GameType.PVP):
         game_id = 1
         if len(Game.games) > 0:
             id_min = Game.games[0].game_id
@@ -41,7 +41,6 @@ class Game:
 
         return game_id
 
-
     @classmethod
     def list_games(cls):
 
@@ -59,7 +58,6 @@ class Game:
 
         return resp
 
-
     @classmethod
     def kill_game(cls, game_id):
 
@@ -75,8 +73,7 @@ class Game:
             Game.games.remove(game)
             return True
 
-
-    def __init__(self, game_id, type = GameType.PVP):
+    def __init__(self, game_id, type=GameType.PVP):
         self.players = {
             Color.GREEN: None,
             Color.RED: None
@@ -86,15 +83,14 @@ class Game:
         if self.type == GameType.PVP:
             self.game_controller = PVPController()
         if self.type == GameType.PVC:
-            player_color = Color.GREEN if random.randint(1,2) == 1 else Color.RED
+            player_color = Color.GREEN if random.randint(1, 2) == 1 else Color.RED
             computer_color = Color.GREEN if player_color == Color.RED else Color.RED
-            self.players[computer_color] ={
-                        'id': '',
-                        'name': 'Michal\'s algorithm',
-                        'endgame_informed': True
-                    }
+            self.players[computer_color] = {
+                'id': '',
+                'name': 'Michal\'s algorithm',
+                'endgame_informed': True
+            }
             self.game_controller = PVCController(human_color=player_color)
-
 
     def request_register_player(self, player_uuid, name):
         if self.players[Color.GREEN] is not None and self.players[Color.GREEN]['id'] == player_uuid:
@@ -103,7 +99,7 @@ class Game:
             return True
         else:
             if self.players[Color.GREEN] is None:
-                self.players[Color.GREEN] ={
+                self.players[Color.GREEN] = {
                     'id': player_uuid,
                     'name': name,
                     'endgame_informed': False
@@ -119,7 +115,6 @@ class Game:
             else:
                 return False
 
-    
     def request_give_state(self, player_uuid):
         if self.players[Color.GREEN] is not None and self.players[Color.GREEN]['id'] == player_uuid:
             state = self.game_controller.report_state()
@@ -172,13 +167,12 @@ class Game:
         else:
             return None
 
-
     def request_move(self, player_uuid, move):
 
         state = self.game_controller.report_state()
 
         if self.players[state[ReportItem.TURN_OF]]['id'] == player_uuid:
-            
+
             try:
                 self.game_controller.perform_move(move)
                 return True
@@ -192,9 +186,9 @@ class Game:
 
 template_dir = os.path.abspath('checkers_game_and_decissions/web_game_rsc/templates')
 static_relative = 'web_game_rsc/static'
-static_dir = os.path.abspath('checkers_game_and_decissions'+'/'+static_relative)
+static_dir = os.path.abspath('checkers_game_and_decissions' + '/' + static_relative)
 
-app = Flask(__name__, template_folder=template_dir, static_url_path = static_dir, static_folder = static_relative)
+app = Flask(__name__, template_folder=template_dir, static_url_path=static_dir, static_folder=static_relative)
 app.config['SECRET_KEY'] = 'ef6d2c8a-c3b2-42bb-bab7-4372e682a2c5'
 
 
@@ -208,7 +202,6 @@ def index():
 # Id query param has game id -> ask to join it
 @app.route('/game', methods=['GET'])
 def get_game():
-    
     game_id = request.args.get('game_id')
     name = request.args.get('name')
     user_uuid = request.args.get('user_uuid')
@@ -217,38 +210,39 @@ def get_game():
     # for players with no uuid already - need to process them first, 
     # and then redirect again with uuid for them to not loose it
     if user_uuid is None or user_uuid == '':
-        
+
         # must have been field being left empty
         if game_id == '':
             return 'Id of game is obligatory', status.HTTP_400_BAD_REQUEST
-        
-        #create name artificially if user forgot to
-        if name is None or name == '': 
-            name = 'Noname'+str(random.randint(111,999))
+
+        # create name artificially if user forgot to
+        if name is None or name == '':
+            name = 'Noname' + str(random.randint(111, 999))
 
         # if no game specified - create one and redirect user to join it
         # additionally check for game type of request (PVP/PVC)
         if game_id is None:
-            
+
             if game_type_arg is None or game_type_arg == '':
                 return 'Must specify game type (Player vs Player or Player vs Computer)', status.HTTP_400_BAD_REQUEST
-            
+
             if game_type_arg == 'PVP':
                 game_type = GameType.PVP
             elif game_type_arg == 'PVC':
                 game_type = GameType.PVC
             else:
                 return 'Invalid game type, choose from [PVP, PVC] (Player vs Player or Player vs Computer)', status.HTTP_400_BAD_REQUEST
-            
-            # create game and receive its id
-            game_id = Game.create_game(type = game_type)
 
-            return redirect(url_for('get_game')+'?game_id='+str(game_id)+'&name='+str(name))
+            # create game and receive its id
+            game_id = Game.create_game(type=game_type)
+
+            return redirect(url_for('get_game') + '?game_id=' + str(game_id) + '&name=' + str(name))
 
         # if user is ready - let him join game with created uuid
-        if game_id is not None: 
+        if game_id is not None:
             user_uuid = str(uuid.uuid4())
-            return redirect(url_for('get_game')+'?game_id='+str(game_id)+'&name='+str(name)+'&user_uuid='+user_uuid)
+            return redirect(
+                url_for('get_game') + '?game_id=' + str(game_id) + '&name=' + str(name) + '&user_uuid=' + user_uuid)
     else:
         if name is None or name == '' or game_id is None:
             return 'Bad request', status.HTTP_400_BAD_REQUEST
@@ -263,14 +257,13 @@ def get_game():
             return 'Game does not exist', 404
 
         if game.request_register_player(user_uuid, name):
-            return render_template('pvp_game.html.j2', game_id = game_id, name=name, user_uuid=user_uuid)
+            return render_template('pvp_game.html.j2', game_id=game_id, name=name, user_uuid=user_uuid)
         else:
-            return 'Unauthorized', 401 
+            return 'Unauthorized', 401
 
 
 @app.route('/game_status', methods=['GET'])
 def get_game_status():
-
     game_id = request.args.get('game_id')
     user_uuid = request.args.get('user_uuid')
 
@@ -284,7 +277,7 @@ def get_game_status():
             break
     if game is None:
         return 'Game does not exist', 404
-    
+
     if game.request_register_player(user_uuid, None):
         return jsonify(game.request_give_state(user_uuid))
     else:
@@ -293,7 +286,6 @@ def get_game_status():
 
 @app.route('/move', methods=['POST'])
 def perform_move():
-
     json = request.json
 
     user_uuid = json['user_uuid']
@@ -310,9 +302,9 @@ def perform_move():
             break
     if game is None:
         return 'Game does not exist', 404
-    
+
     if game.request_register_player(user_uuid, None):
-        
+
         move = [int(m) for m in move]
 
         if game.request_move(user_uuid, move):
@@ -326,9 +318,8 @@ def perform_move():
 
 @app.route('/kill', methods=['DELETE'])
 def kill_game():
-
     game_id = request.args.get('game_id')
-    
+
     if game_id == '' or game_id is None:
         return 'Bad request', status.HTTP_400_BAD_REQUEST
 
@@ -342,13 +333,12 @@ def kill_game():
 
 @app.route('/list', methods=['GET'])
 def list_games():
-
     return jsonify(Game.list_games())
-
 
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port='8098', debug=True)
+
 
 def run_web_game():
     app.run(host='0.0.0.0', port='8098', debug=True)

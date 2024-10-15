@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class ReportItem(Enum):
     GAME_STATE = 1
     POINTS = 2
@@ -7,6 +8,7 @@ class ReportItem(Enum):
     WINNER = 4
     OPTIONS = 5
     TURN_OF = 6
+
 
 class RobotGameReportItem(Enum):
     GAME_STATE = 1

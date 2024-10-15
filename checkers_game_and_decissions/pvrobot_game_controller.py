@@ -6,11 +6,10 @@ from enum import Enum
 
 
 def rotate_2d_matrix_180_deg(matrix):
-
     new_matrix = []
-    for c in range(len(matrix)-1,-1,-1):
+    for c in range(len(matrix) - 1, -1, -1):
         tmp_col = []
-        for i in range(len(matrix[c])-1,-1,-1):
+        for i in range(len(matrix[c]) - 1, -1, -1):
             tmp_col.append(matrix[c][i])
         new_matrix.append(tmp_col)
 
@@ -59,8 +58,7 @@ Please input the color of the Robot Player: [b]lue/[o]range
         self.robot_move = None
         self.is_crowned = None
 
-        self.decission_engine = NegamaxDecissionEngine(computer_color = self.computer_color, depth_to_use = 3)
-
+        self.decission_engine = NegamaxDecissionEngine(computer_color=self.computer_color, depth_to_use=3)
 
     def report_state(self):
         report = {
@@ -77,15 +75,15 @@ Please input the color of the Robot Player: [b]lue/[o]range
 
         return report
 
-    def update_game_state(self, board_state, allow_different_robot_moves = False):
+    def update_game_state(self, board_state, allow_different_robot_moves=False):
 
         # bool
         is_robot_turn = self.game.get_turn_of() == self.computer_color
 
         # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
         self_game_state = self.game.get_game_state()
-        for i in range(0,len(self_game_state), 1):
-            for j in range(0,len(self_game_state[i]), 1):
+        for i in range(0, len(self_game_state), 1):
+            for j in range(0, len(self_game_state[i]), 1):
                 if self_game_state[i][j] == -2:
                     self_game_state[i][j] = -1
                 if self_game_state[i][j] == 2:
@@ -106,8 +104,13 @@ Please input the color of the Robot Player: [b]lue/[o]range
                     x_tmp, y_tmp = CheckersGame.get_xy_from_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
-                        (self.computer_color == Color.GREEN and self.robot_move[len(self.robot_move) - 1] in [1,2,3,4] and piece_moved == -1)
-                        or (self.computer_color == Color.RED and self.robot_move[len(self.robot_move) - 1] in [29,30,31,32] and piece_moved == 1)
+                            (self.computer_color == Color.GREEN and self.robot_move[len(self.robot_move) - 1] in [1, 2,
+                                                                                                                  3,
+                                                                                                                  4] and piece_moved == -1)
+                            or (
+                            self.computer_color == Color.RED and self.robot_move[len(self.robot_move) - 1] in [29, 30,
+                                                                                                               31,
+                                                                                                               32] and piece_moved == 1)
                     ):
                         self.is_crowned = True
                     else:
@@ -120,11 +123,11 @@ Please input the color of the Robot Player: [b]lue/[o]range
         is_permitted = False
         move_performed = None
         moves_allowed = self.game.get_possible_outcomes()
-        
+
         for move_outcome in moves_allowed:
             # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
-            for i in range(0,len(move_outcome[1]), 1):
-                for j in range(0,len(move_outcome[1][i]), 1):
+            for i in range(0, len(move_outcome[1]), 1):
+                for j in range(0, len(move_outcome[1][i]), 1):
                     if move_outcome[1][i][j] == -2:
                         move_outcome[1][i][j] = -1
                     if move_outcome[1][i][j] == 2:
@@ -164,8 +167,13 @@ Please input the color of the Robot Player: [b]lue/[o]range
                     x_tmp, y_tmp = CheckersGame.get_xy_from_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
-                        (self.computer_color == Color.GREEN and self.robot_move[len(self.robot_move) - 1] in [1,2,3,4] and piece_moved == -1)
-                        or (self.computer_color == Color.RED and self.robot_move[len(self.robot_move) - 1] in [29,30,31,32] and piece_moved == 1)
+                            (self.computer_color == Color.GREEN and self.robot_move[len(self.robot_move) - 1] in [1, 2,
+                                                                                                                  3,
+                                                                                                                  4] and piece_moved == -1)
+                            or (
+                            self.computer_color == Color.RED and self.robot_move[len(self.robot_move) - 1] in [29, 30,
+                                                                                                               31,
+                                                                                                               32] and piece_moved == 1)
                     ):
                         self.is_crowned = True
                     else:
@@ -173,7 +181,7 @@ Please input the color of the Robot Player: [b]lue/[o]range
                 else:
                     self.robot_move = None
                     self.is_crowned = None
-                    
+
                 return UpdateGameStateResult.VALID_OPPONENT_MOVE
 
         # 3 - informing about invalid move
@@ -181,8 +189,6 @@ Please input the color of the Robot Player: [b]lue/[o]range
             return UpdateGameStateResult.INVALID_ROBOT_MOVE
 
         return UpdateGameStateResult.INVALID_OPPONENT_MOVE
-        
-        
 
     def restart(self):
         self.game = CheckersGame()
@@ -193,7 +199,7 @@ Please input the color of the Robot Player: [b]lue/[o]range
 
 # msc testing
 if __name__ == "__main__":
-    
+
     controller = PVRobotController()
 
     report = controller.report_state()
