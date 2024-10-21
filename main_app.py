@@ -86,7 +86,7 @@ def main():
             print(f'======\n{update_game_state_result}\nAwaiting for robot move\n=========\n')
             dobot.perform_move(
                 game_state_report[RobotGameReportItem.ROBOT_MOVE],
-                crown = game_state_report[RobotGameReportItem.IS_CROWNED]
+                is_crown= game_state_report[RobotGameReportItem.IS_CROWNED]
             )
             cv.waitKey(30)
             buffer_clean_cnt = 20

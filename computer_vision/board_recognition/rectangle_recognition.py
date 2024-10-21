@@ -1,23 +1,28 @@
 import cv2 as cv
 import numpy as np
-import math
 
 
 def empt_fun(a):
     pass
 
 
-def get_pts_dist(pt1=[0, 0], pt2=[0, 0]):
+def get_pts_dist(pt1: list[int]=None, pt2: list[int]=None):
+    if pt1 is None:
+        pt1 = [0, 0]
+    if pt2 is None:
+        pt2 = [0, 0]
     dx = pt1[0] - pt2[0]
     dy = pt1[1] - pt2[1]
 
     dx = float(dx * dx)
     dy = float(dy * dy)
 
-    return math.sqrt(dx + dy)
+    return np.sqrt([dx + dy])[0]
 
 
-def get_avg_pos(pts=[[0, 0], [0, 0]]):
+def get_avg_pos(pts=None):
+    if pts is None:
+        pts = [[0, 0], [0, 0]]
     x_avg, y_avg = 0, 0
 
     for pt in pts:

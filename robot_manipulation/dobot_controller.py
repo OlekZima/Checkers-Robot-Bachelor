@@ -71,7 +71,7 @@ class DobotController:
         self.calibrate()
 
         self.move_arm(
-            self.home_pos[0], self.home_pos[1], self.home_pos[2], 0, wait=True
+            self.home_pos[0], self.home_pos[1], self.home_pos[2],  wait=True
         )
 
         print("\nController created\n")
@@ -84,7 +84,7 @@ class DobotController:
         )  # TODO - instruction how to use frame
 
         while True:
-            self.move_arm(x, y, z, 0, wait=True)
+            self.move_arm(x, y, z,  wait=True)
 
             cv.imshow("Calibrate instruction", instruction_frame)
 
@@ -163,21 +163,21 @@ class DobotController:
 
             print("\nDobot calibrated from file: " + base_file + "\n")
 
-    def move_arm(self, x, y, z, r, wait=True, retry=True, retry_limit=5):
+    def move_arm(self, x, y, z, wait=True, retry=True, retry_limit=5):
         try:
-            self.device.move_to(x, y, z, r, wait=wait)
+            self.device.move_to(x, y, z, wait=wait)
         except Exception as e:
             print("\n==========\nAn error occured while performing move\n")
             if retry:
                 retry_cnt = 0
                 while retry_cnt < retry_limit:
-                    (x_tmp, y_tmp, z_tmp, r_tmp) = self.device.get_pose().position
+                    x_tmp, y_tmp, z_tmp, _ = self.device.get_pose().position
                     try:
                         print(f"\nRetrying: {retry_cnt+1}/{retry_limit}")
                         self.device.move_to(
-                            x_tmp + 1, y_tmp + 1, z_tmp + 1, r_tmp, wait=True
+                            x_tmp + 1, y_tmp + 1, z_tmp + 1, wait=True
                         )
-                        self.device.move_to(x, y, z - 1, r, wait=wait)
+                        self.device.move_to(x, y, z - 1, wait=wait)
                         print("\nRetry Successful\n")
                         break
                     except:
@@ -322,7 +322,7 @@ class DobotController:
             self.side_pockets[1][0][2] + self.side_pockets[1][3][2] * 2
         ) / 3.0
 
-    def perform_move(self, move=[1, 1], crown=False, height=10):
+    def perform_move(self, move=[1, 1], is_crown=False, height=10):
 
         # Grabbing the first piece
         x, y = DobotController.get_xy_from_id(move[0], self.color)
@@ -330,18 +330,16 @@ class DobotController:
             self.board[x][y][0],
             self.board[x][y][1],
             self.board[x][y][2] + height,
-            0,
             wait=True,
         )
         self.move_arm(
-            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2], 0, wait=True
+            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2],  wait=True
         )
         self.device.suck(True)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
             self.board[x][y][2] + height,
-            0,
             wait=True,
         )
 
@@ -353,21 +351,18 @@ class DobotController:
                     self.board[x][y][0],
                     self.board[x][y][1],
                     self.board[x][y][2] + height,
-                    0,
                     wait=True,
                 )
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
                     self.board[x][y][2],
-                    0,
                     wait=True,
                 )
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
                     self.board[x][y][2] + height,
-                    0,
                     wait=True,
                 )
 
@@ -377,18 +372,16 @@ class DobotController:
             self.board[x][y][0],
             self.board[x][y][1],
             self.board[x][y][2] + height,
-            0,
             wait=True,
         )
         self.move_arm(
-            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2], 0, wait=True
+            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2],  wait=True
         )
         self.device.suck(False)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
             self.board[x][y][2] + height,
-            0,
             wait=True,
         )
 
@@ -400,14 +393,12 @@ class DobotController:
                     self.board[x][y][0],
                     self.board[x][y][1],
                     self.board[x][y][2] + height,
-                    0,
                     wait=True,
                 )
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
                     self.board[x][y][2],
-                    0,
                     wait=True,
                 )
                 self.device.suck(True)
@@ -415,35 +406,31 @@ class DobotController:
                     self.board[x][y][0],
                     self.board[x][y][1],
                     self.board[x][y][2] + height,
-                    0,
                     wait=True,
                 )
                 self.move_arm(
                     self.dispose_area[0],
                     self.dispose_area[1],
                     self.dispose_area[2],
-                    0,
                     wait=True,
                 )
                 self.device.suck(False)
 
         # Changing simple piece for king
         # TODO Restorin kings for rematch and situation where all kings are already used - error
-        if crown == True:
+        if is_crown:
             x, y = DobotController.get_xy_from_id(move[len(move) - 1], self.color)
 
             self.move_arm(
                 self.board[x][y][0],
                 self.board[x][y][1],
                 self.board[x][y][2] + height,
-                0,
                 wait=True,
             )
             self.move_arm(
                 self.board[x][y][0],
                 self.board[x][y][1],
                 self.board[x][y][2],
-                0,
                 wait=True,
             )
             self.device.suck(True)
@@ -451,14 +438,12 @@ class DobotController:
                 self.board[x][y][0],
                 self.board[x][y][1],
                 self.board[x][y][2] + height,
-                0,
                 wait=True,
             )
             self.move_arm(
                 self.dispose_area[0],
                 self.dispose_area[1],
                 self.dispose_area[2],
-                0,
                 wait=True,
             )
             self.device.suck(False)
@@ -476,14 +461,12 @@ class DobotController:
                 self.side_pockets[xk][yk][0],
                 self.side_pockets[xk][yk][1],
                 self.side_pockets[xk][yk][2] + height,
-                0,
                 wait=True,
             )
             self.move_arm(
                 self.side_pockets[xk][yk][0],
                 self.side_pockets[xk][yk][1],
                 self.side_pockets[xk][yk][2],
-                0,
                 wait=True,
             )
             self.device.suck(True)
@@ -498,14 +481,12 @@ class DobotController:
                 self.board[x][y][0],
                 self.board[x][y][1],
                 self.board[x][y][2] + height,
-                0,
                 wait=True,
             )
             self.move_arm(
                 self.board[x][y][0],
                 self.board[x][y][1],
                 self.board[x][y][2],
-                0,
                 wait=True,
             )
             self.device.suck(False)
@@ -513,7 +494,6 @@ class DobotController:
                 self.board[x][y][0],
                 self.board[x][y][1],
                 self.board[x][y][2] + height,
-                0,
                 wait=True,
             )
 
@@ -521,7 +501,7 @@ class DobotController:
 
         # Returning to home position
         self.move_arm(
-            self.home_pos[0], self.home_pos[1], self.home_pos[2], 0, wait=True
+            self.home_pos[0], self.home_pos[1], self.home_pos[2],  wait=True
         )
 
 
