@@ -3,7 +3,8 @@ import numpy as np
 import math
 import traceback
 
-from rectangle_recognition import get_game_tiles_contours
+from computer_vision.board_recognition.rectangle_recognition import get_game_tiles_contours
+
 
 def empt_fun(a):
     pass
