@@ -341,68 +341,6 @@ class Game:
 
         return has_state_possibly_change, [i.copy() for i in self.game_state]
 
-
-def main_old():
-
-    game = Game(handle_capture = False)
-
-    cap = cv.VideoCapture()
-    cap.open('/dev/v4l/by-id/usb-Xiongmai_web_camera_12345678-video-index0')
-    cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter.fourcc(	'M', 'J', 'P', 'G'))
-    cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
-    #v4l2-ctl -d 2 --set-fmt-video pixelformat=0,width=1920,height=1080
-    #ffmpeg -f v4l2 -input_format mjpg -i /dev/video2 -c:v copy output.mkv
-
-    while True:
-
-        success, img = cap.read()
-        img_res = img.copy()
-        img_checker_masked = img.copy()
-
-        t1 = cv.getTrackbarPos("Threshold1", "Parameters - Board")
-        t2 = cv.getTrackbarPos("Threshold2", "Parameters - Board")
-        kernel_size = cv.getTrackbarPos("Kernel_size", "Parameters - Board")
-        min_area = cv.getTrackbarPos("Min_area", "Parameters - Board")
-        area_margin = cv.getTrackbarPos("Area_margin", "Parameters - Board")
-        approx_peri_fraction = float(cv.getTrackbarPos("Approx_peri", "Parameters - Board")) / 100.0
-        px_dist_to_join = float(cv.getTrackbarPos("Px_dist", "Parameters - Board"))
-
-        dp = float(cv.getTrackbarPos("DP", "Parameters - Checkers"))/100.0
-        #minDist = cv.getTrackbarPos("MinDist", "Parameters - Checkers")
-        param1 = cv.getTrackbarPos("Param1", "Parameters - Checkers")
-        param2 = cv.getTrackbarPos("Param2", "Parameters - Checkers")
-        #minRadius = cv.getTrackbarPos("MinRadius", "Parameters - Checkers")
-        #maxRadius = cv.getTrackbarPos("MaxRadius", "Parameters - Checkers")
-        t1c = cv.getTrackbarPos("Threshold1", "Parameters - Checkers")
-        t2c = cv.getTrackbarPos("Threshold2", "Parameters - Checkers")
-        kernel_c = cv.getTrackbarPos("Kernel_size", "Parameters - Checkers")
-
-
-        try:
-            board = Board.detect_board(img_res, t1 =t1, t2= t2, kernel = np.ones((kernel_size, kernel_size)), min_area = min_area, area_margin = area_margin, approx_peri_fraction = approx_peri_fraction, px_dist_to_join = px_dist_to_join)
-        
-            Checkers.detect_checkers(board, img)
-
-            game.challange_game_state_change(Game.build_game_state(Checkers.checkers, is_00_white = board.is_00_white(
-                dark_field_bgr = self.dark_field_bgr, 
-                light_field_bgr = self.light_field_bgr, 
-                red_bgr = self.red_checker_bgr, 
-                green_bgr = self.blue_checker_bgr, 
-                color_dist_thresh = color_dist_thresh
-            )))
-        except Exception:
-            print(traceback.format_exc())
-
-        img_res = cv.resize(img_res, (0,0), fx=0.8, fy=0.8)
-        cv.imshow("RESULT", img_res)
-
-        cv.imshow("GAME STATE", game.present_visually())
-
-        if cv.waitKey(1) == ord('q'): #& 0xFF == ord('q'):
-            break
-
-
 def main():
     game = Game()
 
