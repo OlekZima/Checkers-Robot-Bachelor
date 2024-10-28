@@ -341,6 +341,7 @@ class Game:
 
         return has_state_possibly_change, [i.copy() for i in self.game_state]
 
+
 def main():
     game = Game()
 
