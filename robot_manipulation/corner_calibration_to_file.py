@@ -2,61 +2,86 @@ from serial.tools import list_ports
 from pydobotplus import Dobot
 import numpy as np
 import cv2 as cv
-import pathlib
 
 
 class DobotController:
 
     @classmethod
-    def get_xy_from_id(cls, field_id: int):
-        y = (field_id - 1) // 4
-        x = ((field_id - 1) % 4) * 2 + (1 if y % 2 == 0 else 0)
+    def get_xy_from_id(cls, id):
+        y = int((id - 1) / 4)
+
+        x = ((id - 1) % 4) * 2
+        if y % 2 == 0:
+            x += 1
+
         return x, y
 
     def __init__(self):
-        self.device = self.connect_to_dobot()
-        self.board = np.zeros((8, 8, 3), dtype=float)
-        self.side_pockets = np.zeros((2, 4, 3), dtype=float)
-        self.dispose_area = np.zeros(3, dtype=float)
-        self.home_pos = np.zeros(3, dtype=float)
 
-        self.default_calibration_positions = [
-            [244, 51.5, -11],
-            [241, -70, -16],
-            [67, 47, -5],
-            [66, -47, -6],
-            [243, 106.5, -18.5],
-            [76, 79, 9],
-            [240, -106, 1.75],
-            [88, -86, 0],
-            [130, -150, 3],
-            [90, -140, 0],
-        ]
-
-        self.calibrate()
-        print("Controller created")
-
-    def connect_to_dobot(self):
+        # Connecting to DOBOT
         available_ports = list_ports.comports()
+
         print("\nPlease select port by index")
         for i, p in enumerate(available_ports):
             print(f"[{i}]: {p}")
+
         port_idx = int(input())
+
         port = available_ports[port_idx].device
-        return Dobot(port=port)
+
+        self.device = Dobot(port=port)
+
+        x, y, z, r = self.device.get_pose().position
+        print(f"\nx:{x} y:{y} z:{z} r:{r}")
+
+        self.device.suck(False)
+
+        # Calibrating for board
+
+        # Board field numerating convention:
+        #  upper_left = [0][0]
+        #  upper_right = [7][0]
+        #  bottom_left = [0][7]
+        #  bottom_right = [7][7]
+        self.board = np.zeros(shape=(8, 8, 3), dtype=float)
+        self.side_pockets = np.zeros(shape=(2, 4, 3), dtype=float)
+        self.dispose_area = np.zeros(shape=(3), dtype=float)
+        self.home_pos = np.zeros(shape=(3), dtype=float)
+        self.kings_available = 8
+
+        self.default_calibration_positions = [
+            [238, 70, -16],  # upper left board corner
+            [241, -70, -16],  # upper right board corner
+            [67, 47, -5],  # bottom left board corner
+            [66, -47, -6],  # bottom right board corner
+            [243, 106.5, -18.5],  # upper left side pocket
+            [76, 79, 9],  # bottom left side pocket
+            [240, -106, 1.75],  # upper right side pocket
+            [88, -86, 0],  # bottom right side pocket
+            [130, -150, 3],  # disposal area
+            [90, -140, 0],  # home position
+        ]
+
+        self.calibrate()
+
+        print("Controller created")
 
     def keyboard_move_dobot(self, increment=1.0):
+
         x, y, z, _ = self.device.get_pose().position
-        instruction_frame = np.zeros((300, 300))  # TODO - instruction how to use frame
+
+        instruction_frame = np.zeros(
+            shape=(300, 300)
+        )  # TODO - instruction how to use frame
 
         while True:
-            self.move_arm(x, y, z)
+            self.move_arm(x, y, z, 0, wait=True)
             cv.imshow("Calibrate instruction", instruction_frame)
             key = cv.waitKey(0)
 
             x, y, z, _ = self.device.get_pose().position
 
-            if key == 13:  # Enter
+            if key == 13:
                 break
             elif key == ord("w"):
                 x += increment
@@ -72,37 +97,208 @@ class DobotController:
                 z += increment
             elif key == 27:
                 cv.destroyAllWindows()
-                exit(2)
+                exit(1)
 
         cv.destroyAllWindows()
 
     def calibrate(self, height=10):
-        for idx, position in enumerate(self.default_calibration_positions):
-            self.move_arm(*position[:2], position[2] + height)
-            print(
-                f"Please place the dobot tool on calibration point {idx + 1} and press enter"
-            )
-            self.move_arm(*position)
-            self.keyboard_move_dobot()
-            x, y, z, _ = self.device.get_pose().position
 
-            if idx < 4:  # For board corners
-                self.board[self.get_board_index(idx)] = [x, y, z]
-            elif idx < 8:  # For side pockets
-                self.side_pockets[(idx - 4) // 4][(idx - 4) % 4] = [x, y, z]
-            elif idx == 8:  # Dispose area
-                self.dispose_area = [x, y, z]
-            elif idx == 9:  # Home position
-                self.home_pos = [x, y, z]
+        # Gathering info for 8x8 board
+        print(
+            "Please place the dobot tool on upper left board corner (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[0][0],
+            self.default_calibration_positions[0][1],
+            self.default_calibration_positions[0][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.board[0][0][0] = x
+        self.board[0][0][1] = y
+        self.board[0][0][2] = z
 
-            print(f"x = {x}\ty = {y}\tz = {z}")
-            self.move_arm(x, y, z + height)
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
 
-        self.interpolate_board_fields()
-        self.interpolate_side_pockets()
+        print(
+            "Please place the dobot tool on upper right board corner (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[1][0],
+            self.default_calibration_positions[1][1],
+            self.default_calibration_positions[1][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.board[7][0][0] = x
+        self.board[7][0][1] = y
+        self.board[7][0][2] = z
 
-    def get_board_index(self, idx):
-        return [(0, 0), (7, 0), (0, 7), (7, 7)][idx]
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        print(
+            "Please place the dobot tool on bottom left board corner (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[2][0],
+            self.default_calibration_positions[2][1],
+            self.default_calibration_positions[2][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.board[0][7][0] = x
+        self.board[0][7][1] = y
+        self.board[0][7][2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        print(
+            "Please place the dobot tool on bottom right board corner (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[3][0],
+            self.default_calibration_positions[3][1],
+            self.default_calibration_positions[3][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.board[7][7][0] = x
+        self.board[7][7][1] = y
+        self.board[7][7][2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        # Gathering info for side pockets
+        print(
+            "Please place the dobot tool on upper left side pocket (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[4][0],
+            self.default_calibration_positions[4][1],
+            self.default_calibration_positions[4][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.side_pockets[0][0][0] = x
+        self.side_pockets[0][0][1] = y
+        self.side_pockets[0][0][2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        print(
+            "Please place the dobot tool on bottom left side pocket (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[5][0],
+            self.default_calibration_positions[5][1],
+            self.default_calibration_positions[5][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.side_pockets[0][3][0] = x
+        self.side_pockets[0][3][1] = y
+        self.side_pockets[0][3][2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        print(
+            "Please place the dobot tool on upper right side pocket (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[6][0],
+            self.default_calibration_positions[6][1],
+            self.default_calibration_positions[6][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.side_pockets[1][0][0] = x
+        self.side_pockets[1][0][1] = y
+        self.side_pockets[1][0][2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        print(
+            "Please place the dobot tool on bottom right side pocket (from its perspective) and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[7][0],
+            self.default_calibration_positions[7][1],
+            self.default_calibration_positions[7][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.side_pockets[1][3][0] = x
+        self.side_pockets[1][3][1] = y
+        self.side_pockets[1][3][2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+        self.move_arm(x, y, z + height, wait=True)
+
+        # Gathering info for dispose area
+        print(
+            "Please place the dobot tool where you would like it to dispose of pieces and press enter"
+        )
+        self.move_arm(
+            self.default_calibration_positions[8][0],
+            self.default_calibration_positions[8][1],
+            self.default_calibration_positions[8][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.dispose_area[0] = x
+        self.dispose_area[1] = y
+        self.dispose_area[2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+
+        # Gathering info for home pos
+        print(
+            "Please place the dobot tool where you would like it to have a home/default position"
+        )
+        self.move_arm(
+            self.default_calibration_positions[9][0],
+            self.default_calibration_positions[9][1],
+            self.default_calibration_positions[9][2],
+            0,
+            wait=True,
+        )
+        self.keyboard_move_dobot()
+        x, y, z, _ = self.device.get_pose().position
+        self.home_pos[0] = x
+        self.home_pos[1] = y
+        self.home_pos[2] = z
+
+        print(f"x = {x}\ty = {y}\tz = {z}")
+
+        # Calculating all fields
+
+        self.interpolate_board_fields()  # Interpolating board fields
+        self.interpolate_side_pockets()  # Interpolating side pockets
 
     def move_arm(self, x, y, z, wait=True):
         try:
@@ -111,60 +307,162 @@ class DobotController:
             print(e)
 
     def interpolate_board_fields(self):
+
+        # 1) Interpolating border fields coordinates
         for i in range(1, 7):
-            for j in [0, 7]:
-                self.interpolate_edge(0, i, j)
 
-            for j in range(1, 7):
-                self.interpolate_edge(i, 0, j)
+            # 1.1) Left column (x = 0)
+            for k in range(3):
+                self.board[0][i][k] = (
+                    self.board[0][0][k]
+                    + i * (self.board[0][7][k] - self.board[0][0][k]) / 7.0
+                )
 
-    def interpolate_edge(self, x, i, j):
-        self.board[x][i] = [
-            self.board[x][0][k] + i * (self.board[x][7][k] - self.board[x][0][k]) / 7.0
-            for k in range(3)
-        ]
+            # 1.2) Right column (x = 7)
+            for k in range(3):
+                self.board[7][i][k] = (
+                    self.board[7][0][k]
+                    + i * (self.board[7][7][k] - self.board[7][0][k]) / 7.0
+                )
+
+            # 1.3 Upper row (y = 0)
+            for k in range(3):
+                self.board[i][0][k] = (
+                    self.board[0][0][k]
+                    + i * (self.board[7][0][k] - self.board[0][0][k]) / 7.0
+                )
+
+            # 1.4 Bottom row (y = 7)
+            for k in range(3):
+                self.board[i][7][k] = (
+                    self.board[0][7][k]
+                    + i * (self.board[7][7][k] - self.board[0][7][k]) / 7.0
+                )
+
+        # 2) Interpolating inner points
+        for x in range(1, 7, 1):
+            for y in range(1, 7, 1):
+                self.board[x][y][0] = (
+                    (
+                        self.board[0][y][0]
+                        + x * (self.board[7][y][0] - self.board[0][y][0]) / 7.0
+                    )
+                    + (
+                        self.board[x][0][0]
+                        + y * (self.board[x][7][0] - self.board[x][0][0]) / 7.0
+                    )
+                ) / 2.0
+                self.board[x][y][1] = (
+                    (
+                        self.board[0][y][1]
+                        + x * (self.board[7][y][1] - self.board[0][y][1]) / 7.0
+                    )
+                    + (
+                        self.board[x][0][1]
+                        + y * (self.board[x][7][1] - self.board[x][0][1]) / 7.0
+                    )
+                ) / 2.0
+                self.board[x][y][2] = (
+                    (
+                        self.board[0][y][2]
+                        + x * (self.board[7][y][2] - self.board[0][y][2]) / 7.0
+                    )
+                    + (
+                        self.board[x][0][2]
+                        + y * (self.board[x][7][2] - self.board[x][0][2]) / 7.0
+                    )
+                ) / 2.0
 
     def interpolate_side_pockets(self):
-        for i in range(2):
-            for j in range(4):
-                if j in [1, 2]:
-                    self.side_pockets[i][j] = [
-                        (
-                            (
-                                self.side_pockets[i][0][k] * 2
-                                + self.side_pockets[i][3][k]
-                            )
-                            / 3.0
-                            if j == 1
-                            else (
-                                self.side_pockets[i][0][k]
-                                + self.side_pockets[i][3][k] * 2
-                            )
-                            / 3.0
-                        )
-                        for k in range(3)
-                    ]
+
+        self.side_pockets[0][1][0] = (
+            self.side_pockets[0][0][0] * 2 + self.side_pockets[0][3][0]
+        ) / 3.0
+        self.side_pockets[0][1][1] = (
+            self.side_pockets[0][0][1] * 2 + self.side_pockets[0][3][1]
+        ) / 3.0
+        self.side_pockets[0][1][2] = (
+            self.side_pockets[0][0][2] * 2 + self.side_pockets[0][3][2]
+        ) / 3.0
+
+        self.side_pockets[0][2][0] = (
+            self.side_pockets[0][0][0] + self.side_pockets[0][3][0] * 2
+        ) / 3.0
+        self.side_pockets[0][2][1] = (
+            self.side_pockets[0][0][1] + self.side_pockets[0][3][1] * 2
+        ) / 3.0
+        self.side_pockets[0][2][2] = (
+            self.side_pockets[0][0][2] + self.side_pockets[0][3][2] * 2
+        ) / 3.0
+
+        self.side_pockets[1][1][0] = (
+            self.side_pockets[1][0][0] * 2 + self.side_pockets[1][3][0]
+        ) / 3.0
+        self.side_pockets[1][1][1] = (
+            self.side_pockets[1][0][1] * 2 + self.side_pockets[1][3][1]
+        ) / 3.0
+        self.side_pockets[1][1][2] = (
+            self.side_pockets[1][0][2] * 2 + self.side_pockets[1][3][2]
+        ) / 3.0
+
+        self.side_pockets[1][2][0] = (
+            self.side_pockets[1][0][0] + self.side_pockets[1][3][0] * 2
+        ) / 3.0
+        self.side_pockets[1][2][1] = (
+            self.side_pockets[1][0][1] + self.side_pockets[1][3][1] * 2
+        ) / 3.0
+        self.side_pockets[1][2][2] = (
+            self.side_pockets[1][0][2] + self.side_pockets[1][3][2] * 2
+        ) / 3.0
 
 
 if __name__ == "__main__":
     dobot = DobotController()
-    filename = input("\nPut name of the file you would like to save configuration in:")
-    pathlib.Path("./configuration_files/").mkdir(parents=True, exist_ok=True)
 
-    with open(f"./configuration_files/{filename}", "w") as f:
-        for i in range(1, 33):
-            x, y = DobotController.get_xy_from_id(i)
+    print("\nPut name of the file you would like to save configuration in:")
+
+    filename = input()
+
+    f = open("robot_manipulation/configuration_files/" + filename, "w+")
+
+    for i in range(1, 33, 1):
+        x, y = DobotController.get_xy_from_id(i)
+        f.write(
+            str(dobot.board[x][y][0])
+            + ";"
+            + str(dobot.board[x][y][1])
+            + ";"
+            + str(dobot.board[x][y][2])
+            + "\n"
+        )
+
+    for i in range(0, 2, 1):
+        for j in range(0, 4, 1):
             f.write(
-                f"{dobot.board[x][y][0]};{dobot.board[x][y][1]};{dobot.board[x][y][2]}\n"
+                str(dobot.side_pockets[i][j][0])
+                + ";"
+                + str(dobot.side_pockets[i][j][1])
+                + ";"
+                + str(dobot.side_pockets[i][j][2])
+                + "\n"
             )
 
-        for i in range(2):
-            for j in range(4):
-                f.write(
-                    f"{dobot.side_pockets[i][j][0]};{dobot.side_pockets[i][j][1]};{dobot.side_pockets[i][j][2]}\n"
-                )
+    f.write(
+        str(dobot.dispose_area[0])
+        + ";"
+        + str(dobot.dispose_area[1])
+        + ";"
+        + str(dobot.dispose_area[2])
+        + "\n"
+    )
 
-        f.write(
-            f"{dobot.dispose_area[0]};{dobot.dispose_area[1]};{dobot.dispose_area[2]}\n"
-        )
-        f.write(f"{dobot.home_pos[0]};{dobot.home_pos[1]};{dobot.home_pos[2]}\n")
+    f.write(
+        str(dobot.home_pos[0])
+        + ";"
+        + str(dobot.home_pos[1])
+        + ";"
+        + str(dobot.home_pos[2])
+        + "\n"
+    )
+
+    f.close()
