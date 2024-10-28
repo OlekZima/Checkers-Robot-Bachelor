@@ -50,13 +50,13 @@ class DobotController:
         self.kings_available = 8
 
         self.default_calibration_positions = [
-            [238, 70, -16],  # upper left board corner
-            [241, -70, -16],  # upper right board corner
-            [67, 47, -5],  # bottom left board corner
-            [66, -47, -6],  # bottom right board corner
-            [243, 106.5, -18.5],  # upper left side pocket
-            [76, 79, 9],  # bottom left side pocket
-            [240, -106, 1.75],  # upper right side pocket
+            [244, 73, -9],  # upper left board corner
+            [246, -71, -11],  # upper right board corner
+            [77, 54, -4],  # bottom left board corner
+            [77, -53, -4],  # bottom right board corner
+            [246, 106.5, -8.9],  # upper left side pocket
+            [84, 87, -5],  # bottom left side pocket
+            [246, -104, -9.2],  # upper right side pocket
             [88, -86, 0],  # bottom right side pocket
             [130, -150, 3],  # disposal area
             [90, -140, 0],  # home position
@@ -75,7 +75,7 @@ class DobotController:
         )  # TODO - instruction how to use frame
 
         while True:
-            self.move_arm(x, y, z, 0, wait=True)
+            self.move_arm(x, y, z, wait=True)
             cv.imshow("Calibrate instruction", instruction_frame)
             key = cv.waitKey(0)
 
@@ -110,8 +110,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[0][0],
             self.default_calibration_positions[0][1],
+            self.default_calibration_positions[0][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[0][0],
+            self.default_calibration_positions[0][1],
             self.default_calibration_positions[0][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -129,8 +135,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[1][0],
             self.default_calibration_positions[1][1],
+            self.default_calibration_positions[1][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[1][0],
+            self.default_calibration_positions[1][1],
             self.default_calibration_positions[1][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -148,8 +160,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[2][0],
             self.default_calibration_positions[2][1],
+            self.default_calibration_positions[2][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[2][0],
+            self.default_calibration_positions[2][1],
             self.default_calibration_positions[2][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -167,8 +185,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[3][0],
             self.default_calibration_positions[3][1],
+            self.default_calibration_positions[3][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[3][0],
+            self.default_calibration_positions[3][1],
             self.default_calibration_positions[3][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -187,8 +211,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[4][0],
             self.default_calibration_positions[4][1],
+            self.default_calibration_positions[4][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[4][0],
+            self.default_calibration_positions[4][1],
             self.default_calibration_positions[4][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -206,8 +236,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[5][0],
             self.default_calibration_positions[5][1],
+            self.default_calibration_positions[5][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[5][0],
+            self.default_calibration_positions[5][1],
             self.default_calibration_positions[5][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -225,8 +261,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[6][0],
             self.default_calibration_positions[6][1],
+            self.default_calibration_positions[6][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[6][0],
+            self.default_calibration_positions[6][1],
             self.default_calibration_positions[6][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -244,8 +286,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[7][0],
             self.default_calibration_positions[7][1],
+            self.default_calibration_positions[7][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[7][0],
+            self.default_calibration_positions[7][1],
             self.default_calibration_positions[7][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -264,8 +312,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[8][0],
             self.default_calibration_positions[8][1],
+            self.default_calibration_positions[8][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[8][0],
+            self.default_calibration_positions[8][1],
             self.default_calibration_positions[8][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -283,8 +337,14 @@ class DobotController:
         self.move_arm(
             self.default_calibration_positions[9][0],
             self.default_calibration_positions[9][1],
+            self.default_calibration_positions[9][2] + height,
+            wait=True,
+        )
+
+        self.move_arm(
+            self.default_calibration_positions[9][0],
+            self.default_calibration_positions[9][1],
             self.default_calibration_positions[9][2],
-            0,
             wait=True,
         )
         self.keyboard_move_dobot()
@@ -340,80 +400,40 @@ class DobotController:
                 )
 
         # 2) Interpolating inner points
-        for x in range(1, 7, 1):
-            for y in range(1, 7, 1):
-                self.board[x][y][0] = (
-                    (
-                        self.board[0][y][0]
-                        + x * (self.board[7][y][0] - self.board[0][y][0]) / 7.0
-                    )
-                    + (
-                        self.board[x][0][0]
-                        + y * (self.board[x][7][0] - self.board[x][0][0]) / 7.0
-                    )
-                ) / 2.0
-                self.board[x][y][1] = (
-                    (
-                        self.board[0][y][1]
-                        + x * (self.board[7][y][1] - self.board[0][y][1]) / 7.0
-                    )
-                    + (
-                        self.board[x][0][1]
-                        + y * (self.board[x][7][1] - self.board[x][0][1]) / 7.0
-                    )
-                ) / 2.0
-                self.board[x][y][2] = (
-                    (
-                        self.board[0][y][2]
-                        + x * (self.board[7][y][2] - self.board[0][y][2]) / 7.0
-                    )
-                    + (
-                        self.board[x][0][2]
-                        + y * (self.board[x][7][2] - self.board[x][0][2]) / 7.0
-                    )
-                ) / 2.0
+        for x in range(1, 7):
+            for y in range(1, 7):
+                for z in range(1, 3):
+                    self.board[x][y][z] = (
+                        (
+                            self.board[0][y][z]
+                            + x * (self.board[7][y][z] - self.board[0][y][z]) / 7.0
+                        )
+                        + (
+                            self.board[x][0][z]
+                            + y * (self.board[x][7][z] - self.board[x][0][z]) / 7.0
+                        )
+                    ) / 2.0
 
     def interpolate_side_pockets(self):
+        for k in range(2):
+            self.side_pockets[0][1][k] = (
+                self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
+            ) / 3.0
 
-        self.side_pockets[0][1][0] = (
-            self.side_pockets[0][0][0] * 2 + self.side_pockets[0][3][0]
-        ) / 3.0
-        self.side_pockets[0][1][1] = (
-            self.side_pockets[0][0][1] * 2 + self.side_pockets[0][3][1]
-        ) / 3.0
-        self.side_pockets[0][1][2] = (
-            self.side_pockets[0][0][2] * 2 + self.side_pockets[0][3][2]
-        ) / 3.0
+        for k in range(2):
+            self.side_pockets[0][2][k] = (
+                self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
+            ) / 3.0
 
-        self.side_pockets[0][2][0] = (
-            self.side_pockets[0][0][0] + self.side_pockets[0][3][0] * 2
-        ) / 3.0
-        self.side_pockets[0][2][1] = (
-            self.side_pockets[0][0][1] + self.side_pockets[0][3][1] * 2
-        ) / 3.0
-        self.side_pockets[0][2][2] = (
-            self.side_pockets[0][0][2] + self.side_pockets[0][3][2] * 2
-        ) / 3.0
+        for k in range(2):
+            self.side_pockets[1][1][k] = (
+                self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
+            ) / 3.0
 
-        self.side_pockets[1][1][0] = (
-            self.side_pockets[1][0][0] * 2 + self.side_pockets[1][3][0]
-        ) / 3.0
-        self.side_pockets[1][1][1] = (
-            self.side_pockets[1][0][1] * 2 + self.side_pockets[1][3][1]
-        ) / 3.0
-        self.side_pockets[1][1][2] = (
-            self.side_pockets[1][0][2] * 2 + self.side_pockets[1][3][2]
-        ) / 3.0
-
-        self.side_pockets[1][2][0] = (
-            self.side_pockets[1][0][0] + self.side_pockets[1][3][0] * 2
-        ) / 3.0
-        self.side_pockets[1][2][1] = (
-            self.side_pockets[1][0][1] + self.side_pockets[1][3][1] * 2
-        ) / 3.0
-        self.side_pockets[1][2][2] = (
-            self.side_pockets[1][0][2] + self.side_pockets[1][3][2] * 2
-        ) / 3.0
+        for k in range(2):
+            self.side_pockets[1][2][k] = (
+                self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
+            ) / 3.0
 
 
 if __name__ == "__main__":
