@@ -1,11 +1,8 @@
-# https://github.com/sammydick22/pydobotplus
-
 from serial.tools import list_ports
 from pydobotplus import Dobot
 import numpy as np
 import cv2 as cv
 
-from os.path import exists
 import os
 
 from checkers_game_and_decissions.checkers_game import Color
@@ -15,9 +12,9 @@ class DobotController:
 
     @classmethod
     def get_xy_from_id(cls, id, color):
-        y = int((id - 1) / 4)
+        y, x = divmod((id - 1), 4)
+        x *= 2
 
-        x = ((id - 1) % 4) * 2
         if y % 2 == 0:
             x += 1
 
@@ -44,16 +41,8 @@ class DobotController:
 
         self.device = Dobot(port=port)
 
-        (x, y, z, r) = self.device.get_pose().position
-        print(f"\nx:{x} y:{y} z:{z} r:{r}")
-
-        # self.device.suck(True)
-        # self.device.move_to(x,y,z+40,r)
-        # self.device.move_to(x,y-40,z+40,r)
-        # self.device.move_to(x,y+40,z+40,r)
-        # self.device.move_to(x,y,z+40,r)
-        # self.device.move_to(x,y,z+5,r)
-        # self.device.suck(False)
+        (x, y, z, _) = self.device.get_pose().position
+        print(f"\nx:{x} y:{y} z:{z}")
 
         # Calibrating for board
 
@@ -64,44 +53,37 @@ class DobotController:
         #  bottom_right = [7][7]
         self.board = np.zeros(shape=(8, 8, 3), dtype=float)
         self.side_pockets = np.zeros(shape=(2, 4, 3), dtype=float)
-        self.dispose_area = np.zeros(shape=(3), dtype=float)
-        self.home_pos = np.zeros(shape=(3), dtype=float)
+        self.dispose_area = np.zeros(shape=3, dtype=float)
+        self.home_pos = np.zeros(shape=3, dtype=float)
         self.kings_available = 8
 
-        self.calibrate()
+        self.read_calibration_file()
 
-        self.move_arm(
-            self.home_pos[0], self.home_pos[1], self.home_pos[2],  wait=True
-        )
+        self.move_arm(*self.home_pos, wait=True)
 
         print("\nController created\n")
 
     def keyboard_move_dobot(self, increment=1.0):
-        (x, y, z, r) = self.device.get_pose().position
+        x, y, z, _ = self.device.get_pose().position
 
         instruction_frame = np.zeros(
             shape=(300, 300)
         )  # TODO - instruction how to use frame
 
         while True:
-            self.move_arm(x, y, z,  wait=True)
-
+            self.move_arm(x, y, z, wait=True)
             cv.imshow("Calibrate instruction", instruction_frame)
-
             key = cv.waitKey(0)
 
-            (x, y, z, r) = self.device.get_pose().position
+            x, y, z, _ = self.device.get_pose().position
 
             if key == 13:
                 break
             elif key == ord("w"):
-                # y += increment
                 x += increment
             elif key == ord("s"):
-                # y -= increment
                 x -= increment
             elif key == ord("a"):
-                # x -= increment
                 y += increment
             elif key == ord("d"):
                 y -= increment
@@ -109,59 +91,68 @@ class DobotController:
                 z -= increment
             elif key == ord("e"):
                 z += increment
+            elif key == 27:
+                cv.destroyAllWindows()
+                exit(1)
 
         cv.destroyAllWindows()
 
-    def calibrate(self, height=10):
-
-        if exists("robot_manipulation/configuration_files"):
-            configs = os.listdir("robot_manipulation/configuration_files")
-            print("\nPlease choose a robot position configuration file by id\n")
-            for id, c in enumerate(configs):
-                print(f"[{id}]: {c}")
-
-            while True:
+    @staticmethod
+    def _get_user_input(config_count):
+        while True:
+            try:
                 user_input = int(input())
-                if user_input in range(0, len(configs), 1):
-                    base_file = configs[user_input]
-                    break
+                if 0 <= user_input <= config_count:
+                    return user_input
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
-            f = open("robot_manipulation/configuration_files/" + base_file, "r")
-            lines = f.readlines()
-            f.close()
-            if len(lines) < 42:
-                raise Exception("Wrong file")
+    @staticmethod
+    def _display_options(configs: list[str]) -> None:
+        print("\nPlease choose a robot position configuration file by id\n")
+        for id, c in enumerate(configs):
+            print(f"[{id}]: {c}")
 
-            for i in range(0, 32, 1):
-                pos_xyz = lines[i].split(";")
-                x, y = DobotController.get_xy_from_id(i + 1, Color.GREEN)
-                self.board[x][y][0] = float(pos_xyz[0])
-                self.board[x][y][1] = float(pos_xyz[1])
-                self.board[x][y][2] = float(pos_xyz[2])
+    def read_calibration_file(self):
+        config_dir = "robot_manipulation/configuration_files"
 
-            for i in range(32, 36, 1):
-                pos_xyz = lines[i].split(";")
-                self.side_pockets[0][i - 32][0] = float(pos_xyz[0])
-                self.side_pockets[0][i - 32][1] = float(pos_xyz[1])
-                self.side_pockets[0][i - 32][2] = float(pos_xyz[2])
+        if not os.path.exists(config_dir):
+            print("Configuration directory does not exist.")
+            return
 
-            for i in range(36, 40, 1):
-                pos_xyz = lines[i].split(";")
-                self.side_pockets[1][i - 36][0] = float(pos_xyz[0])
-                self.side_pockets[1][i - 36][1] = float(pos_xyz[1])
-                self.side_pockets[1][i - 36][2] = float(pos_xyz[2])
+        configs: list[str] = os.listdir(config_dir)
+        self._display_options(configs)
 
-            pos_xyz = lines[40].split(";")
-            self.dispose_area[0] = float(pos_xyz[0])
-            self.dispose_area[1] = float(pos_xyz[1])
-            self.dispose_area[2] = float(pos_xyz[2])
+        user_input: int = self._get_user_input(len(configs))
+        base_file: str = configs[user_input]
 
-            pos_xyz = lines[41].split(";")
-            self.home_pos[0] = float(pos_xyz[0])
-            self.home_pos[1] = float(pos_xyz[1])
-            self.home_pos[2] = float(pos_xyz[2])
+        with open(base_file, "r") as f:
+            lines: list[str] = f.readlines()
 
-            print("\nDobot calibrated from file: " + base_file + "\n")
+        if len(lines) < 42:
+            raise ValueError("Wrong file: not enough positions.")
+
+        self._set_config_positions(lines)
+
+        print("\nDobot calibrated from file: " + base_file + "\n")
+
+    def _set_config_positions(self, lines):
+        for i in range(0, 32):
+            x, y = DobotController.get_xy_from_id(i + 1, Color.GREEN)
+            self.board[x][y] = self._parse_calibration_line(lines[i])
+
+        for i in range(32, 36):
+            self.side_pockets[0][i - 32] = self._parse_calibration_line(lines[i])
+
+        for i in range(36, 40):
+            self.side_pockets[1][i - 36] = self._parse_calibration_line(lines[i])
+
+        self.dispose_area = self._parse_calibration_line(lines[40])
+        self.home_pos = self._parse_calibration_line(lines[41])
+
+    @staticmethod
+    def _parse_calibration_line(line: str) -> list[float]:
+        return [float(coord) for coord in line.split(";")]
 
     def move_arm(self, x, y, z, wait=True, retry=True, retry_limit=5):
         try:
@@ -185,146 +176,71 @@ class DobotController:
                     retry_cnt += 1
             print("\n==========\n")
 
+    @staticmethod
+    def linear_interpolate(a, b, t):
+        return a + t * (b - a)
+
     def interpolate_board_fields(self):
 
         # 1) Interpolating border fields coordinates
-        for i in range(1, 7, 1):
-
-            # 1.1) Left column (x = 0)
-            self.board[0][i][0] = (
-                self.board[0][0][0]
-                + i * (self.board[0][7][0] - self.board[0][0][0]) / 7.0
-            )
-            self.board[0][i][1] = (
-                self.board[0][0][1]
-                + i * (self.board[0][7][1] - self.board[0][0][1]) / 7.0
-            )
-            self.board[0][i][2] = (
-                self.board[0][0][2]
-                + i * (self.board[0][7][2] - self.board[0][0][2]) / 7.0
-            )
-
-            # 1.2) Right column (x = 7)
-            self.board[7][i][0] = (
-                self.board[7][0][0]
-                + i * (self.board[7][7][0] - self.board[7][0][0]) / 7.0
-            )
-            self.board[7][i][1] = (
-                self.board[7][0][1]
-                + i * (self.board[7][7][1] - self.board[7][0][1]) / 7.0
-            )
-            self.board[7][i][2] = (
-                self.board[7][0][2]
-                + i * (self.board[7][7][2] - self.board[7][0][2]) / 7.0
-            )
-
-            # 1.3 Upper row (y = 0)
-            self.board[i][0][0] = (
-                self.board[0][0][0]
-                + i * (self.board[7][0][0] - self.board[0][0][0]) / 7.0
-            )
-            self.board[i][0][1] = (
-                self.board[0][0][1]
-                + i * (self.board[7][0][1] - self.board[0][0][1]) / 7.0
-            )
-            self.board[i][0][2] = (
-                self.board[0][0][2]
-                + i * (self.board[7][0][2] - self.board[0][0][2]) / 7.0
-            )
-
-            # 1.4 Bottom row (y = 7)
-            self.board[i][7][0] = (
-                self.board[0][7][0]
-                + i * (self.board[7][7][0] - self.board[0][7][0]) / 7.0
-            )
-            self.board[i][7][1] = (
-                self.board[0][7][1]
-                + i * (self.board[7][7][1] - self.board[0][7][1]) / 7.0
-            )
-            self.board[i][7][2] = (
-                self.board[0][7][2]
-                + i * (self.board[7][7][2] - self.board[0][7][2]) / 7.0
-            )
+        for i in range(1, 7):
+            t = i / 7.0
+            for k in range(3):
+                # 1.1) Left column (x = 0)
+                self.board[0][i][k] = self.linear_interpolate(
+                    self.board[0][0][k], self.board[0][7][k], t
+                )
+                # 1.2) Right column (x = 7)
+                self.board[7][i][k] = self.linear_interpolate(
+                    self.board[7][0][k], self.board[7][7][k], t
+                )
+                # 1.3 Upper row (y = 0)
+                self.board[i][0][k] = self.linear_interpolate(
+                    self.board[0][0][k], self.board[7][0][k], t
+                )
+                # Bottom row (y = 7)
+                self.board[i][7][k] = self.linear_interpolate(
+                    self.board[0][7][k], self.board[7][7][k], t
+                )
 
         # 2) Interpolating inner points
-        for x in range(1, 7, 1):
-            for y in range(1, 7, 1):
-                self.board[x][y][0] = (
-                    (
-                        self.board[0][y][0]
-                        + x * (self.board[7][y][0] - self.board[0][y][0]) / 7.0
+        for x in range(1, 7):
+            t_x = x / 7.0
+            for y in range(1, 7):
+                t_y = y / 7.0
+                for z in range(3):
+                    first = self.linear_interpolate(
+                        self.board[0][y][z], self.board[7][y][z], t_x
                     )
-                    + (
-                        self.board[x][0][0]
-                        + y * (self.board[x][7][0] - self.board[x][0][0]) / 7.0
+
+                    second = self.linear_interpolate(
+                        self.board[x][0][z], self.board[x][7][z], t_y
                     )
-                ) / 2.0
-                self.board[x][y][1] = (
-                    (
-                        self.board[0][y][1]
-                        + x * (self.board[7][y][1] - self.board[0][y][1]) / 7.0
-                    )
-                    + (
-                        self.board[x][0][1]
-                        + y * (self.board[x][7][1] - self.board[x][0][1]) / 7.0
-                    )
-                ) / 2.0
-                self.board[x][y][2] = (
-                    (
-                        self.board[0][y][2]
-                        + x * (self.board[7][y][2] - self.board[0][y][2]) / 7.0
-                    )
-                    + (
-                        self.board[x][0][2]
-                        + y * (self.board[x][7][2] - self.board[x][0][2]) / 7.0
-                    )
-                ) / 2.0
+
+                    self.board[x][y][z] = (first + second) / 2.0
+
 
     def interpolate_side_pockets(self):
+        for k in range(3):
+            self.side_pockets[0][1][k] = (
+                self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
+            ) / 3.0
+            self.side_pockets[1][1][k] = (
+                self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
+            ) / 3.0
 
-        self.side_pockets[0][1][0] = (
-            self.side_pockets[0][0][0] * 2 + self.side_pockets[0][3][0]
-        ) / 3.0
-        self.side_pockets[0][1][1] = (
-            self.side_pockets[0][0][1] * 2 + self.side_pockets[0][3][1]
-        ) / 3.0
-        self.side_pockets[0][1][2] = (
-            self.side_pockets[0][0][2] * 2 + self.side_pockets[0][3][2]
-        ) / 3.0
+            self.side_pockets[0][2][k] = (
+                self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
+            ) / 3.0
+            self.side_pockets[1][2][k] = (
+                self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
+            ) / 3.0
 
-        self.side_pockets[0][2][0] = (
-            self.side_pockets[0][0][0] + self.side_pockets[0][3][0] * 2
-        ) / 3.0
-        self.side_pockets[0][2][1] = (
-            self.side_pockets[0][0][1] + self.side_pockets[0][3][1] * 2
-        ) / 3.0
-        self.side_pockets[0][2][2] = (
-            self.side_pockets[0][0][2] + self.side_pockets[0][3][2] * 2
-        ) / 3.0
-
-        self.side_pockets[1][1][0] = (
-            self.side_pockets[1][0][0] * 2 + self.side_pockets[1][3][0]
-        ) / 3.0
-        self.side_pockets[1][1][1] = (
-            self.side_pockets[1][0][1] * 2 + self.side_pockets[1][3][1]
-        ) / 3.0
-        self.side_pockets[1][1][2] = (
-            self.side_pockets[1][0][2] * 2 + self.side_pockets[1][3][2]
-        ) / 3.0
-
-        self.side_pockets[1][2][0] = (
-            self.side_pockets[1][0][0] + self.side_pockets[1][3][0] * 2
-        ) / 3.0
-        self.side_pockets[1][2][1] = (
-            self.side_pockets[1][0][1] + self.side_pockets[1][3][1] * 2
-        ) / 3.0
-        self.side_pockets[1][2][2] = (
-            self.side_pockets[1][0][2] + self.side_pockets[1][3][2] * 2
-        ) / 3.0
-
-    def perform_move(self, move=[1, 1], is_crown=False, height=10):
+    def perform_move(self, move: list[int]=None, is_crown:bool=False, height:float=10):
 
         # Grabbing the first piece
+        if move is None:
+            move = [1, 1]
         x, y = DobotController.get_xy_from_id(move[0], self.color)
         self.move_arm(
             self.board[x][y][0],
@@ -474,7 +390,6 @@ class DobotController:
                 self.side_pockets[xk][yk][0],
                 self.side_pockets[xk][yk][1],
                 self.side_pockets[xk][yk][2] + height,
-                0,
                 wait=True,
             )
             self.move_arm(
@@ -506,7 +421,8 @@ class DobotController:
 
 
 if __name__ == "__main__":
-    cntrl = DobotController()
-    cntrl.perform_move([1])
-    cntrl.perform_move([20])
-    cntrl.perform_move([32])
+    l = [[1,2,3],[4,5,6],[7,8,9]]
+    t = [0,0,0]
+    l[0] = map(str, t)
+
+    print(l)

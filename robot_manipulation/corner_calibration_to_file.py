@@ -101,8 +101,8 @@ class DobotController:
 
         cv.destroyAllWindows()
 
-    def calibrate(self, height=10):
-        def calibrate_point(index, storage_array, storage_indices, message):
+    def calibrate(self, height: float = 10):
+        def calibrate_point(index: int, storage_array: np.ndarray, storage_indices: list, message: str):
             print(message)
             default_pos = self.default_calibration_positions[index]
             # Move to default position plus height
