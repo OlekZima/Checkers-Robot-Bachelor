@@ -48,7 +48,7 @@ class DobotController:
             [246, 106.5, -8.9],  # upper left side pocket
             [84, 87, -5],  # bottom left side pocket
             [246, -104, -9.2],  # upper right side pocket
-            [88, -86, 0],  # bottom right side pocket
+            [84, -85, -5],  # bottom right side pocket
             [130, -150, 3],  # disposal area
             [90, -140, 0],  # home position
         ]
@@ -106,7 +106,9 @@ class DobotController:
             print(message)
             default_pos = self.default_calibration_positions[index]
             # Move to default position plus height
-            self.move_arm(default_pos[0], default_pos[1], default_pos[2] + height, wait=True)
+            self.move_arm(
+                default_pos[0], default_pos[1], default_pos[2] + height, wait=True
+            )
             # Move to default position
             self.move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
             # Allow user to fine-tune the position
@@ -165,13 +167,21 @@ class DobotController:
             t = i / 7.0
             for k in range(3):
                 # 1.1) Left column (x = 0)
-                self.board[0][i][k] = self.linear_interpolate(self.board[0][0][k], self.board[0][7][k], t)
+                self.board[0][i][k] = self.linear_interpolate(
+                    self.board[0][0][k], self.board[0][7][k], t
+                )
                 # 1.2) Right column (x = 7)
-                self.board[7][i][k] = self.linear_interpolate(self.board[7][0][k], self.board[7][7][k], t)
+                self.board[7][i][k] = self.linear_interpolate(
+                    self.board[7][0][k], self.board[7][7][k], t
+                )
                 # 1.3 Upper row (y = 0)
-                self.board[i][0][k] = self.linear_interpolate(self.board[0][0][k], self.board[7][0][k], t)
+                self.board[i][0][k] = self.linear_interpolate(
+                    self.board[0][0][k], self.board[7][0][k], t
+                )
                 # Bottom row (y = 7)
-                self.board[i][7][k] = self.linear_interpolate(self.board[0][7][k], self.board[7][7][k], t)
+                self.board[i][7][k] = self.linear_interpolate(
+                    self.board[0][7][k], self.board[7][7][k], t
+                )
 
         # 2) Interpolating inner points
         for x in range(1, 7):
@@ -179,17 +189,30 @@ class DobotController:
             for y in range(1, 7):
                 t_y = y / 7.0
                 for z in range(3):
-                    self.board[x][y][z] = (self.linear_interpolate(self.board[0][y][z], self.board[7][y][z], t_x) +
-                                           self.linear_interpolate(self.board[x][0][z], self.board[x][7][z], t_y)
-                                           / 2.0)
+                    self.board[x][y][z] = (
+                        self.linear_interpolate(
+                            self.board[0][y][z], self.board[7][y][z], t_x
+                        )
+                        + self.linear_interpolate(
+                            self.board[x][0][z], self.board[x][7][z], t_y
+                        )
+                    ) / 2.0
 
     def interpolate_side_pockets(self):
         for k in range(3):
-            self.side_pockets[0][1][k] = (self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]) / 3.0
-            self.side_pockets[1][1][k] = (self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]) / 3.0
+            self.side_pockets[0][1][k] = (
+                self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
+            ) / 3.0
+            self.side_pockets[1][1][k] = (
+                self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
+            ) / 3.0
 
-            self.side_pockets[0][2][k] = (self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2) / 3.0
-            self.side_pockets[1][2][k] = (self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2) / 3.0
+            self.side_pockets[0][2][k] = (
+                self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
+            ) / 3.0
+            self.side_pockets[1][2][k] = (
+                self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
+            ) / 3.0
 
 
 if __name__ == "__main__":
@@ -204,11 +227,17 @@ if __name__ == "__main__":
     with open(os.path.join(directory, filename), mode="w") as f:
         for i in range(1, 33):
             x, y = DobotController.get_xy_from_id(i)
-            f.write(f"{dobot.board[x][y][0]};{dobot.board[x][y][1]};{dobot.board[x][y][2]}\n")
+            f.write(
+                f"{dobot.board[x][y][0]};{dobot.board[x][y][1]};{dobot.board[x][y][2]}\n"
+            )
 
         for i in range(2):
             for j in range(4):
-                f.write(f"{dobot.side_pockets[i][j][0]};{dobot.side_pockets[i][j][1]};{dobot.side_pockets[i][j][2]}\n")
+                f.write(
+                    f"{dobot.side_pockets[i][j][0]};{dobot.side_pockets[i][j][1]};{dobot.side_pockets[i][j][2]}\n"
+                )
 
-        f.write(f"{dobot.dispose_area[0]};{dobot.dispose_area[1]};{dobot.dispose_area[2]}\n")
+        f.write(
+            f"{dobot.dispose_area[0]};{dobot.dispose_area[1]};{dobot.dispose_area[2]}\n"
+        )
         f.write(f"{dobot.home_pos[0]};{dobot.home_pos[1]};{dobot.home_pos[2]}\n")
