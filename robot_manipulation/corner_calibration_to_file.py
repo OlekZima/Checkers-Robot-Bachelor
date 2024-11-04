@@ -1,28 +1,16 @@
 import os
-
 from serial.tools import list_ports
 from pydobotplus import Dobot
 import numpy as np
-import cv2 as cv
-import sys
-import termios
-
-
-def flush_input():
-    termios.tcflush(sys.stdin, termios.TCIFLUSH)
+import cv2
+from checkers_game_and_decissions.Utilities import (
+    get_coord_from_field_id,
+    linear_interpolate,
+    flush_input,
+)
 
 
 class DobotController:
-
-    @classmethod
-    def get_xy_from_id(cls, id):
-        y = (id - 1) // 4
-        x = ((id - 1) % 4) * 2
-
-        if y % 2 == 0:
-            x += 1
-
-        return x, y
 
     def __init__(self):
         # Connecting to DOBOT
@@ -38,7 +26,6 @@ class DobotController:
         self.side_pockets = np.zeros((2, 4, 3), dtype=float)
         self.dispose_area = np.zeros(3, dtype=float)
         self.home_pos = np.zeros(3, dtype=float)
-        # self.kings_available = 8
 
         self.default_calibration_positions = [
             [244, 73, -9],  # upper left board corner
@@ -76,8 +63,8 @@ class DobotController:
 
         while True:
             self.move_arm(x, y, z, wait=True)
-            cv.imshow("Calibrate instruction", instruction_frame)
-            key = cv.waitKey(0)
+            cv2.imshow("Calibrate instruction", instruction_frame)
+            key = cv2.waitKey(0)
 
             x, y, z, _ = self.device.get_pose().position
 
@@ -96,13 +83,15 @@ class DobotController:
             elif key == ord("e"):
                 z += increment
             elif key == 27:
-                cv.destroyAllWindows()
+                cv2.destroyAllWindows()
                 exit(1)
 
-        cv.destroyAllWindows()
+        cv2.destroyAllWindows()
 
     def calibrate(self, height: float = 10):
-        def calibrate_point(index: int, storage_array: np.ndarray, storage_indices: list, message: str):
+        def calibrate_point(
+            index: int, storage_array: np.ndarray, storage_indices: list, message: str
+        ):
             print(message)
             default_pos = self.default_calibration_positions[index]
             # Move to default position plus height
@@ -156,30 +145,25 @@ class DobotController:
         except Exception as e:
             print(e)
 
-    @staticmethod
-    def linear_interpolate(a, b, t):
-        return a + t * (b - a)
-
     def interpolate_board_fields(self):
-
         # 1) Interpolating border fields coordinates
         for i in range(1, 7):
             t = i / 7.0
             for k in range(3):
                 # 1.1) Left column (x = 0)
-                self.board[0][i][k] = self.linear_interpolate(
+                self.board[0][i][k] = linear_interpolate(
                     self.board[0][0][k], self.board[0][7][k], t
                 )
                 # 1.2) Right column (x = 7)
-                self.board[7][i][k] = self.linear_interpolate(
+                self.board[7][i][k] = linear_interpolate(
                     self.board[7][0][k], self.board[7][7][k], t
                 )
                 # 1.3 Upper row (y = 0)
-                self.board[i][0][k] = self.linear_interpolate(
+                self.board[i][0][k] = linear_interpolate(
                     self.board[0][0][k], self.board[7][0][k], t
                 )
                 # Bottom row (y = 7)
-                self.board[i][7][k] = self.linear_interpolate(
+                self.board[i][7][k] = linear_interpolate(
                     self.board[0][7][k], self.board[7][7][k], t
                 )
 
@@ -190,10 +174,10 @@ class DobotController:
                 t_y = y / 7.0
                 for z in range(3):
                     self.board[x][y][z] = (
-                        self.linear_interpolate(
+                        linear_interpolate(
                             self.board[0][y][z], self.board[7][y][z], t_x
                         )
-                        + self.linear_interpolate(
+                        + linear_interpolate(
                             self.board[x][0][z], self.board[x][7][z], t_y
                         )
                     ) / 2.0
@@ -226,7 +210,7 @@ if __name__ == "__main__":
 
     with open(os.path.join(directory, filename), mode="w") as f:
         for i in range(1, 33):
-            x, y = DobotController.get_xy_from_id(i)
+            x, y = get_coord_from_field_id(i)
             f.write(
                 f"{dobot.board[x][y][0]};{dobot.board[x][y][1]};{dobot.board[x][y][2]}\n"
             )

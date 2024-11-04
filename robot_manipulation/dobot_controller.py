@@ -6,23 +6,10 @@ import cv2 as cv
 import os
 
 from checkers_game_and_decissions.checkers_game import Color
+from checkers_game_and_decissions.Utilities import get_coord_from_field_id, linear_interpolate
 
 
 class DobotController:
-
-    @classmethod
-    def get_xy_from_id(cls, id, color):
-        y, x = divmod((id - 1), 4)
-        x *= 2
-
-        if y % 2 == 0:
-            x += 1
-
-        if color == Color.RED:
-            y = 7 - y
-            x = 7 - x
-
-        return x, y
 
     def __init__(self, color):
 
@@ -138,7 +125,7 @@ class DobotController:
 
     def _set_config_positions(self, lines):
         for i in range(0, 32):
-            x, y = DobotController.get_xy_from_id(i + 1, Color.GREEN)
+            x, y = get_coord_from_field_id(i + 1, Color.BLUE)
             self.board[x][y] = self._parse_calibration_line(lines[i])
 
         for i in range(32, 36):
@@ -165,9 +152,7 @@ class DobotController:
                     x_tmp, y_tmp, z_tmp, _ = self.device.get_pose().position
                     try:
                         print(f"\nRetrying: {retry_cnt+1}/{retry_limit}")
-                        self.device.move_to(
-                            x_tmp + 1, y_tmp + 1, z_tmp + 1, wait=True
-                        )
+                        self.device.move_to(x_tmp + 1, y_tmp + 1, z_tmp + 1, wait=True)
                         self.device.move_to(x, y, z - 1, wait=wait)
                         print("\nRetry Successful\n")
                         break
@@ -176,10 +161,6 @@ class DobotController:
                     retry_cnt += 1
             print("\n==========\n")
 
-    @staticmethod
-    def linear_interpolate(a, b, t):
-        return a + t * (b - a)
-
     def interpolate_board_fields(self):
 
         # 1) Interpolating border fields coordinates
@@ -187,19 +168,19 @@ class DobotController:
             t = i / 7.0
             for k in range(3):
                 # 1.1) Left column (x = 0)
-                self.board[0][i][k] = self.linear_interpolate(
+                self.board[0][i][k] = linear_interpolate(
                     self.board[0][0][k], self.board[0][7][k], t
                 )
                 # 1.2) Right column (x = 7)
-                self.board[7][i][k] = self.linear_interpolate(
+                self.board[7][i][k] = linear_interpolate(
                     self.board[7][0][k], self.board[7][7][k], t
                 )
                 # 1.3 Upper row (y = 0)
-                self.board[i][0][k] = self.linear_interpolate(
+                self.board[i][0][k] = linear_interpolate(
                     self.board[0][0][k], self.board[7][0][k], t
                 )
                 # Bottom row (y = 7)
-                self.board[i][7][k] = self.linear_interpolate(
+                self.board[i][7][k] = linear_interpolate(
                     self.board[0][7][k], self.board[7][7][k], t
                 )
 
@@ -209,16 +190,15 @@ class DobotController:
             for y in range(1, 7):
                 t_y = y / 7.0
                 for z in range(3):
-                    first = self.linear_interpolate(
+                    first = linear_interpolate(
                         self.board[0][y][z], self.board[7][y][z], t_x
                     )
 
-                    second = self.linear_interpolate(
+                    second = linear_interpolate(
                         self.board[x][0][z], self.board[x][7][z], t_y
                     )
 
                     self.board[x][y][z] = (first + second) / 2.0
-
 
     def interpolate_side_pockets(self):
         for k in range(3):
@@ -236,12 +216,14 @@ class DobotController:
                 self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
             ) / 3.0
 
-    def perform_move(self, move: list[int]=None, is_crown:bool=False, height:float=10):
+    def perform_move(
+        self, move: list[int] = None, is_crown: bool = False, height: float = 10
+    ):
 
         # Grabbing the first piece
         if move is None:
             move = [1, 1]
-        x, y = DobotController.get_xy_from_id(move[0], self.color)
+        x, y = get_coord_from_field_id(move[0], self.color)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
@@ -249,7 +231,7 @@ class DobotController:
             wait=True,
         )
         self.move_arm(
-            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2],  wait=True
+            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2], wait=True
         )
         self.device.suck(True)
         self.move_arm(
@@ -262,7 +244,7 @@ class DobotController:
         # Mid-move movements
         for i in range(1, len(move) - 1, 1):
             if move[i] > 0:
-                x, y = DobotController.get_xy_from_id(move[i], self.color)
+                x, y = get_coord_from_field_id(move[i], self.color)
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
@@ -283,7 +265,7 @@ class DobotController:
                 )
 
         # Finishing movement of my piece
-        x, y = DobotController.get_xy_from_id(move[len(move) - 1], self.color)
+        x, y = get_coord_from_field_id(move[len(move) - 1], self.color)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
@@ -291,7 +273,7 @@ class DobotController:
             wait=True,
         )
         self.move_arm(
-            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2],  wait=True
+            self.board[x][y][0], self.board[x][y][1], self.board[x][y][2], wait=True
         )
         self.device.suck(False)
         self.move_arm(
@@ -304,7 +286,7 @@ class DobotController:
         # Removing opponent taken out pieces
         for i in range(1, len(move) - 1, 1):
             if move[i] < 0:
-                x, y = DobotController.get_xy_from_id(-move[i], self.color)
+                x, y = get_coord_from_field_id(-move[i], self.color)
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
@@ -335,7 +317,7 @@ class DobotController:
         # Changing simple piece for king
         # TODO Restorin kings for rematch and situation where all kings are already used - error
         if is_crown:
-            x, y = DobotController.get_xy_from_id(move[len(move) - 1], self.color)
+            x, y = get_coord_from_field_id(move[len(move) - 1], self.color)
 
             self.move_arm(
                 self.board[x][y][0],
@@ -415,14 +397,12 @@ class DobotController:
             self.kings_available -= 1
 
         # Returning to home position
-        self.move_arm(
-            self.home_pos[0], self.home_pos[1], self.home_pos[2],  wait=True
-        )
+        self.move_arm(self.home_pos[0], self.home_pos[1], self.home_pos[2], wait=True)
 
 
 if __name__ == "__main__":
-    l = [[1,2,3],[4,5,6],[7,8,9]]
-    t = [0,0,0]
+    l = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    t = [0, 0, 0]
     l[0] = map(str, t)
 
     print(l)
