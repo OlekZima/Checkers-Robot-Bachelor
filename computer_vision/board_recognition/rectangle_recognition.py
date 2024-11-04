@@ -267,17 +267,6 @@ def main():  # function for using this functionality from direct context (not fr
         t2 = cv.getTrackbarPos("Threshold2", "Parameters")
         kernel = np.ones((6, 6))
 
-        # #imgGS = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        # img_hsv = cv.cvtColor(img, cv.COLOR_RGB2HSV)
-        # img_h, img_s, img_v = cv.split(img_hsv)
-        # cv.imshow("BOARD_RECOGNITION_V_from_HSV", img_v)
-
-        # imgCanny = cv.Canny(img_v, t1, t2)
-        # cv.imshow("BOARD_RECOGNITION_CANNY", imgCanny)
-
-        # imgDil = cv.dilate(imgCanny, kernel, iterations=1)
-        # cv.imshow("BOARD_RECOGNITION_DILATED", imgDil)
-
         imgDil = image_prep(img, t1=t1, t2=t2, kernel=kernel)
 
         imgRes = img.copy()
@@ -309,43 +298,10 @@ def get_game_tiles_contours(img_src, t1=140, t2=255, kernel=np.ones((2, 2)), min
 
     img_prepped = image_prep(img_src, t1=t1, t2=t2, kernel=kernel)
 
-    # contours_old = get_contours_old(img_prepped, min_area = min_area, area_margin = area_margin, approx_peri_fraction = approx_peri_fraction, px_dist_to_join = px_dist_to_join)
-    # img_src_cnts = img_src.copy()
-    # cv.drawContours(img_src_cnts,contours_old, -1, (255, 0, 0), 2)
-
-    # #testing
-    # for cnt in contours_old:
-    #     mid = get_avg_pos([
-    #         cnt[0][0],
-    #         cnt[1][0],
-    #         cnt[2][0],
-    #         cnt[3][0]
-    #     ])
-    #     cv.circle(img_src_cnts, (mid[0],mid[1]), 8, (255,0,0), -1)
-    #     cv.circle(img_src_cnts, (mid[0],mid[1]), 5, (0,0,255), -1)
-
-    # imgRes_big = cv.resize(img_src_cnts, (0,0), fx=0.8, fy=0.8)
-    # cv.imshow("Contours_old", imgRes_big)
 
     contours = get_contours(img_prepped, min_area=min_area, area_margin=area_margin,
                             approx_peri_fraction=approx_peri_fraction, px_dist_to_join=px_dist_to_join)
 
-    # img_src_cnts = img_src.copy()
-    # cv.drawContours(img_src_cnts,contours, -1, (255, 0, 0), 2)
-
-    # #testing
-    # for cnt in contours:
-    #     mid = get_avg_pos([
-    #         cnt[0][0],
-    #         cnt[1][0],
-    #         cnt[2][0],
-    #         cnt[3][0]
-    #     ])
-    #     cv.circle(img_src_cnts, (mid[0],mid[1]), 8, (255,0,0), -1)
-    #     cv.circle(img_src_cnts, (mid[0],mid[1]), 5, (0,0,255), -1)
-
-    # imgRes_big = cv.resize(img_src_cnts, (0,0), fx=0.8, fy=0.8)
-    # cv.imshow("Contours", imgRes_big)
 
     return contours
 
