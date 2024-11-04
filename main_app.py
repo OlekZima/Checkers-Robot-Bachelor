@@ -1,5 +1,5 @@
 from checkers_game_and_decissions.pvrobot_game_controller import PVRobotController, UpdateGameStateResult
-from checkers_game_and_decissions.report_item import RobotGameReportItem
+from checkers_game_and_decissions.enum_entities import RobotGameReportItem
 from checkers_game_and_decissions.checkers_game import Status
 
 from computer_vision.gameplay_recognition import Game
@@ -25,7 +25,7 @@ def main():
         if buffer_clean_cnt > 0:
             board_recognition.cap.read()
             buffer_clean_cnt -= 1
-            if cv.waitKey(30) == ord('q'): #& 0xFF == ord('q'):
+            if cv.waitKey(30) == ord("q"): #& 0xFF == ord("q"):
                 break
             continue
 
@@ -35,12 +35,12 @@ def main():
         except Exception as e:
             #print(e)
             #print("Failed to recognise board")
-            if cv.waitKey(30) == ord('q'): #& 0xFF == ord('q'):
+            if cv.waitKey(30) == ord("q"): #& 0xFF == ord("q"):
                 break
             continue
 
         if not has_state_possibly_change:
-            if cv.waitKey(30) == ord('q'): #& 0xFF == ord('q'):
+            if cv.waitKey(30) == ord("q"): #& 0xFF == ord("q"):
                 break
             continue
 
@@ -51,14 +51,14 @@ def main():
             UpdateGameStateResult.INVALID_OPPONENT_MOVE,
             UpdateGameStateResult.INVALID_ROBOT_MOVE
         ]:
-            print(f'======\n{update_game_state_result}\nMove went wrong! Correct it!\n=========\n')
+            print(f"======\n{update_game_state_result}\nMove went wrong! Correct it!\n=========\n")
             
-            if cv.waitKey(1500) == ord('q'): #& 0xFF == ord('q'):
+            if cv.waitKey(1500) == ord("q"): #& 0xFF == ord("q"):
                 break
             continue
 
         if update_game_state_result == UpdateGameStateResult.VALID_WRONG_ROBOT_MOVE:
-            print(f'======\n{update_game_state_result}\nNot the move selected! Correct it!\n=========\n')
+            print(f"======\n{update_game_state_result}\nNot the move selected! Correct it!\n=========\n")
             cv.waitKey(1500)
             continue
 
@@ -66,24 +66,20 @@ def main():
 
         if game_state_report[RobotGameReportItem.STATUS] != Status.IN_PROGRESS:
             cv.waitKey(30)
-            print(f'''
-====================== RESULTS ==========================
-''')
+            print("====================== RESULTS ==========================")
 
             if  game_state_report[RobotGameReportItem.STATUS] == Status.DRAW:
-                print('The match ended in DRAW')
+                print("The match ended in DRAW")
             elif game_state_report[RobotGameReportItem.WINNER] == game_state_report[RobotGameReportItem.ROBOT_COLOR]:
-                print('The winner is ROBOT!!!')
+                print("The winner is ROBOT!!!")
             else:
-                print('The winner is HUMAN')
+                print("The winner is HUMAN")
 
-            print(f'''
-=========================================================
-    ''')
+            print(f"=========================================================")
             break
 
         if game_state_report[RobotGameReportItem.TURN_OF] == game_state_report[RobotGameReportItem.ROBOT_COLOR]:
-            print(f'======\n{update_game_state_result}\nAwaiting for robot move\n=========\n')
+            print(f"======\n{update_game_state_result}\nAwaiting for robot move\n=========\n")
             dobot.perform_move(
                 game_state_report[RobotGameReportItem.ROBOT_MOVE],
                 is_crown= game_state_report[RobotGameReportItem.IS_CROWNED]
@@ -92,9 +88,9 @@ def main():
             buffer_clean_cnt = 20
             continue
 
-        print(f'======\n{update_game_state_result}\nAwaiting for opponent move\n=========\n')
+        print(f"======\n{update_game_state_result}\nAwaiting for opponent move\n=========\n")
 
-        if cv.waitKey(30) == ord('q'): #& 0xFF == ord('q'):
+        if cv.waitKey(30) == ord("q"): #& 0xFF == ord("q"):
             break
 
     cv.destroyAllWindows()

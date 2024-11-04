@@ -1,8 +1,8 @@
 from checkers_game_and_decissions.checkers_game import CheckersGame, Color, Status
-from checkers_game_and_decissions.decission_engines.poc_decission_engine import POCDecissionEngine
-from checkers_game_and_decissions.decission_engines.negamax_decission_engine import NegamaxDecissionEngine
-from checkers_game_and_decissions.report_item import RobotGameReportItem
-from enum import Enum
+from checkers_game_and_decissions.decission_engines.negamax_decission_engine import (
+    NegamaxDecissionEngine,
+)
+from enum_entities import RobotGameReportItem, UpdateGameStateResult
 
 
 def rotate_2d_matrix_180_deg(matrix):
@@ -16,49 +16,37 @@ def rotate_2d_matrix_180_deg(matrix):
     return new_matrix
 
 
-class UpdateGameStateResult(Enum):
-    INVALID_ROBOT_MOVE = 1
-    VALID_WRONG_ROBOT_MOVE = 2
-    VALID_RIGHT_ROBOT_MOVE = 3
-    NO_ROBOT_MOVE = 4
-    INVALID_OPPONENT_MOVE = 5
-    VALID_OPPONENT_MOVE = 6
-    NO_OPPONENT_MOVE = 7
-
-
 class PVRobotController:
 
     def __init__(self):
         self.game = CheckersGame()
 
-        print('''
-==== Game Decission Engine Init ====
-        ''')
+        print("==== Game Decission Engine Init ====")
         color_chosen = False
         choice = None
         while not color_chosen:
-            print('''
-Please input the color of the Robot Player: [b]lue/[o]range
-            ''')
+            print("Please input the color of the Robot Player: [b]lue/[o]range")
 
             choice = input()
-            if choice == 'b' or choice == 'o':
+            if choice == "b" or choice == "o":
                 color_chosen = True
 
-        print('''
-====================================
-            ''')
+        print("====================================")
 
-        if choice == 'b':
-            self.human_color = Color.RED
+        if choice == "b":
+            self.human_color = Color.ORANGE
         else:
-            self.human_color = Color.GREEN
+            self.human_color = Color.BLUE
 
-        self.computer_color = Color.GREEN if self.human_color == Color.RED else Color.RED
+        self.computer_color = (
+            Color.BLUE if self.human_color == Color.ORANGE else Color.ORANGE
+        )
         self.robot_move = None
         self.is_crowned = None
 
-        self.decission_engine = NegamaxDecissionEngine(computer_color=self.computer_color, depth_to_use=3)
+        self.decission_engine = NegamaxDecissionEngine(
+            computer_color=self.computer_color, depth_to_use=3
+        )
 
     def report_state(self):
         report = {
@@ -70,7 +58,7 @@ Please input the color of the Robot Player: [b]lue/[o]range
             RobotGameReportItem.TURN_OF: self.game.get_turn_of(),
             RobotGameReportItem.ROBOT_COLOR: self.computer_color,
             RobotGameReportItem.ROBOT_MOVE: self.robot_move,
-            RobotGameReportItem.IS_CROWNED: self.is_crowned
+            RobotGameReportItem.IS_CROWNED: self.is_crowned,
         }
 
         return report
@@ -104,13 +92,14 @@ Please input the color of the Robot Player: [b]lue/[o]range
                     x_tmp, y_tmp = CheckersGame.get_xy_from_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
-                            (self.computer_color == Color.GREEN and self.robot_move[len(self.robot_move) - 1] in [1, 2,
-                                                                                                                  3,
-                                                                                                                  4] and piece_moved == -1)
-                            or (
-                            self.computer_color == Color.RED and self.robot_move[len(self.robot_move) - 1] in [29, 30,
-                                                                                                               31,
-                                                                                                               32] and piece_moved == 1)
+                        self.computer_color == Color.BLUE
+                        and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
+                        and piece_moved == -1
+                    ) or (
+                        self.computer_color == Color.ORANGE
+                        and self.robot_move[len(self.robot_move) - 1]
+                        in [29, 30, 31, 32]
+                        and piece_moved == 1
                     ):
                         self.is_crowned = True
                     else:
@@ -145,7 +134,7 @@ Please input the color of the Robot Player: [b]lue/[o]range
         # 2.5 - if is permitted then perform actions accordingly
         if is_permitted:
             if is_robot_turn:
-                was_right_move = (move_performed == self.robot_move)
+                was_right_move = move_performed == self.robot_move
 
                 if was_right_move:
                     self.game.perform_move(move_performed)
@@ -167,13 +156,14 @@ Please input the color of the Robot Player: [b]lue/[o]range
                     x_tmp, y_tmp = CheckersGame.get_xy_from_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
-                            (self.computer_color == Color.GREEN and self.robot_move[len(self.robot_move) - 1] in [1, 2,
-                                                                                                                  3,
-                                                                                                                  4] and piece_moved == -1)
-                            or (
-                            self.computer_color == Color.RED and self.robot_move[len(self.robot_move) - 1] in [29, 30,
-                                                                                                               31,
-                                                                                                               32] and piece_moved == 1)
+                        self.computer_color == Color.BLUE
+                        and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
+                        and piece_moved == -1
+                    ) or (
+                        self.computer_color == Color.ORANGE
+                        and self.robot_move[len(self.robot_move) - 1]
+                        in [29, 30, 31, 32]
+                        and piece_moved == 1
                     ):
                         self.is_crowned = True
                     else:
