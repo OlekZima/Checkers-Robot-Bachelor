@@ -8,10 +8,7 @@ by Michał Nowicki
 
 ## Usage
 
-There are 2 main usages for this project.
-
-- Play checkers against Dobot Magician V2 using camera for board recognition
-- Start a flask server and play Player vs Player or Player vs Computer online
+Play checkers against Dobot Magician V2 using camera for board recognition
 ---
 ### Play against robot
 
@@ -23,7 +20,7 @@ source robot-checkers-start.sh
 ```
 
 
-==== Normal start ====
+==== start ====
 Requirements:
 - Python 3.10
 - pandas
@@ -35,20 +32,4 @@ Requirements:
 Command (while being in main project directory):
 ```bash
 python main_app.py
-```
-
----
-### Host a flask server
-
-Requirements:
-- Python 3.10
-- flask
-- flask-api
-- flask-wtf
-- wtforms
-- numpy
-
-Command (while being in main project directory):
-```
-python run_web_app.py
 ```
