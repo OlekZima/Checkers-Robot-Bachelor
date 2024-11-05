@@ -1,22 +1,27 @@
 import os
+from os.path import exists
+
 from serial.tools import list_ports
 from pydobotplus import Dobot
 import numpy as np
 import cv2
 
-# from checkers_game_and_decissions.Utilities import (
-#     get_coord_from_field_id,
-#     linear_interpolate,
-#     flush_input,
-# )
+from checkers_game_and_decissions.Utilities import (
+    get_coord_from_field_id,
+    linear_interpolate,
+    flush_input,
+)
 
 
 class Calibrator:
 
-    def __init__(self, default: np.ndarray = None) -> None:
+    def __init__(self) -> None:
         # Connecting to DOBOT
+        self.base_positions = None
         available_ports = list_ports.comports()
         self.device = self._connect_to_dobot(available_ports)
+
+        self.configs_path = "robot_manipulation/configuration_files"
 
         # Corner calibration
         # Board field numerating convention:
@@ -42,10 +47,8 @@ class Calibrator:
             [90, -140, 0],  # home position
         ]
 
-        self.default = default
-
-        selected_method = self.calibrate()
-        self._calibrate(selected_method)
+        self.calibrate()
+        print("\nCalibration done\n")
 
     @staticmethod
     def _connect_to_dobot(available_ports):
@@ -57,17 +60,23 @@ class Calibrator:
         port = available_ports[port_idx].device
         return Dobot(port=port)
 
-    def calibrate(self) -> str:
+    def calibrate(self, use_base_config: bool = False) -> None:
         is_correct_input = False
+        input_method = ""
         print("Select calibration method (all/corners):")
         while not is_correct_input:
             input_method = input().strip().lower()
-            if input_method not in ["all", "cornerns"]:
+            if input_method not in ["all", "corners"]:
                 print(
                     f"`{input_method}` is not recognized. Select correct calibration method (all/corners):"
                 )
             else:
-                return input_method
+                is_correct_input = True
+
+        if use_base_config:
+            self.base_positions = self._get_file_config()
+
+        self._calibrate(input_method)
 
     def _calibrate(self, method: str) -> None:
         if method == "all":
@@ -76,102 +85,99 @@ class Calibrator:
             self._calibrate_corners()
 
     def _calibrate_all_fields(self, height: float = 10) -> None:
-        self.fields_positions = np.zeros((42, 3), dtype=float)
         for i in range(0, 32, 1):
-            if self.fields_positions is not None:
+            if self.base_positions is not None:
                 self.move_arm(
-                    self.default[i][0],
-                    self.default[i][1],
-                    self.default[i][2] + height,
+                    self.base_positions[i][0],
+                    self.base_positions[i][1],
+                    self.base_positions[i][2] + height,
                     True,
                 )
             self.move_arm(
-                self.default[i][0], self.default[i][1], self.default[i][2], True
+                self.base_positions[i][0], self.base_positions[i][1], self.base_positions[i][2], True
             )
 
             print("\nSet to position of id " + str(i + 1))
             self.keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
-            self.fields_positions[i][0] = x
-            self.fields_positions[i][1] = y
-            self.fields_positions[i][2] = z
+            self.base_positions[i][0] = x
+            self.base_positions[i][1] = y
+            self.base_positions[i][2] = z
             self.move_arm(x, y, z + height, True)
 
         for i in range(32, 36, 1):
             self.keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
-            self.fields_positions[i][0] = x
-            self.fields_positions[i][1] = y
-            self.fields_positions[i][2] = z
+            self.base_positions[i][0] = x
+            self.base_positions[i][1] = y
+            self.base_positions[i][2] = z
             self.move_arm(x, y, z + height, True)
 
             print("\nSet to side pocket (left) of id " + str(i - 31))
             self.keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
-            self.fields_positions[i][0] = x
-            self.fields_positions[i][1] = y
-            self.fields_positions[i][2] = z
+            self.base_positions[i][0] = x
+            self.base_positions[i][1] = y
+            self.base_positions[i][2] = z
             self.move_arm(x, y, z + height, True)
 
         for i in range(36, 40, 1):
-            if self.default is not None:
+            if self.base_positions is not None:
                 self.move_arm(
-                    self.default[i][0],
-                    self.default[i][1],
-                    self.default[i][2] + height,
+                    self.base_positions[i][0],
+                    self.base_positions[i][1],
+                    self.base_positions[i][2] + height,
                     True,
                 )
             self.move_arm(
-                self.default[i][0], self.default[i][1], self.default[i][2], True
+                self.base_positions[i][0], self.base_positions[i][1], self.base_positions[i][2], True
             )
 
             print("\nSet to side pocket (right) of id " + str(i - 35))
             self.keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
-            self.fields_positions[40][0] = x
-            self.fields_positions[40][1] = y
-            self.fields_positions[40][2] = z
+            self.base_positions[40][0] = x
+            self.base_positions[40][1] = y
+            self.base_positions[40][2] = z
             self.move_arm(x, y, z + height, True)
 
-        if self.default is not None:
+        if self.base_positions is not None:
             self.move_arm(
-                self.default[40][0],
-                self.default[40][1],
-                self.default[40][2] + height,
+                self.base_positions[40][0],
+                self.base_positions[40][1],
+                self.base_positions[40][2] + height,
                 True,
             )
         self.move_arm(
-            self.default[40][0], self.default[40][1], self.default[40][2], True
+            self.base_positions[40][0], self.base_positions[40][1], self.base_positions[40][2], True
         )
 
         print("\nSet to dispose area")
         self.keyboard_move_dobot()
         x, y, z, _ = self.device.get_pose().position
-        self.fields_positions[40][0] = x
-        self.fields_positions[40][1] = y
-        self.fields_positions[40][2] = z
+        self.base_positions[40][0] = x
+        self.base_positions[40][1] = y
+        self.base_positions[40][2] = z
         self.move_arm(x, y, z + height, True)
 
-        if self.default is not None:
+        if self.base_positions is not None:
             self.move_arm(
-                self.default[41][0],
-                self.default[41][1],
-                self.default[41][2] + height,
+                self.base_positions[41][0],
+                self.base_positions[41][1],
+                self.base_positions[41][2] + height,
                 True,
             )
             self.move_arm(
-                self.default[41][0], self.default[41][1], self.default[41][2], True
+                self.base_positions[41][0], self.base_positions[41][1], self.base_positions[41][2], True
             )
 
         print("\nSet to home position")
         self.keyboard_move_dobot()
         x, y, z, _ = self.device.get_pose().position
-        self.fields_positions[41][0] = x
-        self.fields_positions[41][1] = y
-        self.fields_positions[41][2] = z
+        self.base_positions[41][0] = x
+        self.base_positions[41][1] = y
+        self.base_positions[41][2] = z
         self.move_arm(x, y, z + height, True)
-
-        print("\nCalibration done\n")
 
     def keyboard_move_dobot(self, increment=1.0):
         x, y, z, _ = self.device.get_pose().position
@@ -212,6 +218,43 @@ class Calibrator:
             self.device.move_to(x, y, z, wait=wait)
         except Exception as e:
             print(e)
+
+    def _calibrate_corners(self):
+        pass
+
+    def _get_file_config(self):
+        if not exists(self.configs_path):
+            print("Configuration files are not found. Creating new folder.")
+            os.mkdir(self.configs_path)
+
+        configs = os.listdir(self.configs_path)
+        print("\nPlease select file's id\n")
+        for id, config in enumerate(configs):
+            print(f"[{id}]: {config}")
+
+        is_correct_input = False
+        base_config_name = ""
+        while not is_correct_input:
+            user_input = int(input("> "))
+            if user_input not in range(0, len(configs)):
+                print("Please select a correct configuration file.")
+            else:
+                base_config_name = configs[user_input]
+                is_correct_input = True
+
+        base_config_path = self.configs_path + "/" + base_config_name
+        config: np.ndarray = np.zeros((42, 3), dtype=float)
+        with open(base_config_path, "r") as config_file:
+            file_lines = config_file.readlines()
+            if len(file_lines) < 42:
+                raise ValueError(
+                    "Configuration file must containt 42 lines.\nPlease select a correct configuration file.")
+
+            for i in range(0, 42):
+                positions: list[str] = file_lines[i].split(";")
+                config[i] = positions
+
+            self.base_config = config
 
 
 if __name__ == "__main__":
