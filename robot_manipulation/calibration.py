@@ -22,7 +22,7 @@ class Calibrator:
         self.device = self._connect_to_dobot(available_ports)
 
         self.configs_path = "robot_manipulation/configuration_files"
-
+        self.offset_height: float = 10.0
         # Corner calibration
         # Board field numerating convention:
         #  upper_left = [0][0]
@@ -51,11 +51,12 @@ class Calibrator:
         print("\nCalibration done\n")
 
     @staticmethod
-    def _connect_to_dobot(available_ports):
+    def _connect_to_dobot(available_ports) -> Dobot:
         print("\nPlease select port by index")
         for i, p in enumerate(available_ports):
             print(f"[{i}]: {p}")
 
+        flush_input()
         port_idx = int(input())
         port = available_ports[port_idx].device
         return Dobot(port=port)
@@ -84,13 +85,13 @@ class Calibrator:
         else:
             self._calibrate_corners()
 
-    def _calibrate_all_fields(self, height: float = 10) -> None:
+    def _calibrate_all_fields(self) -> None:
         for i in range(0, 32, 1):
             if self.base_positions is not None:
                 self.move_arm(
                     self.base_positions[i][0],
                     self.base_positions[i][1],
-                    self.base_positions[i][2] + height,
+                    self.base_positions[i][2] + self.offset_height,
                     True,
                 )
             self.move_arm(
@@ -103,7 +104,7 @@ class Calibrator:
             self.base_positions[i][0] = x
             self.base_positions[i][1] = y
             self.base_positions[i][2] = z
-            self.move_arm(x, y, z + height, True)
+            self.move_arm(x, y, z + self.offset_height, True)
 
         for i in range(32, 36, 1):
             self.keyboard_move_dobot()
@@ -111,7 +112,7 @@ class Calibrator:
             self.base_positions[i][0] = x
             self.base_positions[i][1] = y
             self.base_positions[i][2] = z
-            self.move_arm(x, y, z + height, True)
+            self.move_arm(x, y, z + self.offset_height, True)
 
             print("\nSet to side pocket (left) of id " + str(i - 31))
             self.keyboard_move_dobot()
@@ -119,14 +120,14 @@ class Calibrator:
             self.base_positions[i][0] = x
             self.base_positions[i][1] = y
             self.base_positions[i][2] = z
-            self.move_arm(x, y, z + height, True)
+            self.move_arm(x, y, z + self.offset_height, True)
 
         for i in range(36, 40, 1):
             if self.base_positions is not None:
                 self.move_arm(
                     self.base_positions[i][0],
                     self.base_positions[i][1],
-                    self.base_positions[i][2] + height,
+                    self.base_positions[i][2] + self.offset_height,
                     True,
                 )
             self.move_arm(
@@ -139,13 +140,13 @@ class Calibrator:
             self.base_positions[40][0] = x
             self.base_positions[40][1] = y
             self.base_positions[40][2] = z
-            self.move_arm(x, y, z + height, True)
+            self.move_arm(x, y, z + self.offset_height, True)
 
         if self.base_positions is not None:
             self.move_arm(
                 self.base_positions[40][0],
                 self.base_positions[40][1],
-                self.base_positions[40][2] + height,
+                self.base_positions[40][2] + self.offset_height,
                 True,
             )
         self.move_arm(
@@ -158,13 +159,13 @@ class Calibrator:
         self.base_positions[40][0] = x
         self.base_positions[40][1] = y
         self.base_positions[40][2] = z
-        self.move_arm(x, y, z + height, True)
+        self.move_arm(x, y, z + self.offset_height, True)
 
         if self.base_positions is not None:
             self.move_arm(
                 self.base_positions[41][0],
                 self.base_positions[41][1],
-                self.base_positions[41][2] + height,
+                self.base_positions[41][2] + self.offset_height,
                 True,
             )
             self.move_arm(
@@ -177,9 +178,9 @@ class Calibrator:
         self.base_positions[41][0] = x
         self.base_positions[41][1] = y
         self.base_positions[41][2] = z
-        self.move_arm(x, y, z + height, True)
+        self.move_arm(x, y, z + self.offset_height, True)
 
-    def keyboard_move_dobot(self, increment=1.0):
+    def keyboard_move_dobot(self, increment=1.0) -> None:
         x, y, z, _ = self.device.get_pose().position
 
         instruction_frame = np.zeros(
@@ -213,16 +214,117 @@ class Calibrator:
 
         cv2.destroyAllWindows()
 
-    def move_arm(self, x, y, z, wait=True):
+    def move_arm(self, x, y, z, wait=True) -> None:
         try:
             self.device.move_to(x, y, z, wait=wait)
         except Exception as e:
             print(e)
 
-    def _calibrate_corners(self):
-        pass
+    def _calibrate_corners(self) -> None:
+        def calibrate_point(
+                index: int, storage_array: np.ndarray, storage_indices: list, message: str
+        ):
+            print(message)
+            default_pos = self.default_calibration_positions[index]
+            # Move to default position plus height
+            self.move_arm(
+                default_pos[0], default_pos[1], default_pos[2] + self.offset_height, wait=True
+            )
+            # Move to default position
+            self.move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
+            # Allow user to fine-tune the position
+            self.keyboard_move_dobot()
+            # Get current position
+            x, y, z, _ = self.device.get_pose().position
+            # Store the position
+            storage = storage_array
+            if storage_indices:
+                for idx in storage_indices[:-1]:
+                    storage = storage[idx]
+                storage_idx = storage_indices[-1]
+                storage[storage_idx][:] = [x, y, z]
+            else:
+                storage[:] = [x, y, z]
+            print(f"x = {x}\ty = {y}\tz = {z}")
+            # Move the arm back up
+            self.move_arm(x, y, z + + self.offset_height, wait=True)
 
-    def _get_file_config(self):
+        calibration_points = [
+            (0, self.board, [0, 0], "upper left board corner"),
+            (1, self.board, [7, 0], "upper right board corner"),
+            (2, self.board, [0, 7], "bottom left board corner"),
+            (3, self.board, [7, 7], "bottom right board corner"),
+            (4, self.side_pockets, [0, 0], "upper left side pocket"),
+            (5, self.side_pockets, [0, 3], "bottom left side pocket"),
+            (6, self.side_pockets, [1, 0], "upper right side pocket"),
+            (7, self.side_pockets, [1, 3], "bottom right side pocket"),
+            (8, self.dispose_area, [], "dispose area"),
+            (9, self.home_pos, [], "default/home position"),
+        ]
+
+        for idx, storage, indices, description in calibration_points:
+            message = f"Please place the DOBOT on {description} (from its perspective)"
+            calibrate_point(idx, storage, indices, message)
+
+        # Calculating all fields
+
+        self.interpolate_board_fields()  # Interpolating board fields
+        self.interpolate_side_pockets()  # Interpolating side pockets
+
+    def interpolate_board_fields(self) -> None:
+        # 1) Interpolating border fields coordinates
+        for i in range(1, 7):
+            t = i / 7.0
+            for k in range(3):
+                # 1.1) Left column (x = 0)
+                self.board[0][i][k] = linear_interpolate(
+                    self.board[0][0][k], self.board[0][7][k], t
+                )
+                # 1.2) Right column (x = 7)
+                self.board[7][i][k] = linear_interpolate(
+                    self.board[7][0][k], self.board[7][7][k], t
+                )
+                # 1.3 Upper row (y = 0)
+                self.board[i][0][k] = linear_interpolate(
+                    self.board[0][0][k], self.board[7][0][k], t
+                )
+                # Bottom row (y = 7)
+                self.board[i][7][k] = linear_interpolate(
+                    self.board[0][7][k], self.board[7][7][k], t
+                )
+
+        # 2) Interpolating inner points
+        for x in range(1, 7):
+            t_x = x / 7.0
+            for y in range(1, 7):
+                t_y = y / 7.0
+                for z in range(3):
+                    self.board[x][y][z] = (
+                                                  linear_interpolate(
+                                                      self.board[0][y][z], self.board[7][y][z], t_x
+                                                  )
+                                                  + linear_interpolate(
+                                              self.board[x][0][z], self.board[x][7][z], t_y
+                                          )
+                                          ) / 2.0
+
+    def interpolate_side_pockets(self) -> None:
+        for k in range(3):
+            self.side_pockets[0][1][k] = (
+                                                 self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
+                                         ) / 3.0
+            self.side_pockets[1][1][k] = (
+                                                 self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
+                                         ) / 3.0
+
+            self.side_pockets[0][2][k] = (
+                                                 self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
+                                         ) / 3.0
+            self.side_pockets[1][2][k] = (
+                                                 self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
+                                         ) / 3.0
+
+    def _get_file_config(self) -> None:
         if not exists(self.configs_path):
             print("Configuration files are not found. Creating new folder.")
             os.mkdir(self.configs_path)
@@ -235,6 +337,7 @@ class Calibrator:
         is_correct_input = False
         base_config_name = ""
         while not is_correct_input:
+            flush_input()
             user_input = int(input("> "))
             if user_input not in range(0, len(configs)):
                 print("Please select a correct configuration file.")
