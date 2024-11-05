@@ -15,13 +15,13 @@ Kontakt w pilnych sytuacjach:
 2. Podłączyć robota do prądu
 3. Podłączyć robota oraz kamerkę do laptopu
 4. Uruchomić robotą klikając na odpowiedni przycisk (patrz zdjęcie poniżej)
-![Przycysk do uruchomienia robota](Instructions/img/1.jpg)
+![Przycysk do uruchomienia robota](img/1.jpg)
 5. 
    1. W przypadku gdy dioda świeci się na czerwono należy ręcznie przemieścić ramię. Możliwe to tylko podczas **ciągłego** przytrzymania przycisku na samym ramieniu (patrz zdjęcie poniżej)
-   ![Przycysk do zmiany położenia ramienia](Instructions/img/3.jpg)
+   ![Przycysk do zmiany położenia ramienia](img/3.jpg)
    2. Ramie też można przemieszczać w taki sam sposób, gdy jest to niezbędne (np. ustawić pozycję początkową, ustawić w pozycję dla kalibracji)
 6. Ustawić ramię na środku planszy, przycisnąć (patrz krok ***5.2*** oraz zdjęcie poniżej)
-![Środek planszy](Instructions/img/5.jpg)
+![Środek planszy](img/5.jpg)
 Jeżeli po uruchomieniu rozgrywki ramię ogchyla się zbyt mocno w przeciwną stronę od planszy lub "nie łapie" pionków czy też nie "trafia" w środek pół -- proces uruchomienia należy zacząć od nowa i zmienić początkowe położenie ramienia przed uruchomieniem skryptu.
 1. Uruchomić terminal i przejść do katalogu projektowego na pulpicie
     
@@ -34,7 +34,7 @@ Jeżeli po uruchomieniu rozgrywki ramię ogchyla się zbyt mocno w przeciwną st
 3.  Przejść przez menu uruchomenia rozgrywki, w trakcie którego należy wybrać kolor dla robotu, plik konfiguracyjny z położeniami pół, port na którym robot jest podłączony (zazwyczaj jest to jedyna dostępna w menu opcja) oraz port z kamerką (Jeżeli się wybierze złą kamerkę tzn. laptopową, a nie zewnętrzną; należy zatrzymać wykonywanie programu `Ctrl + C` i zacząć od nowa). Aktualnie najlepszą konfiguracją jest config o nazwie `no_use_me_i_am_the_best`. 
 
     W przypadku, gdy robot gra kolorem pomarańczowym, to rozkład pionków musi wyglądać następująco (patrz zdjęcie poniżej).
-    ![Rozpołożenie pionków, gdy robot dla kolorem pomarańczowym](Instructions/img/4.jpg)
+    ![Rozpołożenie pionków, gdy robot dla kolorem pomarańczowym](img/4.jpg)
 
     W sytuacji, gdy chcemy zmienić kolor dla ramienia, to należy zamienić ze sobą pionki na podstawie kolorów.
 
@@ -69,7 +69,7 @@ Jeżeli po uruchomieniu rozgrywki ramię ogchyla się zbyt mocno w przeciwną st
 Czasem jest potrzebne przeprowadzenie kalibracji położeń pól dla robota. W takim przypadku należy:
 
 1. Ustawić ramię na środku całej planszy (patrz zdjęcie poniżej)
-![Środek planszy](Instructions/img/5.jpg)
+![Środek planszy](img/5.jpg)
 2. Uruchomić skrypt za pomocą komendy:
     
     * Jeżeli środowisko nie jest aktywowane
