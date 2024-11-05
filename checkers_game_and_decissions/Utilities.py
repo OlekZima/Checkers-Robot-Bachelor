@@ -1,6 +1,6 @@
 import sys
 import termios
-from checkers_game_and_decissions.checkers_game import Color
+from checkers_game_and_decissions.enum_entities import Color
 
 
 def get_coord_from_field_id(field_id: int, color: Color = None) -> tuple[int, int]:
