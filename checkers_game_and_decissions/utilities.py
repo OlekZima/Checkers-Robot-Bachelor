@@ -32,6 +32,5 @@ def linear_interpolate(a: float, b: float, t: float) -> float:
     return a + t * (b - a)
 
 
-
 def flush_input():
-    termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    termios.tcflush(sys.stdin, termios.TCIOFLUSH)
