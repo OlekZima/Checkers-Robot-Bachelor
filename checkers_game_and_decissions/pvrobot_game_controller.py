@@ -1,6 +1,6 @@
 from checkers_game_and_decissions.checkers_game import CheckersGame, Color, Status
 from checkers_game_and_decissions.negamax_decission_engine import (
-    NegamaxDecissionEngine,
+    NegamaxDecisionEngine,
 )
 from checkers_game_and_decissions.enum_entities import RobotGameReportItem, UpdateGameStateResult
 from checkers_game_and_decissions.utilities import get_coord_from_field_id
@@ -44,7 +44,7 @@ class PVRobotController:
         self.robot_move = None
         self.is_crowned = None
 
-        self.decission_engine = NegamaxDecissionEngine(
+        self.decision_engine = NegamaxDecisionEngine(
             computer_color=self.computer_color, depth_to_use=3
         )
 
@@ -88,7 +88,7 @@ class PVRobotController:
         if is_same_state:
             if is_robot_turn:
                 if self.robot_move is None or self.is_crowned is None:
-                    self.robot_move = self.decission_engine.decide_move(self.game)
+                    self.robot_move = self.decision_engine.decide_move(self.game)
                     x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
@@ -152,7 +152,7 @@ class PVRobotController:
                 self.game.perform_move(move_performed)
 
                 if self.game.get_status() == Status.IN_PROGRESS:
-                    self.robot_move = self.decission_engine.decide_move(self.game)
+                    self.robot_move = self.decision_engine.decide_move(self.game)
                     x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (

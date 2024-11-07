@@ -10,10 +10,6 @@ import cv2 as cv
 
 
 def main():
-
-
-
-
     game = PVRobotController()
 
     print("Do you want to calibrate dobot (Y/N)?")

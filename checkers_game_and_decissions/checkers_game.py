@@ -12,9 +12,9 @@ from checkers_game_and_decissions.utilities import *
 #   -> get previously described values
 #   -> check if game is won/draw at current point
 #   -> return all movements possible
-#   -> perform a specific movement by player, whoose turn it is
-# Theese methods can be based on class methods which take game state as a parameter - as we may need it later
-# for decission making algorithm
+#   -> perform a specific movement by player, whose turn it is
+# These methods can be based on class methods which take game state as a parameter - as we may need it later
+# for decision making algorithm
 class CheckersGame:
 
     def __init__(self):
@@ -175,7 +175,7 @@ class CheckersGame:
                 or (x_curr + 2 == x and y_curr + 2 == y)
             )
         ):
-            jump = [  # table which itemst represents begginig of all subsequences
+            jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
                 ((-1) * get_field_id_from_coord(x_curr + 1, y_curr + 1)),
                 get_field_id_from_coord(x_curr + 2, y_curr + 2),
@@ -208,7 +208,7 @@ class CheckersGame:
                 or (x_curr - 2 == x and y_curr + 2 == y)
             )
         ):
-            jump = [  # table which itemst represents begginig of all subsequences
+            jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
                 ((-1) * get_field_id_from_coord(x_curr - 1, y_curr + 1)),
                 get_field_id_from_coord(x_curr - 2, y_curr + 2),
@@ -241,7 +241,7 @@ class CheckersGame:
                 or (x_curr - 2 == x and y_curr - 2 == y)
             )
         ):
-            jump = [  # table which itemst represents begginig of all subsequences
+            jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
                 ((-1) * get_field_id_from_coord(x_curr - 1, y_curr - 1)),
                 get_field_id_from_coord(x_curr - 2, y_curr - 2),
@@ -274,7 +274,7 @@ class CheckersGame:
                 or (x_curr + 2 == x and y_curr - 2 == y)
             )
         ):
-            jump = [  # table which itemst represents begginig of all subsequences
+            jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
                 ((-1) * get_field_id_from_coord(x_curr + 1, y_curr - 1)),
                 get_field_id_from_coord(x_curr + 2, y_curr - 2),
@@ -311,7 +311,7 @@ class CheckersGame:
         if val_of_id != 2 and val_of_id != -2:
             return None  # this field doesn't contain a man piece of either player
 
-        x, y = get_coord_from_field_id(id)  # indicate the beggining of jumping sequence
+        x, y = get_coord_from_field_id(id)  # indicate the beginning of jumping sequence
 
         if len(prev_seq) == 0:
             x_curr = x
@@ -350,7 +350,7 @@ class CheckersGame:
                     )
                 ):
                     jump = (
-                        [  # table which itemst represents begginig of all subsequences
+                        [  # table which items represents begging of all subsequences
                             get_field_id_from_coord(x_curr, y_curr),
                             ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp + 1)),
                             get_field_id_from_coord(x_after_jump, y_after_jump),
@@ -367,7 +367,7 @@ class CheckersGame:
                         poss_jumps.append(jump)
                     else:
                         for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same oppontent pieces)
+                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
                             # If we want to remain jumping same dir -> the convention is that we land just before next piece
                             x_next_jumped, y_next_jumped = get_coord_from_field_id(
                                 -i[1]
@@ -423,7 +423,7 @@ class CheckersGame:
                     )
                 ):
                     jump = (
-                        [  # table which itemst represents begginig of all subsequences
+                        [  # table which items represents begging of all subsequences
                             get_field_id_from_coord(x_curr, y_curr),
                             ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp + 1)),
                             get_field_id_from_coord(x_after_jump, y_after_jump),
@@ -440,7 +440,7 @@ class CheckersGame:
                         poss_jumps.append(jump)
                     else:
                         for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same oppontent pieces)
+                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
                             # If we want to remain jumping same dir -> the convention is that we land just before next piece
                             x_next_jumped, y_next_jumped = get_coord_from_field_id(
                                 -i[1]
@@ -496,7 +496,7 @@ class CheckersGame:
                     )
                 ):
                     jump = (
-                        [  # table which itemst represents begginig of all subsequences
+                        [  # table which items represents begging of all subsequences
                             get_field_id_from_coord(x_curr, y_curr),
                             ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp - 1)),
                             get_field_id_from_coord(x_after_jump, y_after_jump),
@@ -513,7 +513,7 @@ class CheckersGame:
                         poss_jumps.append(jump)
                     else:
                         for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same oppontent pieces)
+                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
                             # If we want to remain jumping same dir -> the convention is that we land just before next piece
                             x_next_jumped, y_next_jumped = get_coord_from_field_id(
                                 -i[1]
@@ -569,7 +569,7 @@ class CheckersGame:
                     )
                 ):
                     jump = (
-                        [  # table which itemst represents begginig of all subsequences
+                        [  # table which items represents begging of all subsequences
                             get_field_id_from_coord(x_curr, y_curr),
                             ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp - 1)),
                             get_field_id_from_coord(x_after_jump, y_after_jump),
@@ -586,7 +586,7 @@ class CheckersGame:
                         poss_jumps.append(jump)
                     else:
                         for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same oppontent pieces)
+                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
                             # If we want to remain jumping same dir -> the convention is that we land just before next piece
                             x_next_jumped, y_next_jumped = get_coord_from_field_id(
                                 -i[1]
@@ -624,7 +624,7 @@ class CheckersGame:
     def get_color_poss_opts(cls, color, game_state):
         poss_opts = []
 
-        # gather all options disregarding their lenght or move/jump diff
+        # gather all options disregarding their length or move/jump diff
         for x, _ in enumerate(game_state):  # iterate all fields for pieces
             for y, _ in enumerate(game_state[x]):
                 id = get_field_id_from_coord(x, y)

@@ -72,8 +72,8 @@ def get_avg_color(img):
 
 
 class Color(Enum):
-    RED = 1
-    GREEN = 2
+    ORANGE = 1
+    BLUE = 2
 
 
 class Checkers:
@@ -121,12 +121,12 @@ class Checkers:
         ]
         bgr_sample_value = get_avg_color(test_sample)
         if distance_from_color(bgr_sample_value, bgr_red) <= color_dist_thresh:
-            return Color.RED
+            return Color.ORANGE
         if distance_from_color(bgr_sample_value, bgr_green) <= color_dist_thresh:
-            return Color.GREEN
+            return Color.BLUE
         return None
 
-    def __init__(self, pos=[0, 0], color=Color.GREEN):
+    def __init__(self, pos=[0, 0], color=Color.BLUE):
         self.pos = pos
         self.color = color
 
@@ -142,7 +142,7 @@ class Checkers:
         red_dist = red_dist_1 if red_dist_1 <= red_dist_2 else red_dist_2
 
         if green_dist <= red_dist:
-            self.color = Color.GREEN
+            self.color = Color.BLUE
         else:
-            self.color = Color.RED
+            self.color = Color.ORANGE
         # print(f'My hue is {hue_val}\nMy {green_dist = }\nMy {red_dist = }\nMy color is {self.color.name}')

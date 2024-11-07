@@ -6,9 +6,9 @@ import numpy as np
 import time
 
 
-class NegamaxDecissionEngine:
+class NegamaxDecisionEngine:
 
-    ASSESMENT_VALUE_MAX_AMPLITUDE = 24
+    ASSESSMENT_VALUE_MAX_AMPLITUDE = 24
 
     def __init__(self, computer_color=Color.ORANGE, depth_to_use=10):
         self.computer_color = computer_color
@@ -16,7 +16,7 @@ class NegamaxDecissionEngine:
 
     def decide_move(self, game=CheckersGame()):
         if game.get_turn_of() is None or game.get_turn_of() != self.computer_color:
-            raise Exception("Decission engine criteria not met")
+            raise Exception("Decision engine criteria not met")
 
         if len(game.turn_player_opts) == 1:
             move_chosen = game.get_possible_opts()[0]
@@ -34,8 +34,8 @@ class NegamaxDecissionEngine:
             game.get_game_state(),
             game.get_draw_criteria_log(),
             self.depth_to_use,
-            -NegamaxDecissionEngine.ASSESMENT_VALUE_MAX_AMPLITUDE,
-            NegamaxDecissionEngine.ASSESMENT_VALUE_MAX_AMPLITUDE,
+            -NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE,
+            NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE,
             1,
         )
 
@@ -78,14 +78,14 @@ Finished in {time_elapsed} s
         )
 
         if len(possible_next_moves) == 0:
-            return None, -NegamaxDecissionEngine.ASSESMENT_VALUE_MAX_AMPLITUDE, 0
+            return None, -NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE, 0
 
         # Check for depth criteria
         if depth_to_use < 1:
             return None, turn_of * self.assign_value(game_state), 0
 
-        # Child node assesment
-        value = -NegamaxDecissionEngine.ASSESMENT_VALUE_MAX_AMPLITUDE
+        # Child node assessment
+        value = -NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE
         move_chosen = None
         max_depth = 1
         for move in possible_next_moves:
@@ -121,10 +121,10 @@ Finished in {time_elapsed} s
 
         return move_chosen, value, max_depth
 
-    # The simplest version of alghorithm assigning values:
+    # The simplest version of algorithm assigning values:
     #   number of your pieces (kings counts as two)
     #   minus number of opponent pieces (kings counts as two)
-    # values in range <-ASSESMENT_VALUE_MAX_AMPLITUDE, ASSESMENT_VALUE_MAX_AMPLITUDE>
+    # values in range <-ASSESSMENT_VALUE_MAX_AMPLITUDE, ASSESSMENT_VALUE_MAX_AMPLITUDE>
     def assign_value(self, game_state):
 
         if self.computer_color == Color.ORANGE:

@@ -104,7 +104,7 @@ class Game:
         ]
 
         for c in checkers:
-            if c.color == Color.RED:
+            if c.color == Color.ORANGE:
                 game_state[c.pos[0]][c.pos[1]] = 1
             else:
                 game_state[c.pos[0]][c.pos[1]] = -1

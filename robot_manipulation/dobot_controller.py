@@ -1,12 +1,12 @@
-from serial.tools import list_ports
-from pydobotplus import Dobot
-import numpy as np
-import cv2 as cv
-
 import os
 
 from checkers_game_and_decissions.checkers_game import Color
 from checkers_game_and_decissions.utilities import get_coord_from_field_id, linear_interpolate
+
+import cv2 as cv
+import numpy as np
+from pydobotplus import Dobot
+from serial.tools import list_ports
 
 
 class DobotController:

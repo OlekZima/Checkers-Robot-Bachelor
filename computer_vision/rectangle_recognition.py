@@ -84,7 +84,7 @@ def get_contours(src, min_area=150, area_margin=20, approx_peri_fraction=0.03, p
     keep_cnt = np.zeros(contours_rects_only.shape, dtype=bool)
     for i, cnt in enumerate(contours_rects_only):
         area = cv.contourArea(cnt)
-        if ((area >= area_min) and (area <= area_max)):
+        if (area >= area_min) and (area <= area_max):
             keep_cnt[i] = True
 
     # contours_area_filtered = contours_rects_only[keep_cnt]
