@@ -6,7 +6,7 @@ from pydobotplus import Dobot
 import numpy as np
 import cv2
 
-from checkers_game_and_decissions.utilities import flush_input, linear_interpolate, get_coord_from_field_id
+from checkers_game_and_decissions.utilities import linear_interpolate, get_coord_from_field_id
 
 
 class Calibrator:
@@ -194,7 +194,7 @@ class Calibrator:
         ]
 
         def calibrate_point(
-            index: int, storage_array: np.ndarray, storage_indices: list, message: str
+                index: int, storage_array: np.ndarray, storage_indices: list, message: str
         ):
             print(message)
             default_pos = self.default_calibration_positions[index]
@@ -205,13 +205,10 @@ class Calibrator:
                 default_pos[2] + self.offset_height,
                 wait=True,
             )
-            # Move to default position
             self.move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
-            # Allow user to fine-tune the position
             self.keyboard_move_dobot()
-            # Get current position
             x, y, z, _ = self.device.get_pose().position
-            # Store the position
+
             storage = storage_array
             if storage_indices:
                 for idx in storage_indices[:-1]:
@@ -241,10 +238,8 @@ class Calibrator:
             message = f"Please place the DOBOT on {description} (from its perspective)"
             calibrate_point(idx, storage, indices, message)
 
-        # Calculating all fields
-
-        self.interpolate_board_fields()  # Interpolating board fields
-        self.interpolate_side_pockets()  # Interpolating side pockets
+        self.interpolate_board_fields()
+        self.interpolate_side_pockets()
 
     def keyboard_move_dobot(self, increment=1.0) -> None:
         x, y, z, _ = self.device.get_pose().position
