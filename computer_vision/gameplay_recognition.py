@@ -1,77 +1,9 @@
-import cv2 as cv
+import cv2
 import numpy as np
-import math
 
 from computer_vision.game_board_recognition import Board
 from computer_vision.checkers_recognition import Checkers, Color
-
-
-def list_ports():
-    # Test the ports and returns a tuple with the available ports and the ones that are working.
-
-    is_working = True
-    dev_port = 0
-    working_ports = []
-    available_ports = []
-    while dev_port < 10:  #is_working:
-        camera = cv.VideoCapture(dev_port)
-        if not camera.isOpened():
-            # is_working = False
-            print("Port %s is not working." % dev_port)
-            dev_port += 1
-        else:
-            is_reading, img = camera.read()
-            w = camera.get(3)
-            h = camera.get(4)
-            if is_reading:
-                print("Port %s is working and reads images (%s x %s)" % (dev_port, h, w))
-                working_ports.append(dev_port)
-            else:
-                print("Port %s for camera ( %s x %s) is present but does not reads." % (dev_port, h, w))
-                available_ports.append(dev_port)
-            dev_port += 1
-    return available_ports, working_ports
-
-
-def empt_fun(a):
-    pass
-
-
-def get_pts_dist(pt1=[0, 0], pt2=[0, 0]):
-    dx = pt1[0] - pt2[0]
-    dy = pt1[1] - pt2[1]
-
-    dx = float(dx * dx)
-    dy = float(dy * dy)
-
-    return math.sqrt(dx + dy)
-
-
-def get_avg_pos(pts=[[0, 0], [0, 0]]):
-    x_avg, y_avg = 0, 0
-
-    for pt in pts:
-        x_avg += pt[0]
-        y_avg += pt[1]
-
-    x_avg = int(float(x_avg) / float(len(pts)))
-    y_avg = int(float(y_avg) / float(len(pts)))
-
-    return [x_avg, y_avg]
-
-
-def get_board_mask(pts, img_shape, margin=10):
-    center = get_avg_pos(pts)
-
-    for pt in pts:
-        dst = get_pts_dist(pt, center)
-        pt[0] = center[0] + int(float(pt[0] - center[0]) / dst * (dst + margin))
-        pt[1] = center[1] + int(float(pt[1] - center[1]) / dst * (dst + margin))
-
-    pts = np.array(pts)
-    mask = np.zeros(img_shape[:2], dtype="uint8")
-    cv.fillConvexPoly(mask, pts, 1)
-    return mask
+from checkers_game_and_decissions.utilities import list_ports, empt_fun
 
 
 def rotate_square_2D_matrix_right(matrix):
@@ -136,29 +68,29 @@ class Game:
 
             port_idx = int(input())
 
-            port = working_ports[port_idx]  #[0]
-            #port = port_idx
+            port = working_ports[port_idx]  # [0]
+            # port = port_idx
 
-            self.cap = cv.VideoCapture()
+            self.cap = cv2.VideoCapture()
             self.cap.open(port)
-            self.cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter.fourcc('M', 'J', 'P', 'G'))
-            self.cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)
-            self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'))
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
             self.bgrs = []
             self.calibration_frame = None
             self.red_checker_bgr, self.blue_checker_bgr, self.dark_field_bgr, self.light_field_bgr = self.calibrate_colors()
 
-            cv.namedWindow("Parameters - Board")
-            cv.resizeWindow("Parameters - Board", 640, 340)
-            cv.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empt_fun)
-            cv.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empt_fun)
-            cv.createTrackbar("Min_area", "Parameters - Board", 150, 600, empt_fun)
-            cv.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empt_fun)
-            cv.createTrackbar("Kernel_size", "Parameters - Board", 5, 10, empt_fun)
-            cv.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
-            cv.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
-            cv.createTrackbar("Color_dist_threshold", "Parameters - Board", 80, 200, empt_fun)
+            cv2.namedWindow("Parameters - Board")
+            cv2.resizeWindow("Parameters - Board", 640, 340)
+            cv2.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empt_fun)
+            cv2.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empt_fun)
+            cv2.createTrackbar("Min_area", "Parameters - Board", 150, 600, empt_fun)
+            cv2.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empt_fun)
+            cv2.createTrackbar("Kernel_size", "Parameters - Board", 5, 10, empt_fun)
+            cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
+            cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
+            cv2.createTrackbar("Color_dist_threshold", "Parameters - Board", 80, 200, empt_fun)
 
             self.handle_capture = True
 
@@ -181,7 +113,7 @@ class Game:
 
     def calibration_mouse_listener(self, event, x, y, flags, param):
 
-        if event == cv.EVENT_LBUTTONUP:
+        if event == cv2.EVENT_LBUTTONUP:
             self.bgrs.append(self.calibration_frame[y][x])
 
     def calibrate_colors(self):
@@ -196,57 +128,57 @@ class Game:
         ]
 
         tmp = np.zeros((1, 1, 3), dtype=np.uint8)
-        cv.imshow("Calibration", tmp)
+        cv2.imshow("Calibration", tmp)
 
-        cv.setMouseCallback("Calibration", self.calibration_mouse_listener)
+        cv2.setMouseCallback("Calibration", self.calibration_mouse_listener)
 
         while len(self.bgrs) < 4:
 
             success, img = self.cap.read()
 
-            cv.putText(img, texts[cnt], (int(img.shape[0] / 10), int(img.shape[1] / 2)), cv.FONT_HERSHEY_SIMPLEX, 0.9,
-                       (0, 255, 0), 3, cv.LINE_AA)
+            cv2.putText(img, texts[cnt], (int(img.shape[0] / 10), int(img.shape[1] / 2)), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
+                        (0, 255, 0), 3, cv2.LINE_AA)
 
-            img = cv.resize(img, (0, 0), fx=0.8, fy=0.8)
-            cv.imshow("Calibration", img)
+            img = cv2.resize(img, (0, 0), fx=0.8, fy=0.8)
+            cv2.imshow("Calibration", img)
             self.calibration_frame = img
 
             cnt = len(self.bgrs)
 
-            if cv.waitKey(30) == ord('q'):  #& 0xFF == ord('q'):
+            if cv2.waitKey(30) == ord('q'):  # & 0xFF == ord('q'):
                 break
 
-        cv.destroyAllWindows()
+        cv2.destroyAllWindows()
 
         return self.bgrs
 
     def present_visually(self):
 
-        img = np.zeros((500, 500, 3), np.uint8)  #create black empty plane
-        img[:, :] = (240, 240, 240)  #setting background
+        img = np.zeros((500, 500, 3), np.uint8)  # create black empty plane
+        img[:, :] = (240, 240, 240)  # setting background
 
         is_dark = False
         for x in range(0, 8, 1):  # drawing fields
             for y in range(0, 8, 1):
 
                 if is_dark:
-                    cv.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (0, 25, 80), -1)
+                    cv2.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (0, 25, 80), -1)
                 else:
-                    cv.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (180, 225, 255), -1)
+                    cv2.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (180, 225, 255), -1)
 
                 is_dark = not is_dark
             is_dark = not is_dark
 
         for i in range(0, 9, 1):
-            cv.line(img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3)  #drawing vertical lines
-            cv.line(img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3)  #drawing horizontal lines
+            cv2.line(img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3)  # drawing vertical lines
+            cv2.line(img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3)  # drawing horizontal lines
 
-        for x, _ in enumerate(self.game_state):  #drawing checkers
+        for x, _ in enumerate(self.game_state):  # drawing checkers
             for y, _ in enumerate(self.game_state[x]):
                 if self.game_state[x][y] == 1:
-                    cv.circle(img, [x * 50 + 75, y * 50 + 75], 20, (50, 85, 220), -1)
+                    cv2.circle(img, [x * 50 + 75, y * 50 + 75], 20, (50, 85, 220), -1)
                 if self.game_state[x][y] == -1:
-                    cv.circle(img, [x * 50 + 75, y * 50 + 75], 20, (205, 105, 60), -1)
+                    cv2.circle(img, [x * 50 + 75, y * 50 + 75], 20, (205, 105, 60), -1)
 
         return img
 
@@ -254,14 +186,14 @@ class Game:
 
         img_res = frame.copy()
 
-        t1 = cv.getTrackbarPos("Threshold1", "Parameters - Board")
-        t2 = cv.getTrackbarPos("Threshold2", "Parameters - Board")
-        kernel_size = cv.getTrackbarPos("Kernel_size", "Parameters - Board")
-        min_area = cv.getTrackbarPos("Min_area", "Parameters - Board")
-        area_margin = cv.getTrackbarPos("Area_margin", "Parameters - Board")
-        approx_peri_fraction = float(cv.getTrackbarPos("Approx_peri", "Parameters - Board")) / 100.0
-        px_dist_to_join = float(cv.getTrackbarPos("Px_dist", "Parameters - Board"))
-        color_dist_thresh = cv.getTrackbarPos("Color_dist_threshold", "Parameters - Board")
+        t1 = cv2.getTrackbarPos("Threshold1", "Parameters - Board")
+        t2 = cv2.getTrackbarPos("Threshold2", "Parameters - Board")
+        kernel_size = cv2.getTrackbarPos("Kernel_size", "Parameters - Board")
+        min_area = cv2.getTrackbarPos("Min_area", "Parameters - Board")
+        area_margin = cv2.getTrackbarPos("Area_margin", "Parameters - Board")
+        approx_peri_fraction = float(cv2.getTrackbarPos("Approx_peri", "Parameters - Board")) / 100.0
+        px_dist_to_join = float(cv2.getTrackbarPos("Px_dist", "Parameters - Board"))
+        color_dist_thresh = cv2.getTrackbarPos("Color_dist_threshold", "Parameters - Board")
 
         try:
             board = Board.detect_board(img_res, t1=t1, t2=t2, kernel=np.ones((kernel_size, kernel_size)),
@@ -280,15 +212,15 @@ class Game:
                 )))
 
         except Exception:
-            #print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
-            img_res = cv.resize(img_res, (0, 0), fx=0.8, fy=0.8)
-            cv.imshow("RESULT", img_res)
+            # print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
+            img_res = cv2.resize(img_res, (0, 0), fx=0.8, fy=0.8)
+            cv2.imshow("RESULT", img_res)
             raise Exception("Couldn't map board")
 
-        img_res = cv.resize(img_res, (0, 0), fx=0.8, fy=0.8)
-        cv.imshow("RESULT", img_res)
-        cv.imshow("GAME STATE", self.present_visually())
-        cv.waitKey(1)
+        img_res = cv2.resize(img_res, (0, 0), fx=0.8, fy=0.8)
+        cv2.imshow("RESULT", img_res)
+        cv2.imshow("GAME STATE", self.present_visually())
+        cv2.waitKey(1)
         return has_changed
 
     def capture_next_frame(self):
@@ -310,19 +242,19 @@ class Game:
         for l in self.game_state_log:
             if l != game_state:
                 self.game_state_log = [game_state]
-                #print("============NOT THE SAME=============")
-                #print(l)
-                #print(game_state)
+                # print("============NOT THE SAME=============")
+                # print(l)
+                # print(game_state)
                 return False
 
         if len(self.game_state_log) + 1 >= self.lack_of_trust_level:
             self.game_state = game_state
             self.game_state_log = [game_state]
-            #print("============UPDATED =============")
+            # print("============UPDATED =============")
             return True
 
         self.game_state_log.append(game_state)
-        #print("============SAME but need more =============")
+        # print("============SAME but need more =============")
         return False
 
     def get_fresh_game_state(self):
@@ -341,34 +273,34 @@ def main():
 
         game.get_fresh_game_state()
 
-        if cv.waitKey(1) == ord('q'):  #& 0xFF == ord('q'):
+        if cv2.waitKey(1) == ord('q'):  # & 0xFF == ord('q'):
             break
 
 
 def setup_param_controller():
-    cv.namedWindow("Parameters - Board")
-    cv.resizeWindow("Parameters - Board", 640, 340)
-    cv.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empt_fun)
-    cv.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empt_fun)
-    cv.createTrackbar("Min_area", "Parameters - Board", 150, 600, empt_fun)
-    cv.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empt_fun)
-    cv.createTrackbar("Kernel_size", "Parameters - Board", 2, 10, empt_fun)
-    cv.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
-    cv.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
+    cv2.namedWindow("Parameters - Board")
+    cv2.resizeWindow("Parameters - Board", 640, 340)
+    cv2.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empt_fun)
+    cv2.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empt_fun)
+    cv2.createTrackbar("Min_area", "Parameters - Board", 150, 600, empt_fun)
+    cv2.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empt_fun)
+    cv2.createTrackbar("Kernel_size", "Parameters - Board", 2, 10, empt_fun)
+    cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
+    cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
 
-    cv.namedWindow("Parameters - Checkers")
-    cv.resizeWindow("Parameters - Checkers", 640, 340)
-    cv.createTrackbar("DP", "Parameters - Checkers", 20, 400, empt_fun)
-    cv.createTrackbar("MinDist", "Parameters - Checkers", 10, 100, empt_fun)
-    cv.createTrackbar("Param1", "Parameters - Checkers", 65, 400, empt_fun)
-    cv.createTrackbar("Param2", "Parameters - Checkers", 15, 200, empt_fun)
-    cv.createTrackbar("MinRadius", "Parameters - Checkers", 2, 100, empt_fun)
-    cv.createTrackbar("MaxRadius", "Parameters - Checkers", 8, 100, empt_fun)
-    #cv.createTrackbar("Threshold1", "Parameters - Checkers", 24, 255, empt_fun)
-    #cv.createTrackbar("Threshold2", "Parameters - Checkers", 73, 255, empt_fun)
-    cv.createTrackbar("Threshold1", "Parameters - Checkers", 140, 255, empt_fun)
-    cv.createTrackbar("Threshold2", "Parameters - Checkers", 80, 255, empt_fun)
-    cv.createTrackbar("Kernel_size", "Parameters - Checkers", 3, 10, empt_fun)
+    cv2.namedWindow("Parameters - Checkers")
+    cv2.resizeWindow("Parameters - Checkers", 640, 340)
+    cv2.createTrackbar("DP", "Parameters - Checkers", 20, 400, empt_fun)
+    cv2.createTrackbar("MinDist", "Parameters - Checkers", 10, 100, empt_fun)
+    cv2.createTrackbar("Param1", "Parameters - Checkers", 65, 400, empt_fun)
+    cv2.createTrackbar("Param2", "Parameters - Checkers", 15, 200, empt_fun)
+    cv2.createTrackbar("MinRadius", "Parameters - Checkers", 2, 100, empt_fun)
+    cv2.createTrackbar("MaxRadius", "Parameters - Checkers", 8, 100, empt_fun)
+    # cv.createTrackbar("Threshold1", "Parameters - Checkers", 24, 255, empt_fun)
+    # cv.createTrackbar("Threshold2", "Parameters - Checkers", 73, 255, empt_fun)
+    cv2.createTrackbar("Threshold1", "Parameters - Checkers", 140, 255, empt_fun)
+    cv2.createTrackbar("Threshold2", "Parameters - Checkers", 80, 255, empt_fun)
+    cv2.createTrackbar("Kernel_size", "Parameters - Checkers", 3, 10, empt_fun)
 
 
 if __name__ == '__main__':
