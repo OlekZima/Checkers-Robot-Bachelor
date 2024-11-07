@@ -3,15 +3,34 @@ from checkers_game_and_decissions.enum_entities import RobotGameReportItem
 from checkers_game_and_decissions.checkers_game import Status
 
 from computer_vision.gameplay_recognition import Game
+from robot_manipulation.calibration import Calibrator
 
 from robot_manipulation.dobot_controller import DobotController
-
 import cv2 as cv
 
 
 def main():
 
+
+
+
     game = PVRobotController()
+
+    print("Do you want to calibrate dobot (Y/N)?")
+    is_correct = False
+    user_input = None
+    while not is_correct:
+        user_input = input().upper()
+        if user_input == "Y":
+            is_correct = True
+        elif user_input == "N":
+            is_correct = True
+        else:
+            print("Please enter either Y or N")
+
+    if user_input == "Y":
+        Calibrator()
+
 
     dobot = DobotController(color = game.computer_color)
 
