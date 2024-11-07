@@ -6,11 +6,7 @@ from pydobotplus import Dobot
 import numpy as np
 import cv2
 
-from checkers_game_and_decissions.Utilities import (
-    get_coord_from_field_id,
-    linear_interpolate,
-    flush_input,
-)
+from checkers_game_and_decissions.utilities import flush_input, linear_interpolate, get_coord_from_field_id
 
 
 class Calibrator:
@@ -21,7 +17,9 @@ class Calibrator:
         available_ports = list_ports.comports()
         self.device = self._connect_to_dobot(available_ports)
 
-        self.configs_path = "robot_manipulation/configuration_files"
+        self.configs_path = "configuration_files"
+        os.makedirs(self.configs_path, exist_ok=True)
+
         self.offset_height: float = 10.0
 
         self.use_base_config = use_base_config
@@ -35,7 +33,6 @@ class Calibrator:
         for i, p in enumerate(available_ports):
             print(f"[{i}]: {p}")
 
-        flush_input()
         port_idx = int(input())
         port = available_ports[port_idx].device
         return Dobot(port=port)
@@ -53,13 +50,11 @@ class Calibrator:
             else:
                 is_correct_input = True
 
-        if self.use_base_config:
-            self.read_file_config()
-
         self._calibrate(input_method)
 
     def _calibrate(self, method: str) -> None:
         if method == "all":
+            self.read_file_config()
             self._calibrate_all_fields()
             self._save_all_field_config()
         else:
@@ -76,7 +71,10 @@ class Calibrator:
                     True,
                 )
             self.move_arm(
-                self.base_config[i][0], self.base_config[i][1], self.base_config[i][2], True
+                self.base_config[i][0],
+                self.base_config[i][1],
+                self.base_config[i][2],
+                True,
             )
 
             print("\nSet to position of id " + str(i + 1))
@@ -112,7 +110,10 @@ class Calibrator:
                     True,
                 )
             self.move_arm(
-                self.base_config[i][0], self.base_config[i][1], self.base_config[i][2], True
+                self.base_config[i][0],
+                self.base_config[i][1],
+                self.base_config[i][2],
+                True,
             )
 
             print("\nSet to side pocket (right) of id " + str(i - 35))
@@ -131,7 +132,10 @@ class Calibrator:
                 True,
             )
         self.move_arm(
-            self.base_config[40][0], self.base_config[40][1], self.base_config[40][2], True
+            self.base_config[40][0],
+            self.base_config[40][1],
+            self.base_config[40][2],
+            True,
         )
 
         print("\nSet to dispose area")
@@ -150,7 +154,10 @@ class Calibrator:
                 True,
             )
             self.move_arm(
-                self.base_config[41][0], self.base_config[41][1], self.base_config[41][2], True
+                self.base_config[41][0],
+                self.base_config[41][1],
+                self.base_config[41][2],
+                True,
             )
 
         print("\nSet to home position")
@@ -187,13 +194,16 @@ class Calibrator:
         ]
 
         def calibrate_point(
-                index: int, storage_array: np.ndarray, storage_indices: list, message: str
+            index: int, storage_array: np.ndarray, storage_indices: list, message: str
         ):
             print(message)
             default_pos = self.default_calibration_positions[index]
             # Move to default position plus height
             self.move_arm(
-                default_pos[0], default_pos[1], default_pos[2] + self.offset_height, wait=True
+                default_pos[0],
+                default_pos[1],
+                default_pos[2] + self.offset_height,
+                wait=True,
             )
             # Move to default position
             self.move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
@@ -212,7 +222,7 @@ class Calibrator:
                 storage[:] = [x, y, z]
             print(f"x = {x}\ty = {y}\tz = {z}")
             # Move the arm back up
-            self.move_arm(x, y, z + + self.offset_height, wait=True)
+            self.move_arm(x, y, z + +self.offset_height, wait=True)
 
         calibration_points = [
             (0, self.board, [0, 0], "upper left board corner"),
@@ -272,6 +282,7 @@ class Calibrator:
 
     def move_arm(self, x, y, z, wait=True) -> None:
         try:
+            self.device.clear_alarms()
             self.device.move_to(x, y, z, wait=wait)
         except Exception as e:
             print(e)
@@ -305,25 +316,29 @@ class Calibrator:
                 t_y = y / 7.0
                 for z in range(3):
                     self.board[x][y][z] = (
-                                                  linear_interpolate(self.board[0][y][z], self.board[7][y][z], t_x)
-                                                  + linear_interpolate(self.board[x][0][z], self.board[x][7][z], t_y)
-                                          ) / 2.0
+                        linear_interpolate(
+                            self.board[0][y][z], self.board[7][y][z], t_x
+                        )
+                        + linear_interpolate(
+                            self.board[x][0][z], self.board[x][7][z], t_y
+                        )
+                    ) / 2.0
 
     def interpolate_side_pockets(self) -> None:
         for k in range(3):
             self.side_pockets[0][1][k] = (
-                                                 self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
-                                         ) / 3.0
+                self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
+            ) / 3.0
             self.side_pockets[1][1][k] = (
-                                                 self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
-                                         ) / 3.0
+                self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
+            ) / 3.0
 
             self.side_pockets[0][2][k] = (
-                                                 self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
-                                         ) / 3.0
+                self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
+            ) / 3.0
             self.side_pockets[1][2][k] = (
-                                                 self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
-                                         ) / 3.0
+                self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
+            ) / 3.0
 
     def read_file_config(self) -> None:
         if not exists(self.configs_path):
@@ -338,7 +353,6 @@ class Calibrator:
         is_correct_input = False
         base_config_name = ""
         while not is_correct_input:
-            flush_input()
             user_input = int(input("> "))
             if user_input not in range(0, len(configs)):
                 print("Please select a correct configuration file.")
@@ -352,7 +366,8 @@ class Calibrator:
             file_lines = config_file.readlines()
             if len(file_lines) < 42:
                 raise ValueError(
-                    "Configuration file must containt 42 lines.\nPlease select a correct configuration file.")
+                    "Configuration file must containt 42 lines.\nPlease select a correct configuration file."
+                )
 
             for i in range(0, 42):
                 positions: list[str] = file_lines[i].split(";")
@@ -362,31 +377,41 @@ class Calibrator:
 
     def _save_all_field_config(self) -> None:
         print("\nPut name of the file you would like to save configuration in:")
-        flush_input()
+        # flush_input()
         config_name = input()
         config_path = self.configs_path + "/" + config_name
-        with open(config_path, mode="w") as config_file:
+        with open(config_path, mode="x") as config_file:
             for i in range(0, 42):
                 config_file.write(
-                    str(self.base_config[i][0]) + ";"
-                    + str(self.base_config[i][1]) + ";"
-                    + str(self.base_config[i][2]) + "\n")
+                    str(self.base_config[i][0])
+                    + ";"
+                    + str(self.base_config[i][1])
+                    + ";"
+                    + str(self.base_config[i][2])
+                    + "\n"
+                )
 
     def _save_corners_config(self) -> None:
         print("\nPut name of the file you would like to save configuration in:")
-        flush_input()
+        # flush_input()
         config_name = input()
         config_path = self.configs_path + "/" + config_name
-        with open(config_path, mode="w") as f:
+        with open(config_path, mode="x") as f:
             for i in range(1, 33):
                 x, y = get_coord_from_field_id(i)
-                f.write(f"{self.board[x][y][0]};{self.board[x][y][1]};{self.board[x][y][2]}\n")
+                f.write(
+                    f"{self.board[x][y][0]};{self.board[x][y][1]};{self.board[x][y][2]}\n"
+                )
 
             for i in range(2):
                 for j in range(4):
-                    f.write(f"{self.side_pockets[i][j][0]};{self.side_pockets[i][j][1]};{self.side_pockets[i][j][2]}\n")
+                    f.write(
+                        f"{self.side_pockets[i][j][0]};{self.side_pockets[i][j][1]};{self.side_pockets[i][j][2]}\n"
+                    )
 
-            f.write(f"{self.dispose_area[0]};{self.dispose_area[1]};{self.dispose_area[2]}\n")
+            f.write(
+                f"{self.dispose_area[0]};{self.dispose_area[1]};{self.dispose_area[2]}\n"
+            )
             f.write(f"{self.home_pos[0]};{self.home_pos[1]};{self.home_pos[2]}\n")
 
 
