@@ -25,7 +25,8 @@ def main():
             print("Please enter either Y or N")
 
     if user_input == "Y":
-        Calibrator()
+        calibrator = Calibrator()
+        calibrator.calibrate()
 
 
     dobot = DobotController(color = game.computer_color)
