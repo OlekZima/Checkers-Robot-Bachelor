@@ -15,7 +15,7 @@ class NegamaxDecissionEngine:
         self.depth_to_use = depth_to_use
 
     def decide_move(self, game=CheckersGame()):
-        if game.get_turn_of() == None or game.get_turn_of() != self.computer_color:
+        if game.get_turn_of() is None or game.get_turn_of() != self.computer_color:
             raise Exception("Decission engine criteria not met")
 
         if len(game.turn_player_opts) == 1:
