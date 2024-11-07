@@ -5,7 +5,6 @@ from checkers_game_and_decissions.checkers_game import Status
 from computer_vision.gameplay_recognition import Game
 
 from robot_manipulation.dobot_controller import DobotController
-#from robot_manipulation.mock_dobot_controller import DobotController
 
 import cv2 as cv
 

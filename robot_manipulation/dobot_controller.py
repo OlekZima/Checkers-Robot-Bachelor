@@ -6,7 +6,7 @@ import cv2 as cv
 import os
 
 from checkers_game_and_decissions.checkers_game import Color
-from checkers_game_and_decissions.Utilities import get_coord_from_field_id, linear_interpolate
+from checkers_game_and_decissions.utilities import get_coord_from_field_id, linear_interpolate
 
 
 class DobotController:
@@ -113,7 +113,7 @@ class DobotController:
         user_input: int = self._get_user_input(len(configs))
         base_file: str = configs[user_input]
 
-        with open(base_file, "r") as f:
+        with open(config_dir + "/" + base_file, "r") as f:
             lines: list[str] = f.readlines()
 
         if len(lines) < 42:

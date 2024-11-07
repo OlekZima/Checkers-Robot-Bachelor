@@ -1,9 +1,9 @@
 from checkers_game_and_decissions.checkers_game import CheckersGame, Color, Status
-from checkers_game_and_decissions.decission_engines.negamax_decission_engine import (
+from checkers_game_and_decissions.negamax_decission_engine import (
     NegamaxDecissionEngine,
 )
-from enum_entities import RobotGameReportItem, UpdateGameStateResult
-
+from checkers_game_and_decissions.enum_entities import RobotGameReportItem, UpdateGameStateResult
+from checkers_game_and_decissions.utilities import get_coord_from_field_id
 
 def rotate_2d_matrix_180_deg(matrix):
     new_matrix = []
@@ -89,7 +89,7 @@ class PVRobotController:
             if is_robot_turn:
                 if self.robot_move is None or self.is_crowned is None:
                     self.robot_move = self.decission_engine.decide_move(self.game)
-                    x_tmp, y_tmp = CheckersGame.get_xy_from_id(self.robot_move[0])
+                    x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
                         self.computer_color == Color.BLUE
@@ -153,7 +153,7 @@ class PVRobotController:
 
                 if self.game.get_status() == Status.IN_PROGRESS:
                     self.robot_move = self.decission_engine.decide_move(self.game)
-                    x_tmp, y_tmp = CheckersGame.get_xy_from_id(self.robot_move[0])
+                    x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
                         self.computer_color == Color.BLUE

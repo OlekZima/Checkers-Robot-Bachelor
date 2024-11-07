@@ -1,5 +1,5 @@
-from enum_entities import Color, Status
-from Utilities import *
+from checkers_game_and_decissions.enum_entities import Color, Status
+from checkers_game_and_decissions.utilities import *
 
 
 # Class contains basic info about game - model:
