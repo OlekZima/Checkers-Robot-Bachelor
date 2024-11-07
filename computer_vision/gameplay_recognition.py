@@ -1,77 +1,75 @@
 import cv2 as cv
 import numpy as np
 import math
-import traceback
 
-from computer_vision.board_recognition.game_board_recognition import Board
-from computer_vision.checkers_recognition.checkers_recognition import Checkers, Color
+from computer_vision.game_board_recognition import Board
+from computer_vision.checkers_recognition import Checkers, Color
 
-from resource import *
 
 def list_ports():
+    # Test the ports and returns a tuple with the available ports and the ones that are working.
 
-	# Test the ports and returns a tuple with the available ports and the ones that are working.
+    is_working = True
+    dev_port = 0
+    working_ports = []
+    available_ports = []
+    while dev_port < 10:  #is_working:
+        camera = cv.VideoCapture(dev_port)
+        if not camera.isOpened():
+            # is_working = False
+            print("Port %s is not working." % dev_port)
+            dev_port += 1
+        else:
+            is_reading, img = camera.read()
+            w = camera.get(3)
+            h = camera.get(4)
+            if is_reading:
+                print("Port %s is working and reads images (%s x %s)" % (dev_port, h, w))
+                working_ports.append(dev_port)
+            else:
+                print("Port %s for camera ( %s x %s) is present but does not reads." % (dev_port, h, w))
+                available_ports.append(dev_port)
+            dev_port += 1
+    return available_ports, working_ports
 
-	is_working = True
-	dev_port = 0
-	working_ports = []
-	available_ports = []
-	while dev_port < 10: #is_working:
-		camera = cv.VideoCapture(dev_port)
-		if not camera.isOpened():
-			# is_working = False
-			print("Port %s is not working." %dev_port)
-			dev_port += 1
-		else:
-			is_reading, img = camera.read()
-			w = camera.get(3)
-			h = camera.get(4)
-			if is_reading:
-				print("Port %s is working and reads images (%s x %s)" %(dev_port,h,w))
-				working_ports.append(dev_port)
-			else:
-				print("Port %s for camera ( %s x %s) is present but does not reads." %(dev_port,h,w))
-				available_ports.append(dev_port)
-			dev_port +=1
-	return available_ports,working_ports
 
 def empt_fun(a):
     pass
 
 
-def get_pts_dist(pt1 = [0,0], pt2 = [0,0]):
+def get_pts_dist(pt1=[0, 0], pt2=[0, 0]):
     dx = pt1[0] - pt2[0]
     dy = pt1[1] - pt2[1]
 
-    dx = float(dx*dx)
-    dy = float(dy*dy)
+    dx = float(dx * dx)
+    dy = float(dy * dy)
 
-    return math.sqrt(dx+dy)
+    return math.sqrt(dx + dy)
 
 
-def get_avg_pos(pts = [[0,0],[0,0]]):
+def get_avg_pos(pts=[[0, 0], [0, 0]]):
     x_avg, y_avg = 0, 0
 
     for pt in pts:
         x_avg += pt[0]
         y_avg += pt[1]
 
-    x_avg = int( float(x_avg) / float(len(pts)) )
-    y_avg = int( float(y_avg) / float(len(pts)) )
+    x_avg = int(float(x_avg) / float(len(pts)))
+    y_avg = int(float(y_avg) / float(len(pts)))
 
     return [x_avg, y_avg]
 
 
-def get_board_mask(pts, img_shape, margin = 10):
+def get_board_mask(pts, img_shape, margin=10):
     center = get_avg_pos(pts)
 
     for pt in pts:
         dst = get_pts_dist(pt, center)
-        pt[0] = center[0] + int(float(pt[0]-center[0])/dst*(dst+margin))
-        pt[1] = center[1] + int(float(pt[1]-center[1])/dst*(dst+margin))
-    
+        pt[0] = center[0] + int(float(pt[0] - center[0]) / dst * (dst + margin))
+        pt[1] = center[1] + int(float(pt[1] - center[1]) / dst * (dst + margin))
+
     pts = np.array(pts)
-    mask = np.zeros(img_shape[:2],dtype="uint8")
+    mask = np.zeros(img_shape[:2], dtype="uint8")
     cv.fillConvexPoly(mask, pts, 1)
     return mask
 
@@ -82,12 +80,11 @@ def rotate_square_2D_matrix_right(matrix):
     for _ in matrix[0]:
         new_matrix.append([])
 
-    for x in range(0,len(matrix),1):
-        for y in range(0,len(matrix[x]),1):
-            new_matrix[y].append(matrix[x][len(matrix[x])-y-1])
+    for x in range(0, len(matrix), 1):
+        for y in range(0, len(matrix[x]), 1):
+            new_matrix[y].append(matrix[x][len(matrix[x]) - y - 1])
 
     return new_matrix
-
 
 
 class Game:
@@ -96,14 +93,14 @@ class Game:
     def build_game_state(cls, checkers, is_00_white=True):
 
         game_state = [
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0]
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0]
         ]
 
         for c in checkers:
@@ -117,8 +114,7 @@ class Game:
 
         return game_state
 
-
-    def __init__(self, handle_capture = True, lack_of_trust_level = 5):
+    def __init__(self, handle_capture=True, lack_of_trust_level=5):
 
         # Convention: 
         # game state is 2d matrix -> list of columns
@@ -130,22 +126,22 @@ class Game:
         # the bottom side is y = 7
 
         if handle_capture:
-            
+
             # Looking for available cameras
             available_ports, working_ports = list_ports()
 
             print('\nPlease select camera port by index')
-            for i,p in enumerate(working_ports):
+            for i, p in enumerate(working_ports):
                 print(f'[{i}]: {p}')
 
             port_idx = int(input())
 
-            port = working_ports[port_idx]#[0]
+            port = working_ports[port_idx]  #[0]
             #port = port_idx
-            
+
             self.cap = cv.VideoCapture()
             self.cap.open(port)
-            self.cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter.fourcc(	'M', 'J', 'P', 'G'))
+            self.cap.set(cv.CAP_PROP_FOURCC, cv.VideoWriter.fourcc('M', 'J', 'P', 'G'))
             self.cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)
             self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
 
@@ -168,28 +164,25 @@ class Game:
 
         else:
             self.handle_capture = False
-        
+
         self.game_state = [
-            [0,1,0,0,0,-1,0,-1],
-            [1,0,1,0,0,0,-1,0],
-            [0,1,0,0,0,-1,0,-1],
-            [1,0,1,0,0,0,-1,0],
-            [0,1,0,0,0,-1,0,-1],
-            [1,0,1,0,0,0,-1,0],
-            [0,1,0,0,0,-1,0,-1],
-            [1,0,1,0,0,0,-1,0]
+            [0, 1, 0, 0, 0, -1, 0, -1],
+            [1, 0, 1, 0, 0, 0, -1, 0],
+            [0, 1, 0, 0, 0, -1, 0, -1],
+            [1, 0, 1, 0, 0, 0, -1, 0],
+            [0, 1, 0, 0, 0, -1, 0, -1],
+            [1, 0, 1, 0, 0, 0, -1, 0],
+            [0, 1, 0, 0, 0, -1, 0, -1],
+            [1, 0, 1, 0, 0, 0, -1, 0]
         ]
 
         self.game_state_log = [self.game_state]
         self.lack_of_trust_level = lack_of_trust_level
 
-
-    def calibration_mouse_listener(self,event,x,y,flags,param):
+    def calibration_mouse_listener(self, event, x, y, flags, param):
 
         if event == cv.EVENT_LBUTTONUP:
-
             self.bgrs.append(self.calibration_frame[y][x])
-
 
     def calibrate_colors(self):
 
@@ -202,7 +195,7 @@ class Game:
             "SELECT LIGHT FIELD"
         ]
 
-        tmp = np.zeros((1,1,3), dtype = np.uint8)
+        tmp = np.zeros((1, 1, 3), dtype=np.uint8)
         cv.imshow("Calibration", tmp)
 
         cv.setMouseCallback("Calibration", self.calibration_mouse_listener)
@@ -211,53 +204,52 @@ class Game:
 
             success, img = self.cap.read()
 
-            cv.putText(img, texts[cnt], (int(img.shape[0]/10), int(img.shape[1]/2)), cv.FONT_HERSHEY_SIMPLEX, 0.9, (0,255,0), 3, cv.LINE_AA)
+            cv.putText(img, texts[cnt], (int(img.shape[0] / 10), int(img.shape[1] / 2)), cv.FONT_HERSHEY_SIMPLEX, 0.9,
+                       (0, 255, 0), 3, cv.LINE_AA)
 
-            img = cv.resize(img, (0,0), fx=0.8, fy=0.8)
+            img = cv.resize(img, (0, 0), fx=0.8, fy=0.8)
             cv.imshow("Calibration", img)
             self.calibration_frame = img
 
             cnt = len(self.bgrs)
 
-            if cv.waitKey(30) == ord('q'): #& 0xFF == ord('q'):
+            if cv.waitKey(30) == ord('q'):  #& 0xFF == ord('q'):
                 break
 
         cv.destroyAllWindows()
 
         return self.bgrs
 
-
     def present_visually(self):
 
-        img = np.zeros((500,500,3), np.uint8) #create black empty plane
-        img[:,:] = (240,240,240) #setting background
+        img = np.zeros((500, 500, 3), np.uint8)  #create black empty plane
+        img[:, :] = (240, 240, 240)  #setting background
 
         is_dark = False
-        for x in range(0,8,1):  # drawing fields
-            for y in range(0,8,1):
+        for x in range(0, 8, 1):  # drawing fields
+            for y in range(0, 8, 1):
 
                 if is_dark:
-                    cv.rectangle(img, (x*50+50,y*50+50),(x*50+100,y*50+100),(0,25,80),-1)
+                    cv.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (0, 25, 80), -1)
                 else:
-                    cv.rectangle(img, (x*50+50,y*50+50),(x*50+100,y*50+100),(180,225,255),-1)
-                
+                    cv.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (180, 225, 255), -1)
+
                 is_dark = not is_dark
             is_dark = not is_dark
-        
-        for i in range(0,9,1):
-            cv.line(img, [50 + i*50, 50], [50 + i*50, 450], (0,0,0), 3) #drawing vertical lines
-            cv.line(img, [50, 50 + i*50], [450, 50 + i*50], (0,0,0), 3) #drawing horizontal lines
 
-        for x,_ in enumerate(self.game_state): #drawing checkers
-            for y,_ in enumerate(self.game_state[x]):
+        for i in range(0, 9, 1):
+            cv.line(img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3)  #drawing vertical lines
+            cv.line(img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3)  #drawing horizontal lines
+
+        for x, _ in enumerate(self.game_state):  #drawing checkers
+            for y, _ in enumerate(self.game_state[x]):
                 if self.game_state[x][y] == 1:
-                    cv.circle(img, [x*50+75,y*50+75],20,(50,85,220),-1)
+                    cv.circle(img, [x * 50 + 75, y * 50 + 75], 20, (50, 85, 220), -1)
                 if self.game_state[x][y] == -1:
-                    cv.circle(img, [x*50+75,y*50+75],20,(205,105,60),-1)
+                    cv.circle(img, [x * 50 + 75, y * 50 + 75], 20, (205, 105, 60), -1)
 
         return img
 
-    
     def handle_next_frame(self, frame):
 
         img_res = frame.copy()
@@ -272,30 +264,32 @@ class Game:
         color_dist_thresh = cv.getTrackbarPos("Color_dist_threshold", "Parameters - Board")
 
         try:
-            board = Board.detect_board(img_res, t1 =t1, t2= t2, kernel = np.ones((kernel_size, kernel_size)), min_area = min_area, area_margin = area_margin, approx_peri_fraction = approx_peri_fraction, px_dist_to_join = px_dist_to_join)
-        
+            board = Board.detect_board(img_res, t1=t1, t2=t2, kernel=np.ones((kernel_size, kernel_size)),
+                                       min_area=min_area, area_margin=area_margin,
+                                       approx_peri_fraction=approx_peri_fraction, px_dist_to_join=px_dist_to_join)
+
             Checkers.detect_checkers(board, frame, self.red_checker_bgr, self.blue_checker_bgr, color_dist_thresh)
 
-            has_changed = self.challange_game_state_change(Game.build_game_state(Checkers.checkers, is_00_white = board.is_00_white(
-                dark_field_bgr = self.dark_field_bgr, 
-                light_field_bgr = self.light_field_bgr, 
-                red_bgr = self.red_checker_bgr, 
-                green_bgr = self.blue_checker_bgr, 
-                color_dist_thresh = color_dist_thresh
-            )))
+            has_changed = self.challange_game_state_change(
+                Game.build_game_state(Checkers.checkers, is_00_white=board.is_00_white(
+                    dark_field_bgr=self.dark_field_bgr,
+                    light_field_bgr=self.light_field_bgr,
+                    red_bgr=self.red_checker_bgr,
+                    green_bgr=self.blue_checker_bgr,
+                    color_dist_thresh=color_dist_thresh
+                )))
 
         except Exception:
             #print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
-            img_res = cv.resize(img_res, (0,0), fx=0.8, fy=0.8)
+            img_res = cv.resize(img_res, (0, 0), fx=0.8, fy=0.8)
             cv.imshow("RESULT", img_res)
             raise Exception("Couldn't map board")
 
-        img_res = cv.resize(img_res, (0,0), fx=0.8, fy=0.8)
+        img_res = cv.resize(img_res, (0, 0), fx=0.8, fy=0.8)
         cv.imshow("RESULT", img_res)
         cv.imshow("GAME STATE", self.present_visually())
         cv.waitKey(1)
         return has_changed
-
 
     def capture_next_frame(self):
         if not self.handle_capture:
@@ -307,7 +301,6 @@ class Game:
             return img
 
         raise Exception("Failure during capturing frame or capture mode not selected")
-
 
     def challange_game_state_change(self, game_state):
 
@@ -332,7 +325,6 @@ class Game:
         #print("============SAME but need more =============")
         return False
 
-
     def get_fresh_game_state(self):
 
         new_frame = self.capture_next_frame()
@@ -349,8 +341,9 @@ def main():
 
         game.get_fresh_game_state()
 
-        if cv.waitKey(1) == ord('q'): #& 0xFF == ord('q'):
+        if cv.waitKey(1) == ord('q'):  #& 0xFF == ord('q'):
             break
+
 
 def setup_param_controller():
     cv.namedWindow("Parameters - Board")
@@ -378,7 +371,5 @@ def setup_param_controller():
     cv.createTrackbar("Kernel_size", "Parameters - Checkers", 3, 10, empt_fun)
 
 
-
 if __name__ == '__main__':
-
     main()
