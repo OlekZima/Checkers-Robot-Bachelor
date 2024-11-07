@@ -24,8 +24,8 @@ class Calibrator:
 
         self.use_base_config = use_base_config
 
-        self.calibrate()
-        print("\nCalibration done\n")
+        # self.calibrate()
+        # print("\nCalibration done\n")
 
     @staticmethod
     def _connect_to_dobot(available_ports) -> Dobot:
@@ -51,10 +51,11 @@ class Calibrator:
                 is_correct_input = True
 
         self._calibrate(input_method)
+        print("\nCalibration done\n")
 
     def _calibrate(self, method: str) -> None:
         if method == "all":
-            self.read_file_config()
+            self._read_file_config()
             self._calibrate_all_fields()
             self._save_all_field_config()
         else:
@@ -64,13 +65,13 @@ class Calibrator:
     def _calibrate_all_fields(self) -> None:
         for i in range(0, 32, 1):
             if self.base_config is not None:
-                self.move_arm(
+                self._move_arm(
                     self.base_config[i][0],
                     self.base_config[i][1],
                     self.base_config[i][2] + self.offset_height,
                     True,
                 )
-            self.move_arm(
+            self._move_arm(
                 self.base_config[i][0],
                 self.base_config[i][1],
                 self.base_config[i][2],
@@ -78,38 +79,38 @@ class Calibrator:
             )
 
             print("\nSet to position of id " + str(i + 1))
-            self.keyboard_move_dobot()
+            self._keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
             self.base_config[i][0] = x
             self.base_config[i][1] = y
             self.base_config[i][2] = z
-            self.move_arm(x, y, z + self.offset_height, True)
+            self._move_arm(x, y, z + self.offset_height, True)
 
         for i in range(32, 36, 1):
-            self.keyboard_move_dobot()
+            self._keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
             self.base_config[i][0] = x
             self.base_config[i][1] = y
             self.base_config[i][2] = z
-            self.move_arm(x, y, z + self.offset_height, True)
+            self._move_arm(x, y, z + self.offset_height, True)
 
             print("\nSet to side pocket (left) of id " + str(i - 31))
-            self.keyboard_move_dobot()
+            self._keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
             self.base_config[i][0] = x
             self.base_config[i][1] = y
             self.base_config[i][2] = z
-            self.move_arm(x, y, z + self.offset_height, True)
+            self._move_arm(x, y, z + self.offset_height, True)
 
         for i in range(36, 40, 1):
             if self.base_config is not None:
-                self.move_arm(
+                self._move_arm(
                     self.base_config[i][0],
                     self.base_config[i][1],
                     self.base_config[i][2] + self.offset_height,
                     True,
                 )
-            self.move_arm(
+            self._move_arm(
                 self.base_config[i][0],
                 self.base_config[i][1],
                 self.base_config[i][2],
@@ -117,21 +118,21 @@ class Calibrator:
             )
 
             print("\nSet to side pocket (right) of id " + str(i - 35))
-            self.keyboard_move_dobot()
+            self._keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
             self.base_config[40][0] = x
             self.base_config[40][1] = y
             self.base_config[40][2] = z
-            self.move_arm(x, y, z + self.offset_height, True)
+            self._move_arm(x, y, z + self.offset_height, True)
 
         if self.base_config is not None:
-            self.move_arm(
+            self._move_arm(
                 self.base_config[40][0],
                 self.base_config[40][1],
                 self.base_config[40][2] + self.offset_height,
                 True,
             )
-        self.move_arm(
+        self._move_arm(
             self.base_config[40][0],
             self.base_config[40][1],
             self.base_config[40][2],
@@ -139,21 +140,21 @@ class Calibrator:
         )
 
         print("\nSet to dispose area")
-        self.keyboard_move_dobot()
+        self._keyboard_move_dobot()
         x, y, z, _ = self.device.get_pose().position
         self.base_config[40][0] = x
         self.base_config[40][1] = y
         self.base_config[40][2] = z
-        self.move_arm(x, y, z + self.offset_height, True)
+        self._move_arm(x, y, z + self.offset_height, True)
 
         if self.base_config is not None:
-            self.move_arm(
+            self._move_arm(
                 self.base_config[41][0],
                 self.base_config[41][1],
                 self.base_config[41][2] + self.offset_height,
                 True,
             )
-            self.move_arm(
+            self._move_arm(
                 self.base_config[41][0],
                 self.base_config[41][1],
                 self.base_config[41][2],
@@ -161,12 +162,12 @@ class Calibrator:
             )
 
         print("\nSet to home position")
-        self.keyboard_move_dobot()
+        self._keyboard_move_dobot()
         x, y, z, _ = self.device.get_pose().position
         self.base_config[41][0] = x
         self.base_config[41][1] = y
         self.base_config[41][2] = z
-        self.move_arm(x, y, z + self.offset_height, True)
+        self._move_arm(x, y, z + self.offset_height, True)
 
     def _calibrate_corners(self) -> None:
         # Corner calibration
@@ -193,33 +194,33 @@ class Calibrator:
             [90, -140, 0],  # home position
         ]
 
-        def calibrate_point(
-                index: int, storage_array: np.ndarray, storage_indices: list, message: str
+        def _calibrate_point(
+                index: int, storage_array: np.ndarray, storage_indices: list, message_info: str
         ):
-            print(message)
+            print(message_info)
             default_pos = self.default_calibration_positions[index]
             # Move to default position plus height
-            self.move_arm(
+            self._move_arm(
                 default_pos[0],
                 default_pos[1],
                 default_pos[2] + self.offset_height,
                 wait=True,
             )
-            self.move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
-            self.keyboard_move_dobot()
+            self._move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
+            self._keyboard_move_dobot()
             x, y, z, _ = self.device.get_pose().position
 
-            storage = storage_array
+            piece_storage = storage_array
             if storage_indices:
-                for idx in storage_indices[:-1]:
-                    storage = storage[idx]
+                for i in storage_indices[:-1]:
+                    piece_storage = piece_storage[i]
                 storage_idx = storage_indices[-1]
-                storage[storage_idx][:] = [x, y, z]
+                piece_storage[storage_idx][:] = [x, y, z]
             else:
-                storage[:] = [x, y, z]
+                piece_storage[:] = [x, y, z]
             print(f"x = {x}\ty = {y}\tz = {z}")
             # Move the arm back up
-            self.move_arm(x, y, z + +self.offset_height, wait=True)
+            self._move_arm(x, y, z + +self.offset_height, wait=True)
 
         calibration_points = [
             (0, self.board, [0, 0], "upper left board corner"),
@@ -236,12 +237,12 @@ class Calibrator:
 
         for idx, storage, indices, description in calibration_points:
             message = f"Please place the DOBOT on {description} (from its perspective)"
-            calibrate_point(idx, storage, indices, message)
+            _calibrate_point(idx, storage, indices, message)
 
-        self.interpolate_board_fields()
+        self._interpolate_board_fields()
         self.interpolate_side_pockets()
 
-    def keyboard_move_dobot(self, increment=1.0) -> None:
+    def _keyboard_move_dobot(self, increment=1.0) -> None:
         x, y, z, _ = self.device.get_pose().position
 
         instruction_frame = np.zeros(
@@ -249,7 +250,7 @@ class Calibrator:
         )  # TODO - instruction how to use frame
 
         while True:
-            self.move_arm(x, y, z, wait=True)
+            self._move_arm(x, y, z, wait=True)
             cv2.imshow("Calibrate instruction", instruction_frame)
             key = cv2.waitKey(0)
 
@@ -275,14 +276,14 @@ class Calibrator:
 
         cv2.destroyAllWindows()
 
-    def move_arm(self, x, y, z, wait=True) -> None:
+    def _move_arm(self, x, y, z, wait=True) -> None:
         try:
             self.device.clear_alarms()
             self.device.move_to(x, y, z, wait=wait)
         except Exception as e:
             print(e)
 
-    def interpolate_board_fields(self) -> None:
+    def _interpolate_board_fields(self) -> None:
         # 1) Interpolating border fields coordinates
         for i in range(1, 7):
             t = i / 7.0
@@ -335,15 +336,15 @@ class Calibrator:
                 self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
             ) / 3.0
 
-    def read_file_config(self) -> None:
+    def _read_file_config(self) -> None:
         if not exists(self.configs_path):
             print("Configuration files are not found. Creating new folder.")
             os.mkdir(self.configs_path)
 
         configs = os.listdir(self.configs_path)
         print("\nPlease select file's id\n")
-        for id, config in enumerate(configs):
-            print(f"[{id}]: {config}")
+        for file_num, config in enumerate(configs):
+            print(f"[{file_num}]: {config}")
 
         is_correct_input = False
         base_config_name = ""
@@ -361,7 +362,7 @@ class Calibrator:
             file_lines = config_file.readlines()
             if len(file_lines) < 42:
                 raise ValueError(
-                    "Configuration file must containt 42 lines.\nPlease select a correct configuration file."
+                    "Configuration file must contain 42 lines.\nPlease select a correct configuration file."
                 )
 
             for i in range(0, 42):
@@ -411,4 +412,4 @@ class Calibrator:
 
 
 if __name__ == "__main__":
-    calibrator = Calibrator()
+    Calibrator().calibrate()
