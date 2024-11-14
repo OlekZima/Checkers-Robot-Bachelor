@@ -35,16 +35,19 @@ class Color(Enum):
 class Checkers:
     checkers = []  # storing all checkers
 
-    @classmethod
-    def detect_checkers(
-            cls,
-            board,
-            frame,
-            bgr_red=[50, 80, 220],
-            bgr_green=[205, 110, 60],
-            color_dist_thresh=7,
-    ):
+    def __init__(self, pos=None, color=Color.BLUE):
+        if pos is None:
+            pos = [0, 0]
+        self.pos = pos
+        self.color = color
 
+    @classmethod
+    def detect_checkers(cls, board, frame, bgr_red=None, bgr_green=None, color_dist_thresh=7):
+
+        if bgr_green is None:
+            bgr_green = [205, 110, 60]
+        if bgr_red is None:
+            bgr_red = [50, 80, 220]
         Checkers.checkers = []
 
         for x in range(0, len(board.points) - 1, 1):
@@ -68,36 +71,11 @@ class Checkers:
                     )
 
     @classmethod
-    def detect_checker_color_if_present(
-            cls, img, pt, bgr_red, bgr_green, color_dist_thresh, radius=2
-    ):
-        test_sample = img[
-                      (pt[1] - radius): (pt[1] + radius), (pt[0] - radius): (pt[0] + radius)
-                      ]
+    def detect_checker_color_if_present(cls, img, pt, bgr_red, bgr_green, color_dist_thresh, radius=2):
+        test_sample = img[(pt[1] - radius): (pt[1] + radius), (pt[0] - radius): (pt[0] + radius)]
         bgr_sample_value = get_avg_color(test_sample)
         if distance_from_color(bgr_sample_value, bgr_red) <= color_dist_thresh:
             return Color.ORANGE
         if distance_from_color(bgr_sample_value, bgr_green) <= color_dist_thresh:
             return Color.BLUE
         return None
-
-    def __init__(self, pos=[0, 0], color=Color.BLUE):
-        self.pos = pos
-        self.color = color
-
-    # currently not used
-#     def classify_color_by_hue(self, hue_val=0):
-#
-#         green_dist_1 = abs(hue_val - Checkers.hue_val_green)
-#         green_dist_2 = 180 - abs(hue_val - Checkers.hue_val_green)
-#         green_dist = green_dist_1 if green_dist_1 <= green_dist_2 else green_dist_2
-#
-#         red_dist_1 = abs(hue_val - Checkers.hue_val_red)
-#         red_dist_2 = 180 - abs(hue_val - Checkers.hue_val_red)
-#         red_dist = red_dist_1 if red_dist_1 <= red_dist_2 else red_dist_2
-#
-#         if green_dist <= red_dist:
-#             self.color = Color.BLUE
-#         else:
-#             self.color = Color.ORANGE
-#         # print(f'My hue is {hue_val}\nMy {green_dist = }\nMy {red_dist = }\nMy color is {self.color.name}')

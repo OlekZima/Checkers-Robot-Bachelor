@@ -51,6 +51,9 @@ class PortSelectionPage(ctk.CTkFrame):
 
     def __init__(self, parent, fg_color=None):
         super().__init__(parent)
+        self.camera_port_options = None
+        self.camera_ports_list = None
+        self.robot_ports_list = None
         self.parent = parent
 
         self.grid_rowconfigure((0, 1, 2, 3, 4), weight=1)
@@ -96,6 +99,7 @@ class PortSelectionPage(ctk.CTkFrame):
 class ConfigureCVColors(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
+        self.video_label = None
         self.parent = parent
         self.parent.geometry("800x600")
         self.parent.resizable(False, False)
@@ -132,22 +136,26 @@ class ConfigureCVColors(ctk.CTkFrame):
         self.after(10, func=self.update_video_frame)
 
     def get_rgb_values_from_pixel(self, event):
-        if self.current_frame is not None:
-            width = self.video_label.winfo_width()
-            height = self.video_label.winfo_height()
-            original_height, original_width, _ = self.current_frame.shape
+        if self.current_frame is None:
+            print("No current frame")
+            return
 
-            scale_x = original_width / width
-            scale_y = original_height / height
+        width = self.video_label.winfo_width()
+        height = self.video_label.winfo_height()
+        original_height, original_width, _ = self.current_frame.shape
 
-            x = int(event.x * scale_x)
-            y = int(event.y * scale_y)
+        scale_x = original_width / width
+        scale_y = original_height / height
 
-            b, g, r = self.current_frame[y, x]
-            print(f"Clicked pixel RGB values: ({r}, {g}, {b})")
+        x = int(event.x * scale_x)
+        y = int(event.y * scale_y)
+
+        b, g, r = self.current_frame[y, x]
+        print(f"Clicked pixel RGB values: ({r}, {g}, {b})")
 
     def on_closing(self):
         self.cap.release()
+
 
 if __name__ == "__main__":
     app = CheckersGUI()

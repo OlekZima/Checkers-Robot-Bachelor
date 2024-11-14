@@ -21,34 +21,9 @@ def rotate_square_2D_matrix_right(matrix):
 
 class Game:
 
-    @classmethod
-    def build_game_state(cls, checkers, is_00_white=True):
-
-        game_state = [
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0]
-        ]
-
-        for c in checkers:
-            if c.color == Color.ORANGE:
-                game_state[c.pos[0]][c.pos[1]] = 1
-            else:
-                game_state[c.pos[0]][c.pos[1]] = -1
-
-        if not is_00_white:
-            game_state = rotate_square_2D_matrix_right(game_state)
-
-        return game_state
-
     def __init__(self, handle_capture=True, lack_of_trust_level=5):
 
-        # Convention: 
+        # Convention:
         # game state is 2d matrix -> list of columns
         # 1 represents orange, -1 represents blue
         # the orange are on the upper side
@@ -110,6 +85,31 @@ class Game:
 
         self.game_state_log = [self.game_state]
         self.lack_of_trust_level = lack_of_trust_level
+
+    @classmethod
+    def build_game_state(cls, checkers, is_00_white=True):
+
+        game_state = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+
+        for c in checkers:
+            if c.color == Color.ORANGE:
+                game_state[c.pos[0]][c.pos[1]] = 1
+            else:
+                game_state[c.pos[0]][c.pos[1]] = -1
+
+        if not is_00_white:
+            game_state = rotate_square_2D_matrix_right(game_state)
+
+        return game_state
 
     def calibration_mouse_listener(self, event, x, y, flags, param):
 
@@ -265,43 +265,3 @@ class Game:
 
         return has_state_possibly_change, [i.copy() for i in self.game_state]
 
-
-def main():
-    game = Game()
-
-    while True:
-
-        game.get_fresh_game_state()
-
-        if cv2.waitKey(1) == ord('q'):  # & 0xFF == ord('q'):
-            break
-
-
-def setup_param_controller():
-    cv2.namedWindow("Parameters - Board")
-    cv2.resizeWindow("Parameters - Board", 640, 340)
-    cv2.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empt_fun)
-    cv2.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empt_fun)
-    cv2.createTrackbar("Min_area", "Parameters - Board", 150, 600, empt_fun)
-    cv2.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empt_fun)
-    cv2.createTrackbar("Kernel_size", "Parameters - Board", 2, 10, empt_fun)
-    cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
-    cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
-
-    cv2.namedWindow("Parameters - Checkers")
-    cv2.resizeWindow("Parameters - Checkers", 640, 340)
-    cv2.createTrackbar("DP", "Parameters - Checkers", 20, 400, empt_fun)
-    cv2.createTrackbar("MinDist", "Parameters - Checkers", 10, 100, empt_fun)
-    cv2.createTrackbar("Param1", "Parameters - Checkers", 65, 400, empt_fun)
-    cv2.createTrackbar("Param2", "Parameters - Checkers", 15, 200, empt_fun)
-    cv2.createTrackbar("MinRadius", "Parameters - Checkers", 2, 100, empt_fun)
-    cv2.createTrackbar("MaxRadius", "Parameters - Checkers", 8, 100, empt_fun)
-    # cv.createTrackbar("Threshold1", "Parameters - Checkers", 24, 255, empt_fun)
-    # cv.createTrackbar("Threshold2", "Parameters - Checkers", 73, 255, empt_fun)
-    cv2.createTrackbar("Threshold1", "Parameters - Checkers", 140, 255, empt_fun)
-    cv2.createTrackbar("Threshold2", "Parameters - Checkers", 80, 255, empt_fun)
-    cv2.createTrackbar("Kernel_size", "Parameters - Checkers", 3, 10, empt_fun)
-
-
-if __name__ == '__main__':
-    main()
