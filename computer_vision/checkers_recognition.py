@@ -1,5 +1,3 @@
-import cv2 as cv
-import numpy as np
 import math
 from enum import Enum
 from checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos
