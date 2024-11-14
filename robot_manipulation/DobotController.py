@@ -1,12 +1,11 @@
 import os
-
 from checkers_game_and_decissions.checkers_game import Color
 from checkers_game_and_decissions.utilities import get_coord_from_field_id, linear_interpolate
-
-import cv2 as cv
 import numpy as np
 from pydobotplus import Dobot
 from serial.tools import list_ports
+
+from robot_manipulation.CalibrationController import CalibrationController
 
 
 class DobotController:
@@ -27,6 +26,15 @@ class DobotController:
         port = available_ports[port_idx].device
 
         self.device = Dobot(port=port)
+
+        print("Do you want to calibrate dobot (Y/N)?")
+        user_input = None
+        while user_input not in ['Y', 'N']:
+            user_input = input().upper()
+
+        if user_input == 'Y':
+            calibration_controller = CalibrationController(self.device)
+            calibration_controller.calibrate()
 
         (x, y, z, _) = self.device.get_pose().position
         print(f"\nx:{x} y:{y} z:{z}")
@@ -49,40 +57,6 @@ class DobotController:
         self.move_arm(*self.home_pos, wait=True)
 
         print("\nController created\n")
-
-    # def keyboard_move_dobot(self, increment=1.0):
-    #     x, y, z, _ = self.device.get_pose().position
-    #
-    #     instruction_frame = np.zeros(
-    #         shape=(300, 300)
-    #     )  # TODO - instruction how to use frame
-    #
-    #     while True:
-    #         self.move_arm(x, y, z, wait=True)
-    #         cv.imshow("Calibrate instruction", instruction_frame)
-    #         key = cv.waitKey(0)
-    #
-    #         x, y, z, _ = self.device.get_pose().position
-    #
-    #         if key == 13:
-    #             break
-    #         elif key == ord("w"):
-    #             x += increment
-    #         elif key == ord("s"):
-    #             x -= increment
-    #         elif key == ord("a"):
-    #             y += increment
-    #         elif key == ord("d"):
-    #             y -= increment
-    #         elif key == ord("q"):
-    #             z -= increment
-    #         elif key == ord("e"):
-    #             z += increment
-    #         elif key == 27:
-    #             cv.destroyAllWindows()
-    #             exit(1)
-    #
-    #     cv.destroyAllWindows()
 
     @staticmethod
     def _get_user_input(config_count):
@@ -151,7 +125,7 @@ class DobotController:
                 while retry_cnt < retry_limit:
                     x_tmp, y_tmp, z_tmp, _ = self.device.get_pose().position
                     try:
-                        print(f"\nRetrying: {retry_cnt+1}/{retry_limit}")
+                        print(f"\nRetrying: {retry_cnt + 1}/{retry_limit}")
                         self.device.move_to(x_tmp + 1, y_tmp + 1, z_tmp + 1, wait=True)
                         self.device.move_to(x, y, z - 1, wait=wait)
                         print("\nRetry Successful\n")
@@ -161,63 +135,8 @@ class DobotController:
                     retry_cnt += 1
             print("\n==========\n")
 
-    # def interpolate_board_fields(self):
-    #
-    #     # 1) Interpolating border fields coordinates
-    #     for i in range(1, 7):
-    #         t = i / 7.0
-    #         for k in range(3):
-    #             # 1.1) Left column (x = 0)
-    #             self.board[0][i][k] = linear_interpolate(
-    #                 self.board[0][0][k], self.board[0][7][k], t
-    #             )
-    #             # 1.2) Right column (x = 7)
-    #             self.board[7][i][k] = linear_interpolate(
-    #                 self.board[7][0][k], self.board[7][7][k], t
-    #             )
-    #             # 1.3 Upper row (y = 0)
-    #             self.board[i][0][k] = linear_interpolate(
-    #                 self.board[0][0][k], self.board[7][0][k], t
-    #             )
-    #             # Bottom row (y = 7)
-    #             self.board[i][7][k] = linear_interpolate(
-    #                 self.board[0][7][k], self.board[7][7][k], t
-    #             )
-    #
-    #     # 2) Interpolating inner points
-    #     for x in range(1, 7):
-    #         t_x = x / 7.0
-    #         for y in range(1, 7):
-    #             t_y = y / 7.0
-    #             for z in range(3):
-    #                 first = linear_interpolate(
-    #                     self.board[0][y][z], self.board[7][y][z], t_x
-    #                 )
-    #
-    #                 second = linear_interpolate(
-    #                     self.board[x][0][z], self.board[x][7][z], t_y
-    #                 )
-    #
-    #                 self.board[x][y][z] = (first + second) / 2.0
-
-    # def interpolate_side_pockets(self):
-    #     for k in range(3):
-    #         self.side_pockets[0][1][k] = (
-    #             self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
-    #         ) / 3.0
-    #         self.side_pockets[1][1][k] = (
-    #             self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
-    #         ) / 3.0
-    #
-    #         self.side_pockets[0][2][k] = (
-    #             self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
-    #         ) / 3.0
-    #         self.side_pockets[1][2][k] = (
-    #             self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
-    #         ) / 3.0
-
     def perform_move(
-        self, move: list[int] = None, is_crown: bool = False, height: float = 10
+            self, move: list[int] = None, is_crown: bool = False, height: float = 10
     ):
 
         # Grabbing the first piece
@@ -398,7 +317,6 @@ class DobotController:
 
         # Returning to home position
         self.move_arm(self.home_pos[0], self.home_pos[1], self.home_pos[2], wait=True)
-
 
 # if __name__ == "__main__":
 #     l = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
