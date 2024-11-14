@@ -149,6 +149,7 @@ class Game:
                 break
 
         cv2.destroyAllWindows()
+        # cv2.destroyWindow("Calibration")
 
         return self.bgrs
 
@@ -202,7 +203,7 @@ class Game:
 
             Checkers.detect_checkers(board, frame, self.red_checker_bgr, self.blue_checker_bgr, color_dist_thresh)
 
-            has_changed = self.challange_game_state_change(
+            has_changed = self.challenge_game_state_change(
                 Game.build_game_state(Checkers.checkers, is_00_white=board.is_00_white(
                     dark_field_bgr=self.dark_field_bgr,
                     light_field_bgr=self.light_field_bgr,
@@ -234,7 +235,7 @@ class Game:
 
         raise Exception("Failure during capturing frame or capture mode not selected")
 
-    def challange_game_state_change(self, game_state):
+    def challenge_game_state_change(self, game_state):
 
         if game_state is None:
             return False
@@ -264,4 +265,3 @@ class Game:
         has_state_possibly_change = self.handle_next_frame(new_frame)
 
         return has_state_possibly_change, [i.copy() for i in self.game_state]
-
