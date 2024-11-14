@@ -24,9 +24,6 @@ class Calibrator:
 
         self.use_base_config = use_base_config
 
-        # self.calibrate()
-        # print("\nCalibration done\n")
-
     @staticmethod
     def _connect_to_dobot(available_ports) -> Dobot:
         print("\nPlease select port by index")
@@ -240,7 +237,7 @@ class Calibrator:
             _calibrate_point(idx, storage, indices, message)
 
         self._interpolate_board_fields()
-        self.interpolate_side_pockets()
+        self._interpolate_side_pockets()
 
     def _keyboard_move_dobot(self, increment=1.0) -> None:
         x, y, z, _ = self.device.get_pose().position
@@ -312,29 +309,29 @@ class Calibrator:
                 t_y = y / 7.0
                 for z in range(3):
                     self.board[x][y][z] = (
-                        linear_interpolate(
-                            self.board[0][y][z], self.board[7][y][z], t_x
-                        )
-                        + linear_interpolate(
-                            self.board[x][0][z], self.board[x][7][z], t_y
-                        )
-                    ) / 2.0
+                                                  linear_interpolate(
+                                                      self.board[0][y][z], self.board[7][y][z], t_x
+                                                  )
+                                                  + linear_interpolate(
+                                              self.board[x][0][z], self.board[x][7][z], t_y
+                                          )
+                                          ) / 2.0
 
-    def interpolate_side_pockets(self) -> None:
+    def _interpolate_side_pockets(self) -> None:
         for k in range(3):
             self.side_pockets[0][1][k] = (
-                self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
-            ) / 3.0
+                                                 self.side_pockets[0][0][k] * 2 + self.side_pockets[0][3][k]
+                                         ) / 3.0
             self.side_pockets[1][1][k] = (
-                self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
-            ) / 3.0
+                                                 self.side_pockets[1][0][k] * 2 + self.side_pockets[1][3][k]
+                                         ) / 3.0
 
             self.side_pockets[0][2][k] = (
-                self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
-            ) / 3.0
+                                                 self.side_pockets[0][0][k] + self.side_pockets[0][3][k] * 2
+                                         ) / 3.0
             self.side_pockets[1][2][k] = (
-                self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
-            ) / 3.0
+                                                 self.side_pockets[1][0][k] + self.side_pockets[1][3][k] * 2
+                                         ) / 3.0
 
     def _read_file_config(self) -> None:
         if not exists(self.configs_path):
@@ -342,6 +339,15 @@ class Calibrator:
             os.mkdir(self.configs_path)
 
         configs = os.listdir(self.configs_path)
+
+        if len(configs) == 0:
+            print("No configuration files found.")
+            print("Calibration should be done from scratch.")
+            x, y, z, _ = self.device.get_pose().position
+            config = [[x, y, z] for _ in range(42)]
+            self.base_config = config
+            return
+
         print("\nPlease select file's id\n")
         for file_num, config in enumerate(configs):
             print(f"[{file_num}]: {config}")
