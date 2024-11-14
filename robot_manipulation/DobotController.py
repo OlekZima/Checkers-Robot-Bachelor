@@ -16,16 +16,7 @@ class DobotController:
 
         # Connecting to DOBOT
         available_ports = list_ports.comports()
-
-        print("\nPlease select robot port by index")
-        for i, p in enumerate(available_ports):
-            print(f"[{i}]: {p}")
-
-        port_idx = int(input())
-
-        port = available_ports[port_idx].device
-
-        self.device = Dobot(port=port)
+        self.device = CalibrationController.connect_to_dobot(available_ports)
 
         print("Do you want to calibrate dobot (Y/N)?")
         user_input = None

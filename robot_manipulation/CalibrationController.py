@@ -18,7 +18,7 @@ class CalibrationController:
 
         if external_device is None:
             available_ports = list_ports.comports()
-            self.device = self._connect_to_dobot(available_ports)
+            self.device = self.connect_to_dobot(available_ports)
         else:
             self.device = external_device
 
@@ -28,7 +28,7 @@ class CalibrationController:
         self.offset_height: float = 10.0
 
     @staticmethod
-    def _connect_to_dobot(available_ports: list) -> Dobot:
+    def connect_to_dobot(available_ports: list) -> Dobot:
         print("\nPlease select port by index")
         for i, p in enumerate(available_ports):
             print(f"[{i}]: {p}")
