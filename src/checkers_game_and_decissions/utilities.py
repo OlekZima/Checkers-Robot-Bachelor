@@ -4,7 +4,7 @@ import termios
 
 import numpy as np
 import cv2
-from checkers_game_and_decissions.enum_entities import Color
+from src.checkers_game_and_decissions.enum_entities import Color
 
 
 def get_coord_from_field_id(field_id: int, color: Color = None) -> tuple[int, int]:

@@ -3,7 +3,7 @@ from customtkinter import CTkImage
 from serial.tools import list_ports
 import cv2
 from PIL import Image
-from computer_vision.gameplay_recognition import list_ports as list_camera_ports
+from src.computer_vision.gameplay_recognition import list_ports as list_camera_ports
 
 ctk.set_appearance_mode("system")
 

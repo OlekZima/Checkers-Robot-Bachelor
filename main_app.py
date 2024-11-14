@@ -1,8 +1,8 @@
-from checkers_game_and_decissions.pvrobot_game_controller import PVRobotController, UpdateGameStateResult
-from checkers_game_and_decissions.enum_entities import RobotGameReportItem
-from checkers_game_and_decissions.checkers_game import Status
-from computer_vision.gameplay_recognition import Game
-from robot_manipulation.DobotController import DobotController
+from src.checkers_game_and_decissions.pvrobot_game_controller import PVRobotController, UpdateGameStateResult
+from src.checkers_game_and_decissions.enum_entities import RobotGameReportItem
+from src.checkers_game_and_decissions.checkers_game import Status
+from src.computer_vision.gameplay_recognition import Game
+from src.robot_manipulation.DobotController import DobotController
 import cv2
 
 

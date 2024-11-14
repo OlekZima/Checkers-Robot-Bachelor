@@ -3,8 +3,8 @@ import numpy as np
 import math
 import traceback
 
-from computer_vision.rectangle_recognition import get_game_tiles_contours
-from checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos, empt_fun
+from src.computer_vision.rectangle_recognition import get_game_tiles_contours
+from src.checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos, empt_fun
 
 
 def get_triangle_area(p1=[0, 0], p2=[0, 0], p3=[0, 0]):

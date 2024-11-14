@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from checkers_game_and_decissions.utilities import get_pts_dist, get_avg_pos, empt_fun
+from src.checkers_game_and_decissions.utilities import get_pts_dist, get_avg_pos, empt_fun
 
 
 # def get_pts_dist(pt1: list[int]=None, pt2: list[int]=None):

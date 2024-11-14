@@ -1,11 +1,10 @@
 import os
-from checkers_game_and_decissions.checkers_game import Color
-from checkers_game_and_decissions.utilities import get_coord_from_field_id, linear_interpolate
+from src.checkers_game_and_decissions.checkers_game import Color
+from src.checkers_game_and_decissions.utilities import get_coord_from_field_id
 import numpy as np
-from pydobotplus import Dobot
 from serial.tools import list_ports
 
-from robot_manipulation.CalibrationController import CalibrationController
+from src.robot_manipulation.CalibrationController import CalibrationController
 
 
 class DobotController:
@@ -66,7 +65,7 @@ class DobotController:
             print(f"[{id}]: {c}")
 
     def read_calibration_file(self):
-        config_dir = "robot_manipulation/configuration_files"
+        config_dir = "src/robot_manipulation/configuration_files"
 
         if not os.path.exists(config_dir):
             print("Configuration directory does not exist.")
@@ -308,10 +307,3 @@ class DobotController:
 
         # Returning to home position
         self.move_arm(self.home_pos[0], self.home_pos[1], self.home_pos[2], wait=True)
-
-# if __name__ == "__main__":
-#     l = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-#     t = [0, 0, 0]
-#     l[0] = map(str, t)
-#
-#     print(l)

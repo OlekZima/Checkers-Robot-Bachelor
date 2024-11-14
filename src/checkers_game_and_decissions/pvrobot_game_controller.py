@@ -1,9 +1,10 @@
-from checkers_game_and_decissions.checkers_game import CheckersGame, Color, Status
-from checkers_game_and_decissions.negamax_decission_engine import (
+from src.checkers_game_and_decissions.checkers_game import CheckersGame, Color, Status
+from src.checkers_game_and_decissions.negamax_decission_engine import (
     NegamaxDecisionEngine,
 )
-from checkers_game_and_decissions.enum_entities import RobotGameReportItem, UpdateGameStateResult
-from checkers_game_and_decissions.utilities import get_coord_from_field_id
+from src.checkers_game_and_decissions.enum_entities import RobotGameReportItem, UpdateGameStateResult
+from src.checkers_game_and_decissions.utilities import get_coord_from_field_id
+
 
 def rotate_2d_matrix_180_deg(matrix):
     new_matrix = []
@@ -35,12 +36,11 @@ class PVRobotController:
 
         if choice == "b":
             self.human_color = Color.ORANGE
+            self.computer_color = Color.BLUE
         else:
             self.human_color = Color.BLUE
+            self.computer_color = Color.ORANGE
 
-        self.computer_color = (
-            Color.BLUE if self.human_color == Color.ORANGE else Color.ORANGE
-        )
         self.robot_move = None
         self.is_crowned = None
 
@@ -92,14 +92,14 @@ class PVRobotController:
                     x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
-                        self.computer_color == Color.BLUE
-                        and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
-                        and piece_moved == -1
+                            self.computer_color == Color.BLUE
+                            and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
+                            and piece_moved == -1
                     ) or (
-                        self.computer_color == Color.ORANGE
-                        and self.robot_move[len(self.robot_move) - 1]
-                        in [29, 30, 31, 32]
-                        and piece_moved == 1
+                            self.computer_color == Color.ORANGE
+                            and self.robot_move[len(self.robot_move) - 1]
+                            in [29, 30, 31, 32]
+                            and piece_moved == 1
                     ):
                         self.is_crowned = True
                     else:
@@ -156,14 +156,14 @@ class PVRobotController:
                     x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
-                        self.computer_color == Color.BLUE
-                        and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
-                        and piece_moved == -1
+                            self.computer_color == Color.BLUE
+                            and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
+                            and piece_moved == -1
                     ) or (
-                        self.computer_color == Color.ORANGE
-                        and self.robot_move[len(self.robot_move) - 1]
-                        in [29, 30, 31, 32]
-                        and piece_moved == 1
+                            self.computer_color == Color.ORANGE
+                            and self.robot_move[len(self.robot_move) - 1]
+                            in [29, 30, 31, 32]
+                            and piece_moved == 1
                     ):
                         self.is_crowned = True
                     else:
@@ -186,13 +186,3 @@ class PVRobotController:
     def get_log(self):
         return self.game.get_log()
 
-
-# msc testing
-if __name__ == "__main__":
-
-    controller = PVRobotController()
-
-    report = controller.report_state()
-
-    for i in report:
-        print(report[i])

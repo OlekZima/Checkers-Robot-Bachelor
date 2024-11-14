@@ -1,5 +1,5 @@
-from checkers_game_and_decissions.checkers_game import CheckersGame
-from checkers_game_and_decissions.enum_entities import Color
+from src.checkers_game_and_decissions.checkers_game import CheckersGame
+from src.checkers_game_and_decissions.enum_entities import Color
 
 import numpy as np
 

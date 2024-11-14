@@ -1,6 +1,6 @@
 import math
 from enum import Enum
-from checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos
+from src.checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos
 
 
 # def get_img_mask(pts, img_shape, margin=10):

@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 
-from computer_vision.game_board_recognition import Board
-from computer_vision.checkers_recognition import Checkers, Color
-from checkers_game_and_decissions.utilities import list_ports, empt_fun
+from src.computer_vision.game_board_recognition import Board
+from src.computer_vision.checkers_recognition import Checkers, Color
+from src.checkers_game_and_decissions.utilities import list_ports, empt_fun
 
 
 def rotate_square_2D_matrix_right(matrix):

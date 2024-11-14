@@ -7,7 +7,7 @@ from pydobotplus import Dobot
 import numpy as np
 import cv2
 
-from checkers_game_and_decissions.utilities import linear_interpolate, get_coord_from_field_id
+from src.checkers_game_and_decissions.utilities import linear_interpolate, get_coord_from_field_id, flush_input
 
 
 class CalibrationController:
@@ -22,7 +22,7 @@ class CalibrationController:
         else:
             self.device = external_device
 
-        self.configs_path = "robot_manipulation/configuration_files"
+        self.configs_path = "src/robot_manipulation/configuration_files"
         os.makedirs(self.configs_path, exist_ok=True)
 
         self.offset_height: float = 10.0
@@ -303,7 +303,7 @@ class CalibrationController:
 
     def _save_all_field_config(self) -> None:
         print("\nPut name of the file you would like to save configuration in:")
-        # flush_input()
+        flush_input()
         config_name = input()
         config_path = self.configs_path + "/" + config_name
         with open(config_path, mode="x") as config_file:
@@ -319,7 +319,7 @@ class CalibrationController:
 
     def _save_corners_config(self) -> None:
         print("\nPut name of the file you would like to save configuration in:")
-        # flush_input()
+        flush_input()
         config_name = input()
         config_path = self.configs_path + "/" + config_name
         with open(config_path, mode="x") as f:
