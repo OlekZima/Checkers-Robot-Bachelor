@@ -50,8 +50,8 @@ class Game:
 
         # Convention: 
         # game state is 2d matrix -> list of columns
-        # 1 represents red, -1 represents green
-        # the reds are on the upper side
+        # 1 represents orange, -1 represents blue
+        # the orange are on the upper side
         # the game_state[0][0] is the upper left field
         # the game_state[7][7] is the bottom right field
         # the upper side is y = 0
