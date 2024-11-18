@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from customtkinter import CTkImage
+from tkinter import messagebox as tk_messagebox
 from serial.tools import list_ports
 import cv2
 from PIL import Image
@@ -22,7 +23,7 @@ class CheckersGUI(ctk.CTk):
 
         self.frames: dict = {}
 
-        for FrameClass in (PortSelectionPage, ConfigureCVColors):
+        for FrameClass in (ColorSelectPage, PortSelectionPage, ConfigureCVColors):
             frame = FrameClass(self)
             self.frames[FrameClass] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -30,7 +31,7 @@ class CheckersGUI(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        self.show_frame(PortSelectionPage)
+        self.show_frame(ColorSelectPage)
 
     def show_frame(self, cont):
         """Bring the specified frame to the front."""
@@ -46,10 +47,62 @@ class CheckersGUI(ctk.CTk):
         self.selected_camera_port = port
 
 
+class ColorSelectPage(ctk.CTkFrame):
+    """Application page for selecting color of the player and robot"""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.selected_color_label = None
+        self.parent = parent
+        self.selected_color = None
+
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure((0, 1), weight=1)
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        orange_button_image = ctk.CTkImage(Image.open("img/orange.png"), size=(100, 100))
+        blue_button_image = ctk.CTkImage(Image.open("img/blue.png"), size=(100, 100))
+
+        instruction_label = ctk.CTkLabel(master=self, text="Select a robot color")
+        instruction_label.grid(row=0, column=0, columnspan=2, pady=10)
+
+        orange_button = ctk.CTkButton(master=self, image=orange_button_image, text="", command=self.select_orange_color)
+        orange_button.grid(row=1, column=0, sticky="")
+
+        blue_button = ctk.CTkButton(master=self, image=blue_button_image, text="", command=self.select_blue_color)
+        blue_button.grid(row=1, column=1, sticky="")
+
+        self.selected_color_label = ctk.CTkLabel(master=self, text="Selected Color for robot: None")
+        self.selected_color_label.grid(row=2, column=0, columnspan=2, pady=10)
+
+        next_button = ctk.CTkButton(self, text="Next", command=self.select_next_page)
+        next_button.grid(row=4, column=0, pady=(50, 5), sticky="s", columnspan=2)
+
+    def select_next_page(self):
+        if self.selected_color is None:
+            tk_messagebox.showerror(title="Error!", message="You must select color before moving forward.")
+        else:
+            self.parent.show_frame(PortSelectionPage)
+
+    def select_orange_color(self):
+        self.selected_color = "Orange"
+        self.update_selected_color_label()
+
+    def select_blue_color(self):
+        self.selected_color = "Blue"
+        self.update_selected_color_label()
+
+    def update_selected_color_label(self):
+        """Updates the label with the selected color"""
+        self.selected_color_label.configure(text=f"Selected Color: {self.selected_color}")
+
+
 class PortSelectionPage(ctk.CTkFrame):
     """Initial page for robot's configuration."""
 
-    def __init__(self, parent, fg_color=None):
+    def __init__(self, parent):
         super().__init__(parent)
         self.camera_port_options = None
         self.camera_ports_list = None
