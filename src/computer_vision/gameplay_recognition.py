@@ -3,7 +3,7 @@ import numpy as np
 
 from src.computer_vision.game_board_recognition import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
-from src.checkers_game_and_decissions.utilities import list_ports, empt_fun
+from src.checkers_game_and_decissions.utilities import list_camera_ports, empt_fun
 
 
 def rotate_square_2D_matrix_right(matrix):
@@ -20,9 +20,7 @@ def rotate_square_2D_matrix_right(matrix):
 
 
 class Game:
-
     def __init__(self, handle_capture=True, lack_of_trust_level=5):
-
         # Convention:
         # game state is 2d matrix -> list of columns
         # 1 represents orange, -1 represents blue
@@ -33,13 +31,12 @@ class Game:
         # the bottom side is y = 7
 
         if handle_capture:
-
             # Looking for available cameras
-            available_ports, working_ports = list_ports()
+            available_ports, working_ports = list_camera_ports()
 
-            print('\nPlease select camera port by index')
+            print("\nPlease select camera port by index")
             for i, p in enumerate(working_ports):
-                print(f'[{i}]: {p}')
+                print(f"[{i}]: {p}")
 
             port_idx = int(input())
 
@@ -48,13 +45,20 @@ class Game:
 
             self.cap = cv2.VideoCapture()
             self.cap.open(port)
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc('M', 'J', 'P', 'G'))
+            self.cap.set(
+                cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc("M", "J", "P", "G")
+            )
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
             self.bgrs = []
             self.calibration_frame = None
-            self.red_checker_bgr, self.blue_checker_bgr, self.dark_field_bgr, self.light_field_bgr = self.calibrate_colors()
+            (
+                self.red_checker_bgr,
+                self.blue_checker_bgr,
+                self.dark_field_bgr,
+                self.light_field_bgr,
+            ) = self.calibrate_colors()
 
             cv2.namedWindow("Parameters - Board")
             cv2.resizeWindow("Parameters - Board", 640, 340)
@@ -65,7 +69,9 @@ class Game:
             cv2.createTrackbar("Kernel_size", "Parameters - Board", 5, 10, empt_fun)
             cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
             cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
-            cv2.createTrackbar("Color_dist_threshold", "Parameters - Board", 80, 200, empt_fun)
+            cv2.createTrackbar(
+                "Color_dist_threshold", "Parameters - Board", 80, 200, empt_fun
+            )
 
             self.handle_capture = True
 
@@ -80,7 +86,7 @@ class Game:
             [0, 1, 0, 0, 0, -1, 0, -1],
             [1, 0, 1, 0, 0, 0, -1, 0],
             [0, 1, 0, 0, 0, -1, 0, -1],
-            [1, 0, 1, 0, 0, 0, -1, 0]
+            [1, 0, 1, 0, 0, 0, -1, 0],
         ]
 
         self.game_state_log = [self.game_state]
@@ -88,7 +94,6 @@ class Game:
 
     @classmethod
     def build_game_state(cls, checkers, is_00_white=True):
-
         game_state = [
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
@@ -97,7 +102,7 @@ class Game:
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0]
+            [0, 0, 0, 0, 0, 0, 0, 0],
         ]
 
         for c in checkers:
@@ -112,19 +117,17 @@ class Game:
         return game_state
 
     def calibration_mouse_listener(self, event, x, y, flags, param):
-
         if event == cv2.EVENT_LBUTTONUP:
             self.bgrs.append(self.calibration_frame[y][x])
 
     def calibrate_colors(self):
-
         self.bgrs = []
         cnt = 0
         texts = [
             "SELECT ORANGE CHECKER",
             "SELECT BLUE CHECKER",
             "SELECT DARK FIELD",
-            "SELECT LIGHT FIELD"
+            "SELECT LIGHT FIELD",
         ]
 
         tmp = np.zeros((1, 1, 3), dtype=np.uint8)
@@ -133,11 +136,18 @@ class Game:
         cv2.setMouseCallback("Calibration", self.calibration_mouse_listener)
 
         while len(self.bgrs) < 4:
-
             success, img = self.cap.read()
 
-            cv2.putText(img, texts[cnt], (int(img.shape[0] / 10), int(img.shape[1] / 2)), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-                        (0, 255, 0), 3, cv2.LINE_AA)
+            cv2.putText(
+                img,
+                texts[cnt],
+                (int(img.shape[0] / 10), int(img.shape[1] / 2)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (0, 255, 0),
+                3,
+                cv2.LINE_AA,
+            )
 
             img = cv2.resize(img, (0, 0), fx=0.8, fy=0.8)
             cv2.imshow("Calibration", img)
@@ -145,7 +155,7 @@ class Game:
 
             cnt = len(self.bgrs)
 
-            if cv2.waitKey(30) == ord('q'):  # & 0xFF == ord('q'):
+            if cv2.waitKey(30) == ord("q"):  # & 0xFF == ord('q'):
                 break
 
         cv2.destroyAllWindows()
@@ -154,25 +164,39 @@ class Game:
         return self.bgrs
 
     def present_visually(self):
-
         img = np.zeros((500, 500, 3), np.uint8)  # create black empty plane
         img[:, :] = (240, 240, 240)  # setting background
 
         is_dark = False
         for x in range(0, 8, 1):  # drawing fields
             for y in range(0, 8, 1):
-
                 if is_dark:
-                    cv2.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (0, 25, 80), -1)
+                    cv2.rectangle(
+                        img,
+                        (x * 50 + 50, y * 50 + 50),
+                        (x * 50 + 100, y * 50 + 100),
+                        (0, 25, 80),
+                        -1,
+                    )
                 else:
-                    cv2.rectangle(img, (x * 50 + 50, y * 50 + 50), (x * 50 + 100, y * 50 + 100), (180, 225, 255), -1)
+                    cv2.rectangle(
+                        img,
+                        (x * 50 + 50, y * 50 + 50),
+                        (x * 50 + 100, y * 50 + 100),
+                        (180, 225, 255),
+                        -1,
+                    )
 
                 is_dark = not is_dark
             is_dark = not is_dark
 
         for i in range(0, 9, 1):
-            cv2.line(img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3)  # drawing vertical lines
-            cv2.line(img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3)  # drawing horizontal lines
+            cv2.line(
+                img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3
+            )  # drawing vertical lines
+            cv2.line(
+                img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3
+            )  # drawing horizontal lines
 
         for x, _ in enumerate(self.game_state):  # drawing checkers
             for y, _ in enumerate(self.game_state[x]):
@@ -184,7 +208,6 @@ class Game:
         return img
 
     def handle_next_frame(self, frame):
-
         img_res = frame.copy()
 
         t1 = cv2.getTrackbarPos("Threshold1", "Parameters - Board")
@@ -192,25 +215,46 @@ class Game:
         kernel_size = cv2.getTrackbarPos("Kernel_size", "Parameters - Board")
         min_area = cv2.getTrackbarPos("Min_area", "Parameters - Board")
         area_margin = cv2.getTrackbarPos("Area_margin", "Parameters - Board")
-        approx_peri_fraction = float(cv2.getTrackbarPos("Approx_peri", "Parameters - Board")) / 100.0
+        approx_peri_fraction = (
+            float(cv2.getTrackbarPos("Approx_peri", "Parameters - Board")) / 100.0
+        )
         px_dist_to_join = float(cv2.getTrackbarPos("Px_dist", "Parameters - Board"))
-        color_dist_thresh = cv2.getTrackbarPos("Color_dist_threshold", "Parameters - Board")
+        color_dist_thresh = cv2.getTrackbarPos(
+            "Color_dist_threshold", "Parameters - Board"
+        )
 
         try:
-            board = Board.detect_board(img_res, t1=t1, t2=t2, kernel=np.ones((kernel_size, kernel_size)),
-                                       min_area=min_area, area_margin=area_margin,
-                                       approx_peri_fraction=approx_peri_fraction, px_dist_to_join=px_dist_to_join)
+            board = Board.detect_board(
+                img_res,
+                t1=t1,
+                t2=t2,
+                kernel=np.ones((kernel_size, kernel_size)),
+                min_area=min_area,
+                area_margin=area_margin,
+                approx_peri_fraction=approx_peri_fraction,
+                px_dist_to_join=px_dist_to_join,
+            )
 
-            Checkers.detect_checkers(board, frame, self.red_checker_bgr, self.blue_checker_bgr, color_dist_thresh)
+            Checkers.detect_checkers(
+                board,
+                frame,
+                self.red_checker_bgr,
+                self.blue_checker_bgr,
+                color_dist_thresh,
+            )
 
             has_changed = self.challenge_game_state_change(
-                Game.build_game_state(Checkers.checkers, is_00_white=board.is_00_white(
-                    dark_field_bgr=self.dark_field_bgr,
-                    light_field_bgr=self.light_field_bgr,
-                    red_bgr=self.red_checker_bgr,
-                    green_bgr=self.blue_checker_bgr,
-                    color_dist_thresh=color_dist_thresh
-                )))
+                Game.build_game_state(
+                    Checkers.checkers,
+                    is_00_white=board.is_00_white(
+                        dark_field_bgr=self.dark_field_bgr,
+                        light_field_bgr=self.light_field_bgr,
+                        red_bgr=self.red_checker_bgr,
+                        green_bgr=self.blue_checker_bgr,
+                        color_dist_thresh=color_dist_thresh,
+                    ),
+                )
+            )
 
         except Exception:
             # print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
@@ -236,7 +280,6 @@ class Game:
         raise Exception("Failure during capturing frame or capture mode not selected")
 
     def challenge_game_state_change(self, game_state):
-
         if game_state is None:
             return False
 
@@ -259,7 +302,6 @@ class Game:
         return False
 
     def get_fresh_game_state(self):
-
         new_frame = self.capture_next_frame()
 
         has_state_possibly_change = self.handle_next_frame(new_frame)

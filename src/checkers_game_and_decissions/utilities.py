@@ -7,7 +7,7 @@ import cv2
 from src.checkers_game_and_decissions.enum_entities import Color
 
 
-def get_coord_from_field_id(field_id: int, color: Color = None) -> tuple[int, int]:
+def get_coord_from_field_id(field_id: int, color: Color) -> tuple[int, int]:
     y, x = divmod((field_id - 1), 4)
     x *= 2
 
@@ -58,7 +58,8 @@ def get_avg_color(img):
 #     cv2.fillConvexPoly(mask, pts, 1)
 #     return mask
 
-def list_ports() -> tuple[list[int], list[int]]:
+
+def list_camera_ports() -> tuple[list[int], list[int]]:
     # Test the ports and returns a tuple with the available ports and the ones that are working.
 
     is_working = True
@@ -76,10 +77,15 @@ def list_ports() -> tuple[list[int], list[int]]:
             w = camera.get(3)
             h = camera.get(4)
             if is_reading:
-                print("Port %s is working and reads images (%s x %s)" % (dev_port, h, w))
+                print(
+                    "Port %s is working and reads images (%s x %s)" % (dev_port, h, w)
+                )
                 working_ports.append(dev_port)
             else:
-                print("Port %s for camera ( %s x %s) is present but does not reads." % (dev_port, h, w))
+                print(
+                    "Port %s for camera ( %s x %s) is present but does not reads."
+                    % (dev_port, h, w)
+                )
                 available_ports.append(dev_port)
             dev_port += 1
     return available_ports, working_ports
