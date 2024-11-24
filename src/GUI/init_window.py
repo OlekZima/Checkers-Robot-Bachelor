@@ -95,6 +95,7 @@ class ColorSelection:
     @staticmethod
     def _setup_port_selection() -> list[sg.Element]:
         layout = [
+            [sg.VPush()],
             [
                 sg.Text("Select port for the robot:", expand_x=True),
                 sg.Text(
@@ -102,7 +103,6 @@ class ColorSelection:
                 ),
             ],
             [
-                sg.VPush(),
                 sg.OptionMenu(
                     values=list_ports.comports(),
                     key="-Robot_Port-",
@@ -117,8 +117,8 @@ class ColorSelection:
                     expand_x=True,
                     enable_events=True,
                 ),
-                sg.VPush(),
             ],
+            [sg.VPush()],
         ]
         return layout
 
