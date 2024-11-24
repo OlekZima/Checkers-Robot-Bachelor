@@ -16,6 +16,8 @@ class ColorSelection:
         self.frame = None
         self.image_id = None
 
+        self.selected_config_color = None
+
         self.configuration_colors: dict[str, tuple[int, int, int]] = {
             "Orange": (0, 0, 0),
             "Blue": (0, 0, 0),
@@ -97,9 +99,15 @@ class ColorSelection:
         layout = [
             [sg.VPush()],
             [
-                sg.Text("Select port for the robot:", expand_x=True),
                 sg.Text(
-                    "Select port for the camera:", expand_x=True, justification="right"
+                    text="Select port for the robot:",
+                    expand_x=True,
+                    justification="center",
+                ),
+                sg.Text(
+                    text="Select port for the camera:",
+                    expand_x=True,
+                    justification="center",
                 ),
             ],
             [
@@ -124,15 +132,22 @@ class ColorSelection:
 
     @staticmethod
     def _setup_color_configuration() -> list[sg.Element]:
-        layout = [
+        layout: list = [
             [
                 sg.Text(
-                    "Configure the colors for the game",
+                    text="Configure the colors for the game",
                     expand_x=True,
                     justification="center",
                 )
             ],
-            [sg.Text("Orange color selection", expand_x=True, justification="center")],
+            [
+                sg.Text(
+                    text="Orange color selection",
+                    expand_x=True,
+                    justification="center",
+                    key="-Info_Color_Selection-",
+                )
+            ],
             [
                 sg.Graph(
                     canvas_size=(640, 480),
@@ -143,17 +158,50 @@ class ColorSelection:
                     key="-Graph-",
                 ),
                 sg.Column(
-                    [
-                        [sg.Radio("Orange color", key="-Step_Orange-", group_id=1, default=True)],
-                        [sg.Radio("Blue color", key="-Step_Blue-", group_id=1)],
-                        [sg.Radio("Black color", key="-Step_Black-", group_id=1)],
-                        [sg.Radio("White color", key="-Step_White-", group_id=1)],
+                    layout=[
+                        [
+                            sg.Radio(
+                                "Orange color",
+                                key="-Step_Orange-",
+                                group_id=1,
+                                default=True,
+                            )
+                        ],
+                        [
+                            sg.Radio(
+                                text="Blue color",
+                                key="-Step_Blue-",
+                                group_id=1,
+                                enable_events=True,
+                            )
+                        ],
+                        [
+                            sg.Radio(
+                                text="Black color",
+                                key="-Step_Black-",
+                                group_id=1,
+                                enable_events=True,
+                            )
+                        ],
+                        [
+                            sg.Radio(
+                                text="White color",
+                                key="-Step_White-",
+                                group_id=1,
+                                enable_events=True,
+                            )
+                        ],
                     ]
                 ),
             ],
             [sg.Button("Next", key="-End_Configuration-")],
         ]
         return layout
+
+    def _update_selected_color_label(self) -> None:
+        self.window["-Selected_Color-"].update(
+            f"Selected Color for robot is: {self.selected_color}"
+        )
 
     def run(self) -> None:
         while True:
@@ -162,14 +210,10 @@ class ColorSelection:
                 break
             elif event == "-Select_Orange-":
                 self.selected_color = "Orange"
-                self.window["-Selected_Color-"].update(
-                    f"Selected Color for robot is: {self.selected_color}"
-                )
+                self._update_selected_color_label()
             elif event == "-Select_Blue-":
                 self.selected_color = "Blue"
-                self.window["-Selected_Color-"].update(
-                    f"Selected Color for robot is: {self.selected_color}"
-                )
+                self._update_selected_color_label()
 
             elif (
                 event == "-TABGROUP-"
@@ -204,34 +248,63 @@ class ColorSelection:
                     imgbytes = cv2.imencode(".png", frame)[1].tobytes()
                     if self.image_id:
                         self.window["-Graph-"].delete_figure(self.image_id)
-                    self.image_id = self.window["-Graph-"].draw_image(data=imgbytes, location=(0, 480))
+                    self.image_id = self.window["-Graph-"].draw_image(
+                        data=imgbytes, location=(0, 480)
+                    )
+
+            if values["-Step_Orange-"]:
+                self.window["-Info_Color_Selection-"].update("Orange color selection")
+            elif values["-Step_Blue-"]:
+                self.window["-Info_Color_Selection-"].update("Blue color selection")
+            elif values["-Step_Black-"]:
+                self.window["-Info_Color_Selection-"].update("Black color selection")
+            elif values["-Step_White-"]:
+                self.window["-Info_Color_Selection-"].update("White color selection")
 
             if event == "-Graph-" and self.recording:
                 mouse = values["-Graph-"]
                 mouse_x, mouse_y = mouse
                 mouse_y = 480 - mouse_y
-                if self.frame is not None:
-                    if 0 <= mouse_x < self.frame.shape[1] and 0 <= mouse_y < self.frame.shape[0]:
-                        b, g, r = self.frame[mouse_y, mouse_x]
-                        selected_color = None
-                        if values["-Step_Orange-"]:
-                            selected_color = "Orange"
-                        elif values["-Step_Blue-"]:
-                            selected_color = "Blue"
-                        elif values["-Step_Black-"]:
-                            selected_color = "Black"
-                        elif values["-Step_White-"]:
-                            selected_color = "White"
-                        if selected_color:
-                            self.configuration_colors[selected_color] = (r, g, b)
-                            sg.popup(f"Color for {selected_color} updated to: {r}, {g}, {b}")
-                        else:
-                            sg.popup("Select a color to update")
+                if self.frame is None:
+                    continue
+
+                if (
+                    0 <= mouse_x < self.frame.shape[1]
+                    and 0 <= mouse_y < self.frame.shape[0]
+                ):
+                    b, g, r = self.frame[mouse_y, mouse_x]
+                    if values["-Step_Orange-"]:
+                        self.selected_config_color = "Orange"
+                    elif values["-Step_Blue-"]:
+                        self.selected_config_color = "Blue"
+                    elif values["-Step_Black-"]:
+                        self.selected_config_color = "Black"
+                    elif values["-Step_White-"]:
+                        self.selected_config_color = "White"
+                    if self.selected_config_color:
+                        self.configuration_colors[self.selected_config_color] = (
+                            r,
+                            g,
+                            b,
+                        )
+                        sg.popup(
+                            f"Selected color for {self.selected_config_color} is: ({r}, {g}, {b})"
+                        )
 
             if event == "-End_Configuration-":
-                sg.popup("Selected colors for the game", self.configuration_colors)
-                break
+                self.configuration_colors = {
+                    key: tuple(map(int, self.configuration_colors[key]))
+                    for key in self.configuration_colors
+                }
 
+                sg.popup(
+                    "Selected colors for the game",
+                    f"Orange: {self.configuration_colors["Orange"]}\nBlue: {self.configuration_colors["Blue"]}\nBlack: {self.configuration_colors["Black"]}\nWhite: {self.configuration_colors["White"]}",
+                )
+
+                print(self.configuration_colors)
+
+                break
 
         if self.cap:
             self.cap.release()
