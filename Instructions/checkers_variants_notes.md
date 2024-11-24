@@ -23,7 +23,7 @@
 
 ## Plansza i notacja
 
-![Notacja pól planszy](img/Draughts_Notation.png)
+![Notacja pól planszy](../assets/md_img/Draughts_Notation.png)
 
 1. Rozmiar: 8x8
 2. Pole w lewym dolnym rogu: Czarne - 29
