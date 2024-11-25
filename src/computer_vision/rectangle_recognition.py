@@ -1,35 +1,9 @@
 import cv2
 import numpy as np
-from src.checkers_game_and_decissions.utilities import get_pts_dist, get_avg_pos, empt_fun
-
-
-# def get_pts_dist(pt1: list[int]=None, pt2: list[int]=None):
-#     if pt1 is None:
-#         pt1 = [0, 0]
-#     if pt2 is None:
-#         pt2 = [0, 0]
-#     dx = pt1[0] - pt2[0]
-#     dy = pt1[1] - pt2[1]
-#
-#     dx = float(dx * dx)
-#     dy = float(dy * dy)
-#
-#     return np.sqrt([dx + dy])[0]
-
-
-# def get_avg_pos(pts=None):
-#     if pts is None:
-#         pts = [[0, 0], [0, 0]]
-#     x_avg, y_avg = 0, 0
-#
-#     for pt in pts:
-#         x_avg += pt[0]
-#         y_avg += pt[1]
-#
-#     x_avg = int(float(x_avg) / float(len(pts)))
-#     y_avg = int(float(y_avg) / float(len(pts)))
-#
-#     return [x_avg, y_avg]
+from src.checkers_game_and_decissions.utilities import (
+    get_pts_dist,
+    get_avg_pos,
+)
 
 
 # https://www.youtube.com/watch?v=Fchzk1lDt7Q
@@ -50,10 +24,10 @@ def get_contours(src, min_area=150, area_margin=20, approx_peri_fraction=0.03, p
             contours_approx = np.append(contours_approx, [approx], axis=0)
             pass
 
-    print(f"{contours_rects_only=}")
-    print(f"{len(contours_rects_only)=}")
-    contours_rects_only = np.asarray(contours_rects_only)
-    contours_approx = contours_approx[1:]  # dropping item 0 that was made to initialize the array
+    contours_rects_only = np.array(contours_rects_only, dtype=object)
+    contours_approx = contours_approx[
+        1:
+    ]  # dropping item 0 that was made to initialize the array
 
     # STEP 1 - filtering out by area being too small and then not close enough to median of all areas
 
