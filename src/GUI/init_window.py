@@ -29,10 +29,10 @@ class ConfigurationWindow:
         )
 
     def get_robot_port(self) -> str:
-        return self._robot_port if self._robot_port is not None else None
+        return self._robot_port
 
     def get_camera_port(self) -> int:
-        return self._camera_port if self._camera_port is not None else None
+        return self._camera_port
 
     def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
         return self._configuration_colors
@@ -42,7 +42,7 @@ class ConfigurationWindow:
         layout: list[sg.Element] = [
             [
                 sg.Text(
-                    "Checkers Robot Configurattion",
+                    "Checkers Robot Configuration",
                     justification="center",
                     expand_x=True,
                 )
@@ -210,15 +210,16 @@ class ConfigurationWindow:
         return layout
 
     def _show_port_selection_tab(self) -> None:
-        self._window["-Port_Selection-"].update(visible=True)
+        port_selection_tab: sg.Tab = self._window["-Port_Selection-"]
+        port_selection_tab.update(visible=True)
 
     def _show_color_configuration_tab(self) -> None:
-        self._window["-Color_Configuration-"].update(visible=True)
+        color_configuration_tab: sg.Tab = self._window["-Color_Configuration-"]
+        color_configuration_tab.update(visible=True)
 
     def _update_selected_color_label(self) -> None:
-        self._window["-Selected_Color-"].update(
-            f"Selected Color for robot is: {self._selected_color}"
-        )
+        text_label: sg.Text = self._window["-Selected_Color-"]
+        text_label.update(f"Selected Color for robot is: {self._selected_color}")
 
     def run(self) -> None:
         while True:
