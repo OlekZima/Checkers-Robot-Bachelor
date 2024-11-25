@@ -3,20 +3,7 @@ import numpy as np
 
 from src.computer_vision.game_board_recognition import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
-from src.checkers_game_and_decissions.utilities import list_camera_ports, empt_fun
-
-
-def rotate_square_2D_matrix_right(matrix):
-    new_matrix = []
-
-    for _ in matrix[0]:
-        new_matrix.append([])
-
-    for x in range(0, len(matrix), 1):
-        for y in range(0, len(matrix[x]), 1):
-            new_matrix[y].append(matrix[x][len(matrix[x]) - y - 1])
-
-    return new_matrix
+from src.checkers_game_and_decissions.utilities import list_camera_ports, empty_function
 
 
 class Game:
@@ -53,24 +40,25 @@ class Game:
 
             self.bgrs = []
             self.calibration_frame = None
+
             (
-                self.red_checker_bgr,
-                self.blue_checker_bgr,
+                self.orange_bgr,
+                self.blue_bgr,
                 self.dark_field_bgr,
                 self.light_field_bgr,
             ) = self.calibrate_colors()
 
             cv2.namedWindow("Parameters - Board")
             cv2.resizeWindow("Parameters - Board", 640, 340)
-            cv2.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empt_fun)
-            cv2.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empt_fun)
-            cv2.createTrackbar("Min_area", "Parameters - Board", 150, 600, empt_fun)
-            cv2.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empt_fun)
-            cv2.createTrackbar("Kernel_size", "Parameters - Board", 5, 10, empt_fun)
-            cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empt_fun)
-            cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empt_fun)
+            cv2.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empty_function)
+            cv2.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empty_function)
+            cv2.createTrackbar("Min_area", "Parameters - Board", 150, 600, empty_function)
+            cv2.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empty_function)
+            cv2.createTrackbar("Kernel_size", "Parameters - Board", 5, 10, empty_function)
+            cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empty_function)
+            cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empty_function)
             cv2.createTrackbar(
-                "Color_dist_threshold", "Parameters - Board", 80, 200, empt_fun
+                "Color_dist_threshold", "Parameters - Board", 80, 200, empty_function
             )
 
             self.handle_capture = True
@@ -93,7 +81,7 @@ class Game:
         self.lack_of_trust_level = lack_of_trust_level
 
     @classmethod
-    def build_game_state(cls, checkers, is_00_white=True):
+    def build_game_state(cls, checkers, is_00_white:bool):
         game_state = [
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
@@ -112,11 +100,11 @@ class Game:
                 game_state[c.pos[0]][c.pos[1]] = -1
 
         if not is_00_white:
-            game_state = rotate_square_2D_matrix_right(game_state)
+            game_state = cls.rotate_square_2D_matrix_right(game_state)
 
         return game_state
 
-    def calibration_mouse_listener(self, event, x, y, flags, param):
+    def calibration_mouse_listener(self, event, x, y):
         if event == cv2.EVENT_LBUTTONUP:
             self.bgrs.append(self.calibration_frame[y][x])
 
@@ -238,8 +226,8 @@ class Game:
             Checkers.detect_checkers(
                 board,
                 frame,
-                self.red_checker_bgr,
-                self.blue_checker_bgr,
+                self.orange_bgr,
+                self.blue_bgr,
                 color_dist_thresh,
             )
 
@@ -249,8 +237,8 @@ class Game:
                     is_00_white=board.is_00_white(
                         dark_field_bgr=self.dark_field_bgr,
                         light_field_bgr=self.light_field_bgr,
-                        red_bgr=self.red_checker_bgr,
-                        green_bgr=self.blue_checker_bgr,
+                        orange_bgr=self.orange_bgr,
+                        green_bgr=self.blue_bgr,
                         color_dist_thresh=color_dist_thresh,
                     ),
                 )
@@ -308,3 +296,18 @@ class Game:
         has_state_possibly_change = self.handle_next_frame(new_frame)
 
         return has_state_possibly_change, [i.copy() for i in self.game_state]
+
+
+    @staticmethod
+    def rotate_square_2D_matrix_right(matrix):
+        new_matrix = []
+
+        for _ in matrix[0]:
+            new_matrix.append([])
+
+        for x in range(0, len(matrix), 1):
+            for y in range(0, len(matrix[x]), 1):
+                new_matrix[y].append(matrix[x][len(matrix[x]) - y - 1])
+
+        return new_matrix
+
