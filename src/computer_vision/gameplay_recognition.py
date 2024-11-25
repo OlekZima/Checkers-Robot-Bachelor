@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from src.computer_vision.game_board_recognition import Board
+from src.computer_vision.Board import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
 from src.checkers_game_and_decisions.utilities import list_camera_ports, empty_function
 
@@ -297,7 +297,6 @@ class Game:
 
         return has_state_possibly_change, [i.copy() for i in self.game_state]
 
-
     @staticmethod
     def rotate_square_2D_matrix_right(matrix):
         new_matrix = []
@@ -310,4 +309,3 @@ class Game:
                 new_matrix[y].append(matrix[x][len(matrix[x]) - y - 1])
 
         return new_matrix
-
