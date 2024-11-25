@@ -46,7 +46,6 @@ class Board:
     @classmethod
     def detect_board(cls, img_src, t1=140, t2=255, kernel=np.ones((2, 2)), min_area=150, area_margin=20,
                      approx_peri_fraction=0.03, px_dist_to_join=10.0):
-
         contours = get_game_tiles_contours(img_src, t1=t1, t2=t2, kernel=kernel, min_area=min_area,
                                            area_margin=area_margin, approx_peri_fraction=approx_peri_fraction,
                                            px_dist_to_join=px_dist_to_join)
@@ -405,7 +404,7 @@ class Board:
                         pts_to_avg.append(P_12[j])
                         break
 
-                extrapolation_pts = [l[i] for l in self.points]
+                extrapolation_pts = [point[i] for point in self.points]
                 extrapolation_val = Board.extrapolate_last_point(pts=extrapolation_pts)
 
                 pts_to_avg = [get_avg_pos(pts_to_avg), extrapolation_val]
@@ -441,7 +440,7 @@ class Board:
                         pts_to_avg.append(P_03[j])
                         break
 
-                extrapolation_pts = [l[i] for l in self.points][::-1]
+                extrapolation_pts = [point[i] for point in self.points][::-1]
                 extrapolation_val = Board.extrapolate_last_point(pts=extrapolation_pts)
 
                 pts_to_avg = [get_avg_pos(pts_to_avg), extrapolation_val]

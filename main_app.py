@@ -69,7 +69,7 @@ def main():
             else:
                 print("The winner is HUMAN")
 
-            print(f"=========================================================")
+            print("=========================================================")
             break
 
         if game_state_report[RobotGameReportItem.TURN_OF] == game_state_report[RobotGameReportItem.ROBOT_COLOR]:

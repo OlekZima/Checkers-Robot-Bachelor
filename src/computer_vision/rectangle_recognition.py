@@ -50,7 +50,9 @@ def get_contours(src, min_area=150, area_margin=20, approx_peri_fraction=0.03, p
             contours_approx = np.append(contours_approx, [approx], axis=0)
             pass
 
-    contours_rects_only = np.array(contours_rects_only)
+    print(f"{contours_rects_only=}")
+    print(f"{len(contours_rects_only)=}")
+    contours_rects_only = np.asarray(contours_rects_only)
     contours_approx = contours_approx[1:]  # dropping item 0 that was made to initialize the array
 
     # STEP 1 - filtering out by area being too small and then not close enough to median of all areas
@@ -147,82 +149,6 @@ def get_contours(src, min_area=150, area_margin=20, approx_peri_fraction=0.03, p
     flattened_approx_pnts_syntetic = np.reshape(flattened_approx_pnts_syntetic, (-1, 4, 1, 2))
 
     return flattened_approx_pnts_syntetic
-
-
-def get_contours_old(src, min_area=150, area_margin=20, approx_peri_fraction=0.03, px_dist_to_join=15.0):
-    contours_oryg, hierarchy = cv2.findContours(src, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-
-    contours_rects_only = []
-    contours_approx = np.ndarray((1, 4, 1, 2), dtype=int)
-
-    # STEP 0 - filtering out non quadrangles and gathering rects vertexes
-
-    for cnt in contours_oryg:
-        peri = cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, approx_peri_fraction * peri, True)
-
-        if len(approx) == 4:
-            contours_rects_only.append(cnt)
-            contours_approx = np.append(contours_approx, [approx], axis=0)
-            pass
-
-    contours_rects_only = np.array(contours_rects_only)
-    contours_approx = contours_approx[1:]  # dropping item 0 that was made to initialize the array
-
-    # STEP 1 - filtering out by area being too small and then not close enough to median of all areas
-
-    area_margin = float(area_margin / 100.0)
-    if area_margin == 0.0:
-        area_margin = 0.01
-
-    keep_cnt = np.zeros(contours_rects_only.shape, dtype=bool)
-
-    for i in range(0, len(contours_rects_only), 1):
-        if cv2.contourArea(contours_rects_only[i]) >= min_area:
-            keep_cnt[i] = True
-
-    contours_rects_only = contours_rects_only[keep_cnt]
-    contours_approx = contours_approx[keep_cnt]
-
-    contours_areas = np.empty(len(contours_rects_only), dtype=int)
-    for i in range(0, len(contours_rects_only), 1):
-        contours_areas[i] = cv2.contourArea(contours_rects_only[i])
-
-    contours_areas = np.sort(contours_areas, kind='mergesort')
-
-    median_area = contours_areas[int(len(contours_areas) / 2)]
-    area_min = int(median_area / area_margin)
-    area_max = int(median_area * area_margin)
-
-    keep_cnt = np.zeros(contours_rects_only.shape, dtype=bool)
-    for i, cnt in enumerate(contours_rects_only):
-        area = cv2.contourArea(cnt)
-        if ((area >= area_min) and (area <= area_max)):
-            keep_cnt[i] = True
-
-    # contours_area_filtered = contours_rects_only[keep_cnt]
-    contours_approx_area_filtered = contours_approx[keep_cnt]
-    # contours_approx_area_filtered = contours_approx
-
-    # STEP 2 - joining points of approximated rectangles in proximity for better grid
-
-    flattened_approx_pnts = np.reshape(np.copy(contours_approx_area_filtered), (-1, 1, 1, 2))
-
-    for i, cnt1 in enumerate(flattened_approx_pnts):
-        idx_to_avg = [i]
-        vals_to_avg = [cnt1[0][0]]
-        for j, cntn in enumerate(flattened_approx_pnts[i + 1:]):
-            if get_pts_dist(cnt1[0][0], cntn[0][0]) <= px_dist_to_join:
-                idx_to_avg.append(j + i + 1)
-                vals_to_avg.append(cntn[0][0])
-        avg_pos = get_avg_pos(vals_to_avg)
-        for k in idx_to_avg:
-            flattened_approx_pnts[k][0][0] = avg_pos
-
-    new_contours_approx_area_filtered = np.reshape(flattened_approx_pnts, (-1, 4, 1, 2))
-
-    return new_contours_approx_area_filtered
-
 
 def setup():
     # choosing external webcam

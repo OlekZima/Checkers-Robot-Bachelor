@@ -32,7 +32,7 @@ class Game:
 
         if handle_capture:
             # Looking for available cameras
-            available_ports, working_ports = list_camera_ports()
+            working_ports = list_camera_ports()
 
             print("\nPlease select camera port by index")
             for i, p in enumerate(working_ports):
@@ -256,8 +256,9 @@ class Game:
                 )
             )
 
-        except Exception:
+        except Exception as e:
             # print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
+            print(e)
             img_res = cv2.resize(img_res, (0, 0), fx=0.8, fy=0.8)
             cv2.imshow("RESULT", img_res)
             raise Exception("Couldn't map board")
@@ -283,8 +284,8 @@ class Game:
         if game_state is None:
             return False
 
-        for l in self.game_state_log:
-            if l != game_state:
+        for log_entry in self.game_state_log:
+            if log_entry != game_state:
                 self.game_state_log = [game_state]
                 # print("============NOT THE SAME=============")
                 # print(l)

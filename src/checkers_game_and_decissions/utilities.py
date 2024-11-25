@@ -1,13 +1,14 @@
 import math
 import sys
 import termios
+from typing import Optional
 
 import numpy as np
 import cv2
 from src.checkers_game_and_decissions.enum_entities import Color
 
 
-def get_coord_from_field_id(field_id: int, color: Color) -> tuple[int, int]:
+def get_coord_from_field_id(field_id: int, color: Optional[Color] = None) -> tuple[int, int]:
     y, x = divmod((field_id - 1), 4)
     x *= 2
 

@@ -4,29 +4,38 @@ import cv2
 from src.computer_vision.gameplay_recognition import list_camera_ports
 
 
-class ColorSelection:
+class ConfigurationWindow:
     def __init__(self) -> None:
-        self.selected_color = None
+        self._selected_color = None
 
-        self.recording = False
-        self.robot_port = None
-        self.camera_port = None
-        self.cap = None
-        self.frame = None
-        self.image_id = None
+        self._recording = False
+        self._robot_port = None
+        self._camera_port = None
+        self._cap = None
+        self._frame = None
+        self._image_id = None
 
-        self.selected_config_color = None
+        self._selected_config_color = None
 
-        self.configuration_colors: dict[str, tuple[int, int, int]] = {
+        self._configuration_colors: dict[str, tuple[int, int, int]] = {
             "Orange": (0, 0, 0),
             "Blue": (0, 0, 0),
             "Black": (0, 0, 0),
             "White": (0, 0, 0),
         }
 
-        self.window = sg.Window(
+        self._window = sg.Window(
             "Configuration", self._setup_main_layout(), resizable=False
         )
+
+    def get_robot_port(self) -> str:
+        return self._robot_port if self._robot_port is not None else None
+
+    def get_camera_port(self) -> int:
+        return self._camera_port if self._camera_port is not None else None
+
+    def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
+        return self._configuration_colors
 
     @staticmethod
     def _setup_main_layout() -> list[sg.Element]:
@@ -44,18 +53,18 @@ class ColorSelection:
                         [
                             sg.Tab(
                                 "Color Selection",
-                                layout=ColorSelection._setup_color_selection(),
+                                layout=ConfigurationWindow._setup_color_selection(),
                                 key="-Color_Selection-",
                             ),
                             sg.Tab(
                                 "Port Selection",
-                                layout=ColorSelection._setup_port_selection(),
+                                layout=ConfigurationWindow._setup_port_selection(),
                                 key="-Port_Selection-",
                                 visible=False,
                             ),
                             sg.Tab(
                                 "Color Configuration",
-                                layout=ColorSelection._setup_color_configuration(),
+                                layout=ConfigurationWindow._setup_color_configuration(),
                                 key="-Color_Configuration-",
                                 visible=False,
                             ),
@@ -201,133 +210,136 @@ class ColorSelection:
         return layout
 
     def _show_port_selection_tab(self) -> None:
-        self.window["-Port_Selection-"].update(visible=True)
+        self._window["-Port_Selection-"].update(visible=True)
+
+    def _show_color_configuration_tab(self) -> None:
+        self._window["-Color_Configuration-"].update(visible=True)
 
     def _update_selected_color_label(self) -> None:
-        self.window["-Selected_Color-"].update(
-            f"Selected Color for robot is: {self.selected_color}"
+        self._window["-Selected_Color-"].update(
+            f"Selected Color for robot is: {self._selected_color}"
         )
 
     def run(self) -> None:
         while True:
-            event, values = self.window.read(20)
+            event, values = self._window.read(20)
             if event in [sg.WIN_CLOSED, "Cancel"]:
                 break
             elif event == "-Select_Orange-":
-                self.selected_color = "Orange"
+                self._selected_color = "Orange"
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
             elif event == "-Select_Blue-":
-                self.selected_color = "Blue"
+                self._selected_color = "Blue"
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
 
             elif (
                 event == "-TABGROUP-"
                 and values["-TABGROUP-"] != "-Color_Configuration-"
-                and self.recording
+                and self._recording
             ):
-                self.recording = False
-                if self.cap:
-                    self.cap.release()
-                    self.cap = None
+                self._recording = False
+                if self._cap:
+                    self._cap.release()
+                    self._cap = None
 
             elif event == "-Camera_Port-":
-                self.camera_port = int(values["-Camera_Port-"])
+                self._camera_port = int(values["-Camera_Port-"])
 
             elif event == "-Robot_Port-":
-                self.robot_port = values["-Robot_Port-"]
+                self._robot_port = values["-Robot_Port-"]
 
-            elif not self.window["-Color_Configuration-"].visible and None not in [
-                self.camera_port,
-                self.robot_port,
+            elif not self._window["-Color_Configuration-"].visible and None not in [
+                self._camera_port,
+                self._robot_port,
             ]:
-                self.window["-Color_Configuration-"].update(visible=True)
+                self._show_color_configuration_tab()
 
             elif (
                 event == "-TABGROUP-"
                 and values["-TABGROUP-"] == "-Color_Configuration-"
-                and not self.recording
+                and not self._recording
             ):
-                if self.camera_port is not None:
-                    self.cap = cv2.VideoCapture(self.camera_port)
-                    if not self.cap.isOpened():
+                if self._camera_port is not None:
+                    self._cap = cv2.VideoCapture(self._camera_port)
+                    if not self._cap.isOpened():
                         sg.popup("Failed to access the camera.")
                     else:
-                        self.recording = True
+                        self._recording = True
                 else:
                     sg.popup("No camera port selected!")
 
-            if self.cap is not None and self.cap.isOpened() and self.recording:
-                ret, frame = self.cap.read()
+            if self._cap is not None and self._cap.isOpened() and self._recording:
+                ret, frame = self._cap.read()
                 if ret:
-                    self.frame = frame
+                    self._frame = frame
                     imgbytes = cv2.imencode(".png", frame)[1].tobytes()
-                    if self.image_id:
-                        self.window["-Graph-"].delete_figure(self.image_id)
-                    self.image_id = self.window["-Graph-"].draw_image(
+                    if self._image_id:
+                        self._window["-Graph-"].delete_figure(self._image_id)
+                    self._image_id = self._window["-Graph-"].draw_image(
                         data=imgbytes, location=(0, 480)
                     )
 
             if values["-Step_Orange-"]:
-                self.window["-Info_Color_Selection-"].update("Orange color selection")
+                self._window["-Info_Color_Selection-"].update("Orange color selection")
             elif values["-Step_Blue-"]:
-                self.window["-Info_Color_Selection-"].update("Blue color selection")
+                self._window["-Info_Color_Selection-"].update("Blue color selection")
             elif values["-Step_Black-"]:
-                self.window["-Info_Color_Selection-"].update("Black color selection")
+                self._window["-Info_Color_Selection-"].update("Black color selection")
             elif values["-Step_White-"]:
-                self.window["-Info_Color_Selection-"].update("White color selection")
+                self._window["-Info_Color_Selection-"].update("White color selection")
 
-            if event == "-Graph-" and self.recording:
+            if event == "-Graph-" and self._recording:
                 mouse = values["-Graph-"]
                 mouse_x, mouse_y = mouse
                 mouse_y = 480 - mouse_y
-                if self.frame is None:
+                if self._frame is None:
                     continue
 
                 if (
-                    0 <= mouse_x < self.frame.shape[1]
-                    and 0 <= mouse_y < self.frame.shape[0]
+                    0 <= mouse_x < self._frame.shape[1]
+                    and 0 <= mouse_y < self._frame.shape[0]
                 ):
-                    b, g, r = self.frame[mouse_y, mouse_x]
+                    b, g, r = self._frame[mouse_y, mouse_x]
                     if values["-Step_Orange-"]:
-                        self.selected_config_color = "Orange"
+                        self._selected_config_color = "Orange"
                     elif values["-Step_Blue-"]:
-                        self.selected_config_color = "Blue"
+                        self._selected_config_color = "Blue"
                     elif values["-Step_Black-"]:
-                        self.selected_config_color = "Black"
+                        self._selected_config_color = "Black"
                     elif values["-Step_White-"]:
-                        self.selected_config_color = "White"
-                    if self.selected_config_color:
-                        self.configuration_colors[self.selected_config_color] = (
+                        self._selected_config_color = "White"
+                    if self._selected_config_color:
+                        self._configuration_colors[self._selected_config_color] = (
                             r,
                             g,
                             b,
                         )
                         sg.popup(
-                            f"Selected color for {self.selected_config_color} is: ({r}, {g}, {b})"
+                            f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
                         )
 
             if event == "-End_Configuration-":
-                self.configuration_colors = {
-                    key: tuple(map(int, self.configuration_colors[key]))
-                    for key in self.configuration_colors
+                self._configuration_colors = {
+                    key: tuple(map(int, self._configuration_colors[key]))
+                    for key in self._configuration_colors
                 }
 
                 sg.popup(
                     "Selected colors for the game [R, G, B]",
-                    f"Orange: {self.configuration_colors["Orange"]}\nBlue: {self.configuration_colors["Blue"]}\nBlack: {self.configuration_colors["Black"]}\nWhite: {self.configuration_colors["White"]}",
+                    f"Orange: {self._configuration_colors["Orange"]}\nBlue: {self._configuration_colors["Blue"]}\nBlack: {self._configuration_colors["Black"]}\nWhite: {self._configuration_colors["White"]}",
                 )
 
-                print(self.configuration_colors)
+                print(self._configuration_colors)
 
                 break
 
-        if self.cap:
-            self.cap.release()
-        self.window.close()
+        if self._cap:
+            self._cap.release()
+        self._window.close()
 
 
 if __name__ == "__main__":
-    app = ColorSelection()
+    app = ConfigurationWindow()
     app.run()

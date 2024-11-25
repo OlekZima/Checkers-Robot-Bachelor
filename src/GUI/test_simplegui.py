@@ -131,7 +131,6 @@ class CheckersGUI:
                         self.current_tab = "Configure CV Colors"
                 elif self.current_tab == "Configure CV Colors":
                     sg.popup("Configuration Complete!")
-                    print("Collected RGB values:", self.rgb_values)
 
             if self.current_tab == "Configure CV Colors":
                 pass
@@ -144,7 +143,6 @@ class CheckersGUI:
                     )
                 else:
                     sg.popup("All steps completed!")
-                    print("Collected RGB values:", self.rgb_values)
 
         self.window.close()
 

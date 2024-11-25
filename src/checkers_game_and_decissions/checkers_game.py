@@ -1,5 +1,8 @@
-from src.checkers_game_and_decissions.enum_entities import Status
-from src.checkers_game_and_decissions.utilities import *
+from src.checkers_game_and_decissions.enum_entities import Status, Color
+from src.checkers_game_and_decissions.utilities import (
+    get_coord_from_field_id,
+    get_field_id_from_coord,
+)
 
 
 # Class contains basic info about game - model:
@@ -16,7 +19,6 @@ from src.checkers_game_and_decissions.utilities import *
 # These methods can be based on class methods which take game state as a parameter - as we may need it later
 # for decision making algorithm
 class CheckersGame:
-
     def __init__(self):
         # The convention is that:
         #   - color wise:
@@ -166,16 +168,16 @@ class CheckersGame:
 
         # Looking for jumps on diagonal - increasing x and y
         if (
-                x_curr + 2 < 8  # we need to move two fields for jump
-                and y_curr + 2 < 8  # we need to move two fields for jump
-                and ((-1) * get_field_id_from_coord(x_curr + 1, y_curr + 1))
-                not in prev_seq  # we cannot jump two times over same opponent piece
-                and game_state[x][y] * game_state[x_curr + 1][y_curr + 1]
-                < 0  # so that we have opposing side pieces
-                and (  # we have empty field after opponent (or the field was initial jumping piece field)
+            x_curr + 2 < 8  # we need to move two fields for jump
+            and y_curr + 2 < 8  # we need to move two fields for jump
+            and ((-1) * get_field_id_from_coord(x_curr + 1, y_curr + 1))
+            not in prev_seq  # we cannot jump two times over same opponent piece
+            and game_state[x][y] * game_state[x_curr + 1][y_curr + 1]
+            < 0  # so that we have opposing side pieces
+            and (  # we have empty field after opponent (or the field was initial jumping piece field)
                 game_state[x_curr + 2][y_curr + 2] == 0
                 or (x_curr + 2 == x and y_curr + 2 == y)
-        )
+            )
         ):
             jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
@@ -184,7 +186,7 @@ class CheckersGame:
             ]
 
             tmp_prev_seq = (
-                    prev_seq + jump[1:]
+                prev_seq + jump[1:]
             )  # represents prev_seq to propagate to recursive call of method
             sub_seq = CheckersGame.get_man_poss_jumps(
                 id, game_state, tmp_prev_seq
@@ -199,16 +201,16 @@ class CheckersGame:
 
         # Looking for jumps on diagonal - decreasing x and increasing y
         if (
-                x_curr - 2 >= 0  # we need to move two fields for jump
-                and y_curr + 2 < 8  # we need to move two fields for jump
-                and ((-1) * get_field_id_from_coord(x_curr - 1, y_curr + 1))
-                not in prev_seq  # we cannot jump two times over same opponent piece
-                and game_state[x][y] * game_state[x_curr - 1][y_curr + 1]
-                < 0  # so that we have opposing side pieces
-                and (  # we have empty field after opponent (or the field was initial jumping piece field)
+            x_curr - 2 >= 0  # we need to move two fields for jump
+            and y_curr + 2 < 8  # we need to move two fields for jump
+            and ((-1) * get_field_id_from_coord(x_curr - 1, y_curr + 1))
+            not in prev_seq  # we cannot jump two times over same opponent piece
+            and game_state[x][y] * game_state[x_curr - 1][y_curr + 1]
+            < 0  # so that we have opposing side pieces
+            and (  # we have empty field after opponent (or the field was initial jumping piece field)
                 game_state[x_curr - 2][y_curr + 2] == 0
                 or (x_curr - 2 == x and y_curr + 2 == y)
-        )
+            )
         ):
             jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
@@ -217,7 +219,7 @@ class CheckersGame:
             ]
 
             tmp_prev_seq = (
-                    prev_seq + jump[1:]
+                prev_seq + jump[1:]
             )  # represents prev_seq to propagate to recursive call of method
             sub_seq = CheckersGame.get_man_poss_jumps(
                 id, game_state, tmp_prev_seq
@@ -232,16 +234,16 @@ class CheckersGame:
 
         # Looking for jumps on diagonal - decreasing x and y
         if (
-                x_curr - 2 >= 0  # we need to move two fields for jump
-                and y_curr - 2 >= 0  # we need to move two fields for jump
-                and ((-1) * get_field_id_from_coord(x_curr - 1, y_curr - 1))
-                not in prev_seq  # we cannot jump two times over same opponent piece
-                and game_state[x][y] * game_state[x_curr - 1][y_curr - 1]
-                < 0  # so that we have opposing side pieces
-                and (  # we have empty field after opponent (or the field was initial jumping piece field)
+            x_curr - 2 >= 0  # we need to move two fields for jump
+            and y_curr - 2 >= 0  # we need to move two fields for jump
+            and ((-1) * get_field_id_from_coord(x_curr - 1, y_curr - 1))
+            not in prev_seq  # we cannot jump two times over same opponent piece
+            and game_state[x][y] * game_state[x_curr - 1][y_curr - 1]
+            < 0  # so that we have opposing side pieces
+            and (  # we have empty field after opponent (or the field was initial jumping piece field)
                 game_state[x_curr - 2][y_curr - 2] == 0
                 or (x_curr - 2 == x and y_curr - 2 == y)
-        )
+            )
         ):
             jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
@@ -250,7 +252,7 @@ class CheckersGame:
             ]
 
             tmp_prev_seq = (
-                    prev_seq + jump[1:]
+                prev_seq + jump[1:]
             )  # represents prev_seq to propagate to recursive call of method
             sub_seq = CheckersGame.get_man_poss_jumps(
                 id, game_state, tmp_prev_seq
@@ -265,16 +267,16 @@ class CheckersGame:
 
         # Looking for jumps on diagonal - increasing x and decreasing y
         if (
-                x_curr + 2 < 8  # we need to move two fields for jump
-                and y_curr - 2 >= 0  # we need to move two fields for jump
-                and ((-1) * get_field_id_from_coord(x_curr + 1, y_curr - 1))
-                not in prev_seq  # we cannot jump two times over same opponent piece
-                and game_state[x][y] * game_state[x_curr + 1][y_curr - 1]
-                < 0  # so that we have opposing side pieces
-                and (  # we have empty field after opponent (or the field was initial jumping piece field)
+            x_curr + 2 < 8  # we need to move two fields for jump
+            and y_curr - 2 >= 0  # we need to move two fields for jump
+            and ((-1) * get_field_id_from_coord(x_curr + 1, y_curr - 1))
+            not in prev_seq  # we cannot jump two times over same opponent piece
+            and game_state[x][y] * game_state[x_curr + 1][y_curr - 1]
+            < 0  # so that we have opposing side pieces
+            and (  # we have empty field after opponent (or the field was initial jumping piece field)
                 game_state[x_curr + 2][y_curr - 2] == 0
                 or (x_curr + 2 == x and y_curr - 2 == y)
-        )
+            )
         ):
             jump = [  # table which items represents begging of all subsequences
                 get_field_id_from_coord(x_curr, y_curr),
@@ -283,7 +285,7 @@ class CheckersGame:
             ]
 
             tmp_prev_seq = (
-                    prev_seq + jump[1:]
+                prev_seq + jump[1:]
             )  # represents prev_seq to propagate to recursive call of method
             sub_seq = CheckersGame.get_man_poss_jumps(
                 id, game_state, tmp_prev_seq
@@ -327,41 +329,39 @@ class CheckersGame:
         x_tmp = x_curr
         y_tmp = y_curr
         while (  # this loop is meant to look if we have any poss jumps on that diagonal
-                x_tmp < 8
-                and y_tmp < 8
-                and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
+            x_tmp < 8
+            and y_tmp < 8
+            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
         ):
             if (  # true if we are ready to jump over an opponent piece
-                    x_tmp + 2 < 8  # we need to move two fields for jump
-                    and y_tmp + 2 < 8  # we need to move two fields for jump
-                    and ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp + 1))
-                    not in prev_seq  # we cannot jump two times over same opponent piece
-                    and game_state[x][y] * game_state[x_tmp + 1][y_tmp + 1]
-                    < 0  # so that we have opposing side pieces
-                    and (  # we have empty field after opponent (or the field was initial jumping piece field)
+                x_tmp + 2 < 8  # we need to move two fields for jump
+                and y_tmp + 2 < 8  # we need to move two fields for jump
+                and ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp + 1))
+                not in prev_seq  # we cannot jump two times over same opponent piece
+                and game_state[x][y] * game_state[x_tmp + 1][y_tmp + 1]
+                < 0  # so that we have opposing side pieces
+                and (  # we have empty field after opponent (or the field was initial jumping piece field)
                     game_state[x_tmp + 2][y_tmp + 2] == 0
                     or (x_tmp + 2 == x and y_tmp + 2 == y)
-            )
+                )
             ):
                 x_after_jump = x_tmp + 2
                 y_after_jump = y_tmp + 2
                 while (  # this loop is meant to go through all after jump landing possible positions
-                        x_after_jump < 8
-                        and y_after_jump < 8
-                        and (
-                                game_state[x_after_jump][y_after_jump] == 0
-                                or (x_after_jump == x and y_after_jump == y)
-                        )
-                ):
-                    jump = (
-                        [  # table which items represents begging of all subsequences
-                            get_field_id_from_coord(x_curr, y_curr),
-                            ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp + 1)),
-                            get_field_id_from_coord(x_after_jump, y_after_jump),
-                        ]
+                    x_after_jump < 8
+                    and y_after_jump < 8
+                    and (
+                        game_state[x_after_jump][y_after_jump] == 0
+                        or (x_after_jump == x and y_after_jump == y)
                     )
+                ):
+                    jump = [  # table which items represents begging of all subsequences
+                        get_field_id_from_coord(x_curr, y_curr),
+                        ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp + 1)),
+                        get_field_id_from_coord(x_after_jump, y_after_jump),
+                    ]
                     tmp_prev_seq = (
-                            prev_seq + jump[1:]
+                        prev_seq + jump[1:]
                     )  # represents prev_seq to propagate to recursive call of method
                     sub_seq = CheckersGame.get_king_poss_jumps(
                         id, game_state, prev_seq=tmp_prev_seq
@@ -377,12 +377,12 @@ class CheckersGame:
                                 -i[1]
                             )
                             if (
-                                    x_next_jumped - x_after_jump > 0
-                                    and y_next_jumped - y_after_jump > 0
+                                x_next_jumped - x_after_jump > 0
+                                and y_next_jumped - y_after_jump > 0
                             ):
                                 if (
-                                        x_next_jumped - x_after_jump == 1
-                                        and y_next_jumped - y_after_jump == 1
+                                    x_next_jumped - x_after_jump == 1
+                                    and y_next_jumped - y_after_jump == 1
                                 ):
                                     full_sub_seq = jump + i[1:]
                                     poss_jumps.append(full_sub_seq)
@@ -400,41 +400,39 @@ class CheckersGame:
         x_tmp = x_curr
         y_tmp = y_curr
         while (  # this loop is meant to look if we have any poss jumps on that diagonal
-                x_tmp >= 0
-                and y_tmp < 8
-                and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
+            x_tmp >= 0
+            and y_tmp < 8
+            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
         ):
             if (  # true if we are ready to jump over an opponent piece
-                    x_tmp - 2 >= 0  # we need to move two fields for jump
-                    and y_tmp + 2 < 8  # we need to move two fields for jump
-                    and ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp + 1))
-                    not in prev_seq  # we cannot jump two times over same opponent piece
-                    and game_state[x][y] * game_state[x_tmp - 1][y_tmp + 1]
-                    < 0  # so that we have opposing side pieces
-                    and (  # we have empty field after opponent (or the field was initial jumping piece field)
+                x_tmp - 2 >= 0  # we need to move two fields for jump
+                and y_tmp + 2 < 8  # we need to move two fields for jump
+                and ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp + 1))
+                not in prev_seq  # we cannot jump two times over same opponent piece
+                and game_state[x][y] * game_state[x_tmp - 1][y_tmp + 1]
+                < 0  # so that we have opposing side pieces
+                and (  # we have empty field after opponent (or the field was initial jumping piece field)
                     game_state[x_tmp - 2][y_tmp + 2] == 0
                     or (x_tmp - 2 == x and y_tmp + 2 == y)
-            )
+                )
             ):
                 x_after_jump = x_tmp - 2
                 y_after_jump = y_tmp + 2
                 while (  # this loop is meant to go through all after jump landing possible positions
-                        x_after_jump >= 0
-                        and y_after_jump < 8
-                        and (
-                                game_state[x_after_jump][y_after_jump] == 0
-                                or (x_after_jump == x and y_after_jump == y)
-                        )
-                ):
-                    jump = (
-                        [  # table which items represents begging of all subsequences
-                            get_field_id_from_coord(x_curr, y_curr),
-                            ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp + 1)),
-                            get_field_id_from_coord(x_after_jump, y_after_jump),
-                        ]
+                    x_after_jump >= 0
+                    and y_after_jump < 8
+                    and (
+                        game_state[x_after_jump][y_after_jump] == 0
+                        or (x_after_jump == x and y_after_jump == y)
                     )
+                ):
+                    jump = [  # table which items represents begging of all subsequences
+                        get_field_id_from_coord(x_curr, y_curr),
+                        ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp + 1)),
+                        get_field_id_from_coord(x_after_jump, y_after_jump),
+                    ]
                     tmp_prev_seq = (
-                            prev_seq + jump[1:]
+                        prev_seq + jump[1:]
                     )  # represents prev_seq to propagate to recursive call of method
                     sub_seq = CheckersGame.get_king_poss_jumps(
                         id, game_state, prev_seq=tmp_prev_seq
@@ -450,12 +448,12 @@ class CheckersGame:
                                 -i[1]
                             )
                             if (
-                                    x_next_jumped - x_after_jump < 0
-                                    and y_next_jumped - y_after_jump > 0
+                                x_next_jumped - x_after_jump < 0
+                                and y_next_jumped - y_after_jump > 0
                             ):
                                 if (
-                                        x_next_jumped - x_after_jump == -1
-                                        and y_next_jumped - y_after_jump == 1
+                                    x_next_jumped - x_after_jump == -1
+                                    and y_next_jumped - y_after_jump == 1
                                 ):
                                     full_sub_seq = jump + i[1:]
                                     poss_jumps.append(full_sub_seq)
@@ -473,41 +471,39 @@ class CheckersGame:
         x_tmp = x_curr
         y_tmp = y_curr
         while (  # this loop is meant to look if we have any poss jumps on that diagonal
-                x_tmp >= 0
-                and y_tmp >= 0
-                and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
+            x_tmp >= 0
+            and y_tmp >= 0
+            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
         ):
             if (  # true if we are ready to jump over an opponent piece
-                    x_tmp - 2 >= 0  # we need to move two fields for jump
-                    and y_tmp - 2 >= 0  # we need to move two fields for jump
-                    and ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp - 1))
-                    not in prev_seq  # we cannot jump two times over same opponent piece
-                    and game_state[x][y] * game_state[x_tmp - 1][y_tmp - 1]
-                    < 0  # so that we have opposing side pieces
-                    and (  # we have empty field after opponent (or the field was initial jumping piece field)
+                x_tmp - 2 >= 0  # we need to move two fields for jump
+                and y_tmp - 2 >= 0  # we need to move two fields for jump
+                and ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp - 1))
+                not in prev_seq  # we cannot jump two times over same opponent piece
+                and game_state[x][y] * game_state[x_tmp - 1][y_tmp - 1]
+                < 0  # so that we have opposing side pieces
+                and (  # we have empty field after opponent (or the field was initial jumping piece field)
                     game_state[x_tmp - 2][y_tmp - 2] == 0
                     or (x_tmp - 2 == x and y_tmp - 2 == y)
-            )
+                )
             ):
                 x_after_jump = x_tmp - 2
                 y_after_jump = y_tmp - 2
                 while (  # this loop is meant to go through all after jump landing possible positions
-                        x_after_jump >= 0
-                        and y_after_jump >= 0
-                        and (
-                                game_state[x_after_jump][y_after_jump] == 0
-                                or (x_after_jump == x and y_after_jump == y)
-                        )
-                ):
-                    jump = (
-                        [  # table which items represents begging of all subsequences
-                            get_field_id_from_coord(x_curr, y_curr),
-                            ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp - 1)),
-                            get_field_id_from_coord(x_after_jump, y_after_jump),
-                        ]
+                    x_after_jump >= 0
+                    and y_after_jump >= 0
+                    and (
+                        game_state[x_after_jump][y_after_jump] == 0
+                        or (x_after_jump == x and y_after_jump == y)
                     )
+                ):
+                    jump = [  # table which items represents begging of all subsequences
+                        get_field_id_from_coord(x_curr, y_curr),
+                        ((-1) * get_field_id_from_coord(x_tmp - 1, y_tmp - 1)),
+                        get_field_id_from_coord(x_after_jump, y_after_jump),
+                    ]
                     tmp_prev_seq = (
-                            prev_seq + jump[1:]
+                        prev_seq + jump[1:]
                     )  # represents prev_seq to propagate to recursive call of method
                     sub_seq = CheckersGame.get_king_poss_jumps(
                         id, game_state, prev_seq=tmp_prev_seq
@@ -523,12 +519,12 @@ class CheckersGame:
                                 -i[1]
                             )
                             if (
-                                    x_next_jumped - x_after_jump < 0
-                                    and y_next_jumped - y_after_jump < 0
+                                x_next_jumped - x_after_jump < 0
+                                and y_next_jumped - y_after_jump < 0
                             ):
                                 if (
-                                        x_next_jumped - x_after_jump == -1
-                                        and y_next_jumped - y_after_jump == -1
+                                    x_next_jumped - x_after_jump == -1
+                                    and y_next_jumped - y_after_jump == -1
                                 ):
                                     full_sub_seq = jump + i[1:]
                                     poss_jumps.append(full_sub_seq)
@@ -546,41 +542,39 @@ class CheckersGame:
         x_tmp = x_curr
         y_tmp = y_curr
         while (  # this loop is meant to look if we have any poss jumps on that diagonal
-                x_tmp < 8
-                and y_tmp >= 0
-                and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
+            x_tmp < 8
+            and y_tmp >= 0
+            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
         ):
             if (  # true if we are ready to jump over an opponent piece
-                    x_tmp + 2 < 8  # we need to move two fields for jump
-                    and y_tmp - 2 >= 0  # we need to move two fields for jump
-                    and ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp - 1))
-                    not in prev_seq  # we cannot jump two times over same opponent piece
-                    and game_state[x][y] * game_state[x_tmp + 1][y_tmp - 1]
-                    < 0  # so that we have opposing side pieces
-                    and (  # we have empty field after opponent (or the field was initial jumping piece field)
+                x_tmp + 2 < 8  # we need to move two fields for jump
+                and y_tmp - 2 >= 0  # we need to move two fields for jump
+                and ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp - 1))
+                not in prev_seq  # we cannot jump two times over same opponent piece
+                and game_state[x][y] * game_state[x_tmp + 1][y_tmp - 1]
+                < 0  # so that we have opposing side pieces
+                and (  # we have empty field after opponent (or the field was initial jumping piece field)
                     game_state[x_tmp + 2][y_tmp - 2] == 0
                     or (x_tmp + 2 == x and y_tmp - 2 == y)
-            )
+                )
             ):
                 x_after_jump = x_tmp + 2
                 y_after_jump = y_tmp - 2
                 while (  # this loop is meant to go through all after jump landing possible positions
-                        x_after_jump < 8
-                        and y_after_jump >= 0
-                        and (
-                                game_state[x_after_jump][y_after_jump] == 0
-                                or (x_after_jump == x and y_after_jump == y)
-                        )
-                ):
-                    jump = (
-                        [  # table which items represents begging of all subsequences
-                            get_field_id_from_coord(x_curr, y_curr),
-                            ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp - 1)),
-                            get_field_id_from_coord(x_after_jump, y_after_jump),
-                        ]
+                    x_after_jump < 8
+                    and y_after_jump >= 0
+                    and (
+                        game_state[x_after_jump][y_after_jump] == 0
+                        or (x_after_jump == x and y_after_jump == y)
                     )
+                ):
+                    jump = [  # table which items represents begging of all subsequences
+                        get_field_id_from_coord(x_curr, y_curr),
+                        ((-1) * get_field_id_from_coord(x_tmp + 1, y_tmp - 1)),
+                        get_field_id_from_coord(x_after_jump, y_after_jump),
+                    ]
                     tmp_prev_seq = (
-                            prev_seq + jump[1:]
+                        prev_seq + jump[1:]
                     )  # represents prev_seq to propagate to recursive call of method
                     sub_seq = CheckersGame.get_king_poss_jumps(
                         id, game_state, prev_seq=tmp_prev_seq
@@ -596,12 +590,12 @@ class CheckersGame:
                                 -i[1]
                             )
                             if (
-                                    x_next_jumped - x_after_jump > 0
-                                    and y_next_jumped - y_after_jump < 0
+                                x_next_jumped - x_after_jump > 0
+                                and y_next_jumped - y_after_jump < 0
                             ):
                                 if (
-                                        x_next_jumped - x_after_jump == 1
-                                        and y_next_jumped - y_after_jump == -1
+                                    x_next_jumped - x_after_jump == 1
+                                    and y_next_jumped - y_after_jump == -1
                                 ):
                                     full_sub_seq = jump + i[1:]
                                     poss_jumps.append(full_sub_seq)
@@ -635,7 +629,7 @@ class CheckersGame:
 
                 # if king -> check if jump or move of king possible
                 if (
-                        color.value * game_state[x][y] == 2
+                    color.value * game_state[x][y] == 2
                 ):  # must be either ORANGE or BLUE king, depending on color given
                     opts = CheckersGame.get_king_poss_jumps(id, game_state)
                     poss_opts += opts
@@ -645,7 +639,7 @@ class CheckersGame:
 
                 # if man -> check if jump or move of man possible
                 if (
-                        color.value * game_state[x][y] == 1
+                    color.value * game_state[x][y] == 1
                 ):  # must be either ORANGE or BLUE king, depending on color given
                     opts = CheckersGame.get_man_poss_jumps(id, game_state)
                     poss_opts += opts
@@ -664,7 +658,6 @@ class CheckersGame:
 
     @classmethod
     def check_if_won(cls, color_opponent_turn, game_state):
-
         if len(CheckersGame.get_color_poss_opts(color_opponent_turn, game_state)) == 0:
             return True
 
@@ -683,7 +676,7 @@ class CheckersGame:
 
         x_tmp, y_tmp = get_coord_from_field_id(move[len(move) - 1])
         if (
-                val_of_piece == 1 and y_tmp == 7
+            val_of_piece == 1 and y_tmp == 7
         ):  # Crown if crowning needed, else just place at the end of sequence
             state[x_tmp][y_tmp] = 2
         elif val_of_piece == -1 and y_tmp == 0:
@@ -740,11 +733,10 @@ class CheckersGame:
             return None
 
     def perform_move(self, sequence):
-
         if self.status != Status.IN_PROGRESS:
             raise Exception("Game already ended")
 
-        if not (sequence in self.turn_player_opts):
+        if sequence not in self.turn_player_opts:
             raise Exception("Movement not permitted")
 
         x_tmp, y_tmp = get_coord_from_field_id(sequence[0])
@@ -763,13 +755,11 @@ class CheckersGame:
                 has_jumped = True
 
         if has_jumped:
-            self.draw_criteria_log = (
-                []
-            )  # Jumping results in draw criteria log being restarted
+            self.draw_criteria_log = []  # Jumping results in draw criteria log being restarted
 
         x_tmp, y_tmp = get_coord_from_field_id(sequence[len(sequence) - 1])
         if (
-                val_of_piece == 1 and y_tmp == 7
+            val_of_piece == 1 and y_tmp == 7
         ):  # Crown if crowning needed, else just place at the end of sequence
             self.game_state[x_tmp][y_tmp] = 2
         elif val_of_piece == -1 and y_tmp == 0:
