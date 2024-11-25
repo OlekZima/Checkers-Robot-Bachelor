@@ -3,7 +3,7 @@ import numpy as np
 
 from src.computer_vision.game_board_recognition import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
-from src.checkers_game_and_decissions.utilities import list_camera_ports, empty_function
+from src.checkers_game_and_decisions.utilities import list_camera_ports, empty_function
 
 
 class Game:

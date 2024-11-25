@@ -4,7 +4,7 @@ import math
 import traceback
 
 from src.computer_vision.rectangle_recognition import get_game_tiles_contours
-from src.checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos, empt_fun
+from src.checkers_game_and_decisions.utilities import get_avg_color, get_avg_pos, empty_function
 
 
 def get_triangle_area(p1=[0, 0], p2=[0, 0], p3=[0, 0]):

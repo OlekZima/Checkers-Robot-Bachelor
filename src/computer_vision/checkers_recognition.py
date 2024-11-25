@@ -1,7 +1,7 @@
 import math
 from typing import Optional
-from src.checkers_game_and_decissions.utilities import get_avg_color, get_avg_pos
-from src.checkers_game_and_decissions.enum_entities import Color
+from src.checkers_game_and_decisions.utilities import get_avg_color, get_avg_pos
+from src.checkers_game_and_decisions.enum_entities import Color
 
 
 class Checkers:

@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from src.checkers_game_and_decissions.utilities import (
+from src.checkers_game_and_decisions.utilities import (
     get_pts_dist,
     get_avg_pos,
 )
