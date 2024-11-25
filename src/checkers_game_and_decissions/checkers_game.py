@@ -3,7 +3,7 @@ from src.checkers_game_and_decissions.utilities import (
     get_coord_from_field_id,
     get_field_id_from_coord,
 )
-
+from copy import deepcopy
 
 # Class contains basic info about game - model:
 #   -> state of the board
@@ -656,12 +656,6 @@ class CheckersGame:
 
         return poss_opts
 
-    @classmethod
-    def check_if_won(cls, color_opponent_turn, game_state):
-        if len(CheckersGame.get_color_poss_opts(color_opponent_turn, game_state)) == 0:
-            return True
-
-        return False
 
     @classmethod
     def get_outcome_of_move(cls, state, move):
@@ -687,20 +681,10 @@ class CheckersGame:
         return state
 
     def get_game_state(self):
-        return [
-            i.copy() for i in self.game_state
-        ]  # to make a true copy, i need to copy each internal list
-
-    def get_log(self):
-        return [
-            i.copy() for i in self.log
-        ]  # to make a true copy, i need to copy each internal list
+        return deepcopy(self.game_state)
 
     def get_draw_criteria_log(self):
-        draw_crit_log = []
-        for i in self.draw_criteria_log:
-            draw_crit_log.append((i[0], [j.copy() for j in i[1]]))
-        return draw_crit_log  # to make a true copy, i need to copy each internal list
+        return deepcopy(self.draw_criteria_log)
 
     def get_status(self):
         return self.status
@@ -712,9 +696,7 @@ class CheckersGame:
         return {Color.ORANGE: self.ORANGE_points, Color.BLUE: self.BLUE_points}
 
     def get_possible_opts(self):
-        return [
-            i.copy() for i in self.turn_player_opts
-        ]  # to make a true copy, i need to copy each internal list
+        return deepcopy(self.turn_player_opts)
 
     def get_possible_outcomes(self):  # Returns a dict of pairs move: outcome
         possible_outcomes = []
