@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 
 class RobotGameReportItem(IntEnum):
@@ -24,7 +24,7 @@ class Status(IntEnum):
     DRAW = 3
 
 
-class UpdateGameStateResult(IntEnum):
+class UpdateGameStateResult(Enum):
     INVALID_ROBOT_MOVE = 1
     VALID_WRONG_ROBOT_MOVE = 2
     VALID_RIGHT_ROBOT_MOVE = 3
