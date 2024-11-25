@@ -53,8 +53,8 @@ def list_camera_ports() -> list[int]:
     for dev_port in range(10):
         cap = cv2.VideoCapture(dev_port)
         is_reading, img = cap.read()
-        h, w, _ = img.shape
         if is_reading:
+            h, w, _ = img.shape
             print(f"Port {dev_port} is working and reads image ({h} x {w})")
             working_ports.append(dev_port)
         cap.release()
