@@ -1,4 +1,3 @@
-import re
 import PySimpleGUI as sg
 from serial.tools import list_ports
 import cv2
@@ -7,7 +6,7 @@ from src.computer_vision.gameplay_recognition import list_camera_ports
 
 class ColorSelection:
     def __init__(self) -> None:
-        self.selected_color = "Orange"
+        self.selected_color = None
 
         self.recording = False
         self.robot_port = None
@@ -46,14 +45,19 @@ class ColorSelection:
                             sg.Tab(
                                 "Color Selection",
                                 layout=ColorSelection._setup_color_selection(),
+                                key="-Color_Selection-",
                             ),
                             sg.Tab(
                                 "Port Selection",
                                 layout=ColorSelection._setup_port_selection(),
+                                key="-Port_Selection-",
+                                visible=False,
                             ),
                             sg.Tab(
                                 "Color Configuration",
                                 layout=ColorSelection._setup_color_configuration(),
+                                key="-Color_Configuration-",
+                                visible=False,
                             ),
                         ]
                     ],
@@ -114,14 +118,12 @@ class ColorSelection:
                 sg.OptionMenu(
                     values=list_ports.comports(),
                     key="-Robot_Port-",
-                    default_value="/dev/ttyUSB0",
                     expand_x=True,
                     enable_events=True,
                 ),
                 sg.OptionMenu(
                     values=list_camera_ports(),
                     key="-Camera_Port-",
-                    default_value="0",
                     expand_x=True,
                     enable_events=True,
                 ),
@@ -198,6 +200,9 @@ class ColorSelection:
         ]
         return layout
 
+    def _show_port_selection_tab(self) -> None:
+        self.window["-Port_Selection-"].update(visible=True)
+
     def _update_selected_color_label(self) -> None:
         self.window["-Selected_Color-"].update(
             f"Selected Color for robot is: {self.selected_color}"
@@ -211,13 +216,15 @@ class ColorSelection:
             elif event == "-Select_Orange-":
                 self.selected_color = "Orange"
                 self._update_selected_color_label()
+                self._show_port_selection_tab()
             elif event == "-Select_Blue-":
                 self.selected_color = "Blue"
                 self._update_selected_color_label()
+                self._show_port_selection_tab()
 
             elif (
                 event == "-TABGROUP-"
-                and values["-TABGROUP-"] != "Color Configuration"
+                and values["-TABGROUP-"] != "-Color_Configuration-"
                 and self.recording
             ):
                 self.recording = False
@@ -225,21 +232,31 @@ class ColorSelection:
                     self.cap.release()
                     self.cap = None
 
+            elif event == "-Camera_Port-":
+                self.camera_port = int(values["-Camera_Port-"])
+
+            elif event == "-Robot_Port-":
+                self.robot_port = values["-Robot_Port-"]
+
+            elif not self.window["-Color_Configuration-"].visible and None not in [
+                self.camera_port,
+                self.robot_port,
+            ]:
+                self.window["-Color_Configuration-"].update(visible=True)
+
             elif (
                 event == "-TABGROUP-"
-                and values["-TABGROUP-"] == "Color Configuration"
+                and values["-TABGROUP-"] == "-Color_Configuration-"
                 and not self.recording
             ):
-                camera_port_selection = values["-Camera_Port-"]
-                if camera_port_selection and camera_port_selection != "/dev/ttyUSB0":
-                    self.camera_port = int(
-                        re.search("[0-9]+", camera_port_selection).group()
-                    )
+                if self.camera_port is not None:
                     self.cap = cv2.VideoCapture(self.camera_port)
                     if not self.cap.isOpened():
                         sg.popup("Failed to access the camera.")
                     else:
                         self.recording = True
+                else:
+                    sg.popup("No camera port selected!")
 
             if self.cap is not None and self.cap.isOpened() and self.recording:
                 ret, frame = self.cap.read()
@@ -298,7 +315,7 @@ class ColorSelection:
                 }
 
                 sg.popup(
-                    "Selected colors for the game",
+                    "Selected colors for the game [R, G, B]",
                     f"Orange: {self.configuration_colors["Orange"]}\nBlue: {self.configuration_colors["Blue"]}\nBlack: {self.configuration_colors["Black"]}\nWhite: {self.configuration_colors["White"]}",
                 )
 
