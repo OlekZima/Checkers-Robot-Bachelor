@@ -1,12 +1,12 @@
-from src.checkers_game_and_decissions.checkers_game import CheckersGame, Color, Status
-from src.checkers_game_and_decissions.negamax_decission_engine import (
+from src.checkers_game_and_decisions.checkers_game import CheckersGame, Color, Status
+from src.checkers_game_and_decisions.negamax_decission_engine import (
     NegamaxDecisionEngine,
 )
-from src.checkers_game_and_decissions.enum_entities import (
+from src.checkers_game_and_decisions.enum_entities import (
     RobotGameReportItem,
     UpdateGameStateResult,
 )
-from src.checkers_game_and_decissions.utilities import get_coord_from_field_id
+from src.checkers_game_and_decisions.utilities import get_coord_from_field_id
 
 
 

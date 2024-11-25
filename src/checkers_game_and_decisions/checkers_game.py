@@ -1,5 +1,5 @@
-from src.checkers_game_and_decissions.enum_entities import Status, Color
-from src.checkers_game_and_decissions.utilities import (
+from src.checkers_game_and_decisions.enum_entities import Status, Color
+from src.checkers_game_and_decisions.utilities import (
     get_coord_from_field_id,
     get_field_id_from_coord,
 )
