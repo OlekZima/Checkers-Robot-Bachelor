@@ -7,7 +7,7 @@ from pydobotplus import Dobot
 import numpy as np
 import cv2
 
-from src.checkers_game_and_decissions.utilities import linear_interpolate, get_coord_from_field_id, flush_input
+from src.checkers_game_and_decisions.utilities import linear_interpolate, get_coord_from_field_id, flush_input
 
 
 class CalibrationController:

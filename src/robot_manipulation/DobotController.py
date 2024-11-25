@@ -1,6 +1,6 @@
 import os
-from src.checkers_game_and_decissions.checkers_game import Color
-from src.checkers_game_and_decissions.utilities import get_coord_from_field_id
+from src.checkers_game_and_decisions.checkers_game import Color
+from src.checkers_game_and_decisions.utilities import get_coord_from_field_id
 import numpy as np
 from serial.tools import list_ports
 
