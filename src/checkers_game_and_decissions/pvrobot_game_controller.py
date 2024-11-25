@@ -9,15 +9,7 @@ from src.checkers_game_and_decissions.enum_entities import (
 from src.checkers_game_and_decissions.utilities import get_coord_from_field_id
 
 
-def rotate_2d_matrix_180_deg(matrix):
-    new_matrix = []
-    for c in range(len(matrix) - 1, -1, -1):
-        tmp_col = []
-        for i in range(len(matrix[c]) - 1, -1, -1):
-            tmp_col.append(matrix[c][i])
-        new_matrix.append(tmp_col)
 
-    return new_matrix
 
 
 class PVRobotController:
@@ -78,7 +70,7 @@ class PVRobotController:
                 if self_game_state[i][j] == 2:
                     self_game_state[i][j] = 1
 
-        rotated_board_state = rotate_2d_matrix_180_deg(board_state)
+        rotated_board_state = self.rotate_2d_matrix_180_deg(board_state)
 
         # 1 - checking if game state hasn't changed
         is_same_state = False
@@ -180,9 +172,14 @@ class PVRobotController:
             return UpdateGameStateResult.INVALID_ROBOT_MOVE
 
         return UpdateGameStateResult.INVALID_OPPONENT_MOVE
+    
+    @staticmethod
+    def rotate_2d_matrix_180_deg(matrix):
+        new_matrix = []
+        for c in range(len(matrix) - 1, -1, -1):
+            tmp_col = []
+            for i in range(len(matrix[c]) - 1, -1, -1):
+                tmp_col.append(matrix[c][i])
+            new_matrix.append(tmp_col)
 
-    def restart(self):
-        self.game = CheckersGame()
-
-    def get_log(self):
-        return self.game.get_log()
+        return new_matrix
