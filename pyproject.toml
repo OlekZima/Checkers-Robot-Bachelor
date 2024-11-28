@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "checkers-robot-s24982"
 description = ""
-authors = ["OlekZima <zimenkoalex34@gmail.com>"]
+authors = ["OlekZima <s24982@pjwstk.edu.pl>"]
 readme = "README.md"
 package-mode = false
 
