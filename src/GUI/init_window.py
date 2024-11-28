@@ -2,15 +2,18 @@ import PySimpleGUI as sg
 from serial.tools import list_ports
 import cv2
 from src.computer_vision.gameplay_recognition import list_camera_ports
+from src.checkers_game_and_decisions.enum_entities import Color
 
 
 class ConfigurationWindow:
     def __init__(self) -> None:
-        self._selected_color = None
+        self._selected_color: Color = None
 
         self._recording = False
         self._robot_port = None
         self._camera_port = None
+        self._configuration_file_path = None
+
         self._cap = None
         self._frame = None
         self._image_id = None
@@ -37,6 +40,9 @@ class ConfigurationWindow:
     def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
         return self._configuration_colors
 
+    def get_robot_color(self) -> Color:
+        return self._selected_color
+
     @staticmethod
     def _setup_main_layout() -> list[sg.Element]:
         layout: list[sg.Element] = [
@@ -53,20 +59,26 @@ class ConfigurationWindow:
                         [
                             sg.Tab(
                                 "Color Selection",
-                                layout=ConfigurationWindow._setup_color_selection(),
+                                layout=ConfigurationWindow._setup_color_selection_layout(),
                                 key="-Color_Selection-",
                             ),
                             sg.Tab(
                                 "Port Selection",
-                                layout=ConfigurationWindow._setup_port_selection(),
+                                layout=ConfigurationWindow._setup_port_selection_layout(),
                                 key="-Port_Selection-",
                                 visible=False,
                             ),
                             sg.Tab(
                                 "Color Configuration",
-                                layout=ConfigurationWindow._setup_color_configuration(),
+                                layout=ConfigurationWindow._setup_color_configuration_layout(),
                                 key="-Color_Configuration-",
                                 visible=False,
+                            ),
+                            sg.Tab(
+                                title="Calibration",
+                                layout=ConfigurationWindow._setup_calibration_layout(),
+                                key="-Calibration-",
+                                visible=True,
                             ),
                         ]
                     ],
@@ -79,7 +91,7 @@ class ConfigurationWindow:
         return layout
 
     @staticmethod
-    def _setup_color_selection() -> list[sg.Element]:
+    def _setup_color_selection_layout() -> list[sg.Element]:
         layout = [
             [sg.VPush()],
             [sg.Text("Select Robot's color", justification="center", expand_x=True)],
@@ -108,7 +120,7 @@ class ConfigurationWindow:
         return layout
 
     @staticmethod
-    def _setup_port_selection() -> list[sg.Element]:
+    def _setup_port_selection_layout() -> list[sg.Element]:
         layout = [
             [sg.VPush()],
             [
@@ -142,7 +154,7 @@ class ConfigurationWindow:
         return layout
 
     @staticmethod
-    def _setup_color_configuration() -> list[sg.Element]:
+    def _setup_color_configuration_layout() -> list[sg.Element]:
         layout: list = [
             [
                 sg.Text(
@@ -209,6 +221,79 @@ class ConfigurationWindow:
         ]
         return layout
 
+    @staticmethod
+    def _setup_calibration_layout() -> list[list[sg.Element]]:
+        layout = [
+            [
+                sg.VPush(),
+                sg.Push(),
+                sg.Column(
+                    [
+                        [
+                            sg.Button(
+                                "Forward",
+                                size=(8, 2),
+                                pad=((60, 0), (5, 5)),
+                                key="-Robot_Forward-",
+                            ),
+                        ],
+                        [
+                            sg.Button(
+                                "Left",
+                                size=(8, 2),
+                                pad=((10, 10), (5, 5)),
+                                key="-Robot_Left-",
+                            ),
+                            sg.Button("Right", size=(8, 2), key="-Robot_Right-"),
+                        ],
+                        [
+                            sg.Button(
+                                "Down",
+                                size=(8, 2),
+                                pad=((60, 0), (5, 5)),
+                                key="-Robot_Down-",
+                            ),
+                        ],
+                    ]
+                ),
+                sg.Column(
+                    [
+                        [
+                            sg.Button(
+                                "Up",
+                                size=(8, 2),
+                                pad=((60, 0), (5, 5)),
+                                key="-Robot_Up-",
+                            ),
+                        ],
+                        [
+                            sg.Button(
+                                "Backward",
+                                size=(8, 2),
+                                pad=((60, 0), (5, 5)),
+                                key="-Robot_Backward-",
+                            ),
+                        ],
+                    ],
+                ),
+                sg.Push(),
+                sg.VPush(),
+            ],
+            [
+                sg.Push(),
+                sg.Text("Current position: ", expand_x=True, justification="center"),
+                sg.Push(),
+            ],
+            [
+                sg.VPush(),
+            ],
+            [
+                sg.Button("Skip", key="-Skip_Calibration-"),
+            ],
+        ]
+
+        return layout
+
     def _show_port_selection_tab(self) -> None:
         port_selection_tab: sg.Tab = self._window["-Port_Selection-"]
         port_selection_tab.update(visible=True)
@@ -216,6 +301,10 @@ class ConfigurationWindow:
     def _show_color_configuration_tab(self) -> None:
         color_configuration_tab: sg.Tab = self._window["-Color_Configuration-"]
         color_configuration_tab.update(visible=True)
+
+    def _show_calibration_tab(self) -> None:
+        calibration_tab: sg.Tab = self._window["-Calibration-"]
+        calibration_tab.update(visible=True)
 
     def _update_selected_color_label(self) -> None:
         text_label: sg.Text = self._window["-Selected_Color-"]
@@ -227,11 +316,11 @@ class ConfigurationWindow:
             if event in [sg.WIN_CLOSED, "Cancel"]:
                 break
             elif event == "-Select_Orange-":
-                self._selected_color = "Orange"
+                self._selected_color = Color.ORANGE
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
             elif event == "-Select_Blue-":
-                self._selected_color = "Blue"
+                self._selected_color = Color.BLUE
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
 
@@ -334,7 +423,7 @@ class ConfigurationWindow:
 
                 print(self._configuration_colors)
 
-                break
+                self._show_calibration_tab()
 
         if self._cap:
             self._cap.release()
