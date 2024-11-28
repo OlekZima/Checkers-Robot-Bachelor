@@ -41,10 +41,10 @@ class Board:
         except Exception:
             raise Exception("Error occured while trying to detect board")
 
-    def __init__(self, img, board_tiles=[]):
+    def __init__(self, img, board_tiles:list[BoardTile]=[]):
         self.frame = img
 
-        self.tiles = board_tiles
+        self.tiles: list[BoardTile] = board_tiles
 
         self.points = []  # shape == (9,9,2)
         for i in range(0, 9, 1):
@@ -58,7 +58,7 @@ class Board:
         #
         # Also determinig what direction0 is in radians
 
-        start_tile = None
+        start_tile: BoardTile = BoardTile()
 
         for tile in self.tiles:
             if tile.n_of_neighbours == 4:
