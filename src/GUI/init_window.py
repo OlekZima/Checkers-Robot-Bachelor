@@ -3,6 +3,7 @@ from serial.tools import list_ports
 import cv2
 from src.computer_vision.gameplay_recognition import list_camera_ports
 from src.checkers_game_and_decisions.enum_entities import Color
+from pathlib import Path
 
 
 class ConfigurationWindow:
@@ -12,7 +13,7 @@ class ConfigurationWindow:
         self._recording = False
         self._robot_port = None
         self._camera_port = None
-        self._configuration_file_path = None
+        self._configuration_file_path: Path = None
 
         self._cap = None
         self._frame = None
@@ -310,6 +311,33 @@ class ConfigurationWindow:
         text_label: sg.Text = self._window["-Selected_Color-"]
         text_label.update(f"Selected Color for robot is: {self._selected_color}")
 
+    def _handle_mouse_click(self, values):
+        mouse = values["-Graph-"]
+        mouse_x, mouse_y = mouse
+        mouse_y = 480 - mouse_y
+        if self._frame is None:
+            return
+
+        if 0 <= mouse_x <= self._frame.shape[1] and 0 <= mouse_y <= self._frame.shape[0]:
+            b, g, r = self._frame[mouse_y, mouse_x]
+            if values["-Step_Orange-"]:
+                self._selected_config_color = "Orange"
+            elif values["-Step_Blue-"]:
+                self._selected_config_color = "Blue"
+            elif values["-Step_Black-"]:
+                self._selected_config_color = "Black"
+            elif values["-Step_White-"]:
+                self._selected_config_color = "White"
+            if self._selected_config_color:
+                self._configuration_colors[self._selected_config_color] = (
+                    r,
+                    g,
+                    b,
+                )
+                sg.popup(
+                    f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
+                )
+
     def run(self) -> None:
         while True:
             event, values = self._window.read(20)
@@ -381,34 +409,7 @@ class ConfigurationWindow:
                 self._window["-Info_Color_Selection-"].update("White color selection")
 
             if event == "-Graph-" and self._recording:
-                mouse = values["-Graph-"]
-                mouse_x, mouse_y = mouse
-                mouse_y = 480 - mouse_y
-                if self._frame is None:
-                    continue
-
-                if (
-                    0 <= mouse_x < self._frame.shape[1]
-                    and 0 <= mouse_y < self._frame.shape[0]
-                ):
-                    b, g, r = self._frame[mouse_y, mouse_x]
-                    if values["-Step_Orange-"]:
-                        self._selected_config_color = "Orange"
-                    elif values["-Step_Blue-"]:
-                        self._selected_config_color = "Blue"
-                    elif values["-Step_Black-"]:
-                        self._selected_config_color = "Black"
-                    elif values["-Step_White-"]:
-                        self._selected_config_color = "White"
-                    if self._selected_config_color:
-                        self._configuration_colors[self._selected_config_color] = (
-                            r,
-                            g,
-                            b,
-                        )
-                        sg.popup(
-                            f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
-                        )
+                self._handle_mouse_click(values)
 
             if event == "-End_Color_Configuration-":
                 self._configuration_colors = {
@@ -424,24 +425,26 @@ class ConfigurationWindow:
                 print(self._configuration_colors)
 
                 self._show_calibration_tab()
-            
+
             if event == "-Load_Config-":
-                self._configuration_file_path = sg.popup_get_file(
-                    message="Select a configuration file.",
-                    initial_folder="configs",
-                    file_types=(("Configuration file", "*.txt"),),
-                    keep_on_top=True,
-                    no_window=True,
+                self._configuration_file_path = Path(
+                    sg.popup_get_file(
+                        message="Select a configuration file.",
+                        initial_folder="configs",
+                        file_types=(("Configuration file", "*.txt"),),
+                        keep_on_top=True,
+                        no_window=True,
+                    )
                 )
 
                 with open(self._configuration_file_path, "r") as f:
                     lines = f.readlines()
                     if lines != 42:
                         sg.popup("Invalid configuration file!")
-                        continue
-                
-
-            
+                    else:
+                        sg.popup(
+                            f"Configuration file `{self._configuration_file_path.name}` loaded successfully!"
+                        )
 
         if self._cap:
             self._cap.release()
