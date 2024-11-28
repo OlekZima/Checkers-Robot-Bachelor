@@ -217,7 +217,7 @@ class ConfigurationWindow:
                     ]
                 ),
             ],
-            [sg.Button("Next", key="-End_Configuration-")],
+            [sg.Button("Next", key="-End_Color_Configuration-")],
         ]
         return layout
 
@@ -288,7 +288,7 @@ class ConfigurationWindow:
                 sg.VPush(),
             ],
             [
-                sg.Button("Skip", key="-Skip_Calibration-"),
+                sg.Button("Load a config file and finish", key="-Load_Config-"),
             ],
         ]
 
@@ -410,7 +410,7 @@ class ConfigurationWindow:
                             f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
                         )
 
-            if event == "-End_Configuration-":
+            if event == "-End_Color_Configuration-":
                 self._configuration_colors = {
                     key: tuple(map(int, self._configuration_colors[key]))
                     for key in self._configuration_colors
@@ -424,6 +424,24 @@ class ConfigurationWindow:
                 print(self._configuration_colors)
 
                 self._show_calibration_tab()
+            
+            if event == "-Load_Config-":
+                self._configuration_file_path = sg.popup_get_file(
+                    message="Select a configuration file.",
+                    initial_folder="configs",
+                    file_types=(("Configuration file", "*.txt"),),
+                    keep_on_top=True,
+                    no_window=True,
+                )
+
+                with open(self._configuration_file_path, "r") as f:
+                    lines = f.readlines()
+                    if lines != 42:
+                        sg.popup("Invalid configuration file!")
+                        continue
+                
+
+            
 
         if self._cap:
             self._cap.release()
