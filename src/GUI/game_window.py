@@ -3,10 +3,14 @@ import cv2
 
 
 class GameWindow:
-    def __init__(self, robot_color, robot_port, camera_port=0) -> None:
-        self.robot_color = robot_color
-        self.robot_port = robot_port
-        self.camera_port = camera_port
+    def __init__(
+        self, robot_color, robot_port, camera_port=0, color_config: dict = None
+    ) -> None:
+        self._robot_color = robot_color
+        self._robot_port = robot_port
+        self._camera_port = camera_port
+        self._config_colors = color_config
+
         self._cap = None
 
         self._frame_main = None
@@ -19,15 +23,21 @@ class GameWindow:
 
         self._recording = False
 
-        self._layout = [
+        self._layout = self._setup_main_layout()
+
+        self._window = sg.Window("Game Window", self._layout, resizable=False)
+
+    @staticmethod
+    def _setup_main_layout() -> list[sg.Element]:
+        layout = [
             [
                 sg.TabGroup(
                     [
-                        [sg.Tab("Game", self._setup_main_game_layout())],
+                        [sg.Tab("Game", GameWindow._setup_main_game_layout())],
                         [
                             sg.Tab(
                                 "Additional views",
-                                self._setup_additional_views_layout(),
+                                GameWindow._setup_additional_views_layout(),
                             )
                         ],
                     ]
@@ -35,9 +45,10 @@ class GameWindow:
             ]
         ]
 
-        self._window = sg.Window("Game Window", self._layout, resizable=False)
+        return layout
 
-    def _setup_main_game_layout(self) -> list[sg.Element]:
+    @staticmethod
+    def _setup_main_game_layout() -> list[sg.Element]:
         layout = [
             [
                 sg.Graph(
@@ -57,7 +68,8 @@ class GameWindow:
         ]
         return layout
 
-    def _setup_additional_views_layout(self) -> list[sg.Element]:
+    @staticmethod
+    def _setup_additional_views_layout() -> list[sg.Element]:
         layout = [
             [
                 sg.Graph(
@@ -97,7 +109,7 @@ class GameWindow:
 
     def run(self):
         self._recording = True
-        self._cap = cv2.VideoCapture(self.camera_port)
+        self._cap = cv2.VideoCapture(self._camera_port)
         while True:
             event, values = self._window.read(10)
             ret, frame = self._cap.read()
@@ -145,9 +157,9 @@ class GameWindow:
                         self._window["-Original_View-"].delete_figure(
                             self._image_id_game_mask
                         )
-                    self._image_id_game_mask = self._window["-Original_View-"].draw_image(
-                        data=imgbytes, location=(0, 480)
-                    )
+                    self._image_id_game_mask = self._window[
+                        "-Original_View-"
+                    ].draw_image(data=imgbytes, location=(0, 480))
 
         if self._cap:
             self._cap.release()
