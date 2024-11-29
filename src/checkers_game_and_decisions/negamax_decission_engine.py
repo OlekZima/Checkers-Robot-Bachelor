@@ -16,7 +16,7 @@ class NegamaxDecisionEngine:
 
     def decide_move(self, game=CheckersGame()):
         if game.get_turn_of() is None or game.get_turn_of() != self.computer_color:
-            raise Exception("Decision engine criteria not met")
+            raise DecisionEngineError("Decision engine criteria not met")
 
         if len(game.turn_player_opts) == 1:
             move_chosen = game.get_possible_opts()[0]

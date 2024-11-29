@@ -7,6 +7,7 @@ import numpy as np
 
 
 import math
+from src.exceptions import BoardDetectionError, InsufficientDataError, NoStartTileError
 
 
 class Board:
@@ -81,9 +82,11 @@ class Board:
             Board.set_index_of_start_tile(start_tile)
             # cv2.putText(self.frame, f'{start_tile.x_idx},{start_tile.y_idx}', start_tile.center, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
 
-        except Exception:
+        except Exception as exc:
             # print('======== jestem w Board __init__ -> coś się wykrzaczyło przy szykaniu indexów start tile=======')
-            raise Exception("Insufficient data!!! Not enough board is recognized")
+            raise InsufficientDataError(
+                "Insufficient data!!! Not enough board is recognized"
+            ) from exc
 
         # STEP 2 - indexing all tiles by second recursive function
 
@@ -218,7 +221,9 @@ class Board:
 
         if dir_1_steps + dir_3_steps != 7:
             # print(f'======= jestem w Board set_index ... -> coś się wykrzaczyło przy x\ndir_1_steps = {dir_1_steps}\ndir_3_steps = {dir_3_steps}')
-            raise Exception("Insufficient data!!! Not enough board is recognized")
+            raise InsufficientDataError(
+                "Insufficient data!!! Not enough board is recognized"
+            )
 
         start_tile.assign_x_idx(dir_3_steps)
 
@@ -241,7 +246,9 @@ class Board:
 
         if dir_2_steps + dir_0_steps != 7:
             # print('======= jestem w Board set_index ... -> coś się wykrzaczyło przy y\ndir_2_steps = {dir_2_steps}\ndir_0_steps = {dir_0_steps}')
-            raise Exception("Insufficient data!!! Not enough board is recognized")
+            raise InsufficientDataError(
+                "Insufficient data!!! Not enough board is recognized"
+            )
 
         start_tile.assign_y_idx(dir_0_steps)
         # print(f'Index start_tile to x = {dir_3_steps} y = {dir_0_steps}')

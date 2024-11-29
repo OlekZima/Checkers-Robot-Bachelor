@@ -244,12 +244,12 @@ class Game:
                 )
             )
 
-        except Exception as e:
+        except Exception as exc:
             # print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
             print(e)
             img_res = cv2.resize(img_res, (0, 0), fx=0.8, fy=0.8)
             cv2.imshow("RESULT", img_res)
-            raise Exception("Couldn't map board")
+            raise BoardMappingError("Couldn't map board") from exc
 
         img_res = cv2.resize(img_res, (0, 0), fx=0.8, fy=0.8)
         cv2.imshow("RESULT", img_res)
@@ -266,7 +266,9 @@ class Game:
         if success:
             return img
 
-        raise Exception("Failure during capturing frame or capture mode not selected")
+        raise CameraReadError(
+            "Failure during capturing frame or capture mode not selected"
+        )
 
     def challenge_game_state_change(self, game_state):
         if game_state is None:
