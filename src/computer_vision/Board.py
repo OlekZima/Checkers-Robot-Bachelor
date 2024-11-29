@@ -1,48 +1,24 @@
-from src.computer_vision.BoardTile import BoardTile
-from src.computer_vision.contours_recognition import get_game_tiles_contours
-from src.checkers_game_and_decisions.utilities import get_avg_pos, distance_from_color, get_avg_color
+import math
 
 import cv2
 import numpy as np
 
-
-import math
+from src.checkers_game_and_decisions.utilities import (
+    distance_from_color,
+    get_avg_color,
+    get_avg_pos,
+)
+from src.computer_vision.BoardTile import BoardTile
+from src.computer_vision.contours_recognition import get_game_tiles_contours
 from src.exceptions import BoardDetectionError, InsufficientDataError, NoStartTileError
 
 
 class Board:
-    @classmethod
-    def detect_board(
-        cls,
-        img_src,
-        t1=140,
-        t2=255,
-        kernel=np.ones((2, 2)),
-        min_area=150,
-        area_margin=20,
-        approx_peri_fraction=0.03,
-        px_dist_to_join=10.0,
-    ):
-        contours = get_game_tiles_contours(
-            img_src,
-            t1=t1,
-            t2=t2,
-            kernel=kernel,
-            min_area=min_area,
-            area_margin=area_margin,
-            approx_peri_fraction=approx_peri_fraction,
-            px_dist_to_join=px_dist_to_join,
-        )
+    def __init__(self, img, board_tiles: list[BoardTile] = None):
 
-        BoardTile.create_tiles(img_src, contours)
+        if board_tiles is None:
+            board_tiles = []
 
-        try:
-            return Board(img_src, BoardTile.tiles)
-
-        except Exception:
-            raise Exception("Error occured while trying to detect board")
-
-    def __init__(self, img, board_tiles:list[BoardTile]=[]):
         self.frame = img
 
         self.tiles: list[BoardTile] = board_tiles
@@ -155,6 +131,39 @@ class Board:
                             (0, 255, 0),
                             1,
                         )
+
+    @classmethod
+    def detect_board(
+        cls,
+        img_src,
+        t1=140,
+        t2=255,
+        kernel=np.ones((2, 2)),
+        min_area=150,
+        area_margin=20,
+        approx_peri_fraction=0.03,
+        px_dist_to_join=10.0,
+    ):
+        contours = get_game_tiles_contours(
+            img_src,
+            t1=t1,
+            t2=t2,
+            kernel=kernel,
+            min_area=min_area,
+            area_margin=area_margin,
+            approx_peri_fraction=approx_peri_fraction,
+            px_dist_to_join=px_dist_to_join,
+        )
+
+        BoardTile.create_tiles(img_src, contours)
+
+        try:
+            return Board(img_src, BoardTile.tiles)
+
+        except Exception as exc:
+            raise BoardDetectionError(
+                "Error occured while trying to detect board"
+            ) from exc
 
     @classmethod
     def set_index_of_start_tile(cls, start_tile):
