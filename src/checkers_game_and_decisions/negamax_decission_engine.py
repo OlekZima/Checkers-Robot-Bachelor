@@ -1,9 +1,8 @@
+import time
+import numpy as np
+from src.exceptions import DecisionEngineError
 from src.checkers_game_and_decisions.checkers_game import CheckersGame
 from src.checkers_game_and_decisions.enum_entities import Color
-
-import numpy as np
-
-import time
 
 
 class NegamaxDecisionEngine:
@@ -82,7 +81,7 @@ Finished in {time_elapsed} s
 
         # Check for depth criteria
         if depth_to_use < 1:
-            return None, turn_of * self.assign_value(game_state), 0
+            return None, turn_of * self._assign_value(game_state), 0
 
         # Child node assessment
         value = -NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE
@@ -125,7 +124,7 @@ Finished in {time_elapsed} s
     #   number of your pieces (kings counts as two)
     #   minus number of opponent pieces (kings counts as two)
     # values in range <-ASSESSMENT_VALUE_MAX_AMPLITUDE, ASSESSMENT_VALUE_MAX_AMPLITUDE>
-    def assign_value(self, game_state):
+    def _assign_value(self, game_state):
 
         if self.computer_color == Color.ORANGE:
             return np.sum(game_state)
