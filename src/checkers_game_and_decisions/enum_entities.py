@@ -1,7 +1,11 @@
-from enum import IntEnum, Enum
+"""Module storing enums for the project."""
+
+from enum import Enum
 
 
-class RobotGameReportItem(IntEnum):
+class RobotGameReportItem(Enum):
+    """Enum for Game event report items."""
+
     GAME_STATE = 1
     POINTS = 2
     STATUS = 3
@@ -13,18 +17,24 @@ class RobotGameReportItem(IntEnum):
     IS_CROWNED = 9
 
 
-class Color(IntEnum):
+class Color(Enum):
+    """Enum representing the color of the player and robot."""
+
     ORANGE = 1
     BLUE = -1
 
 
-class Status(IntEnum):
+class Status(Enum):
+    """Enum representing the status of the whole game."""
+
     IN_PROGRESS = 1
     WON = 2
     DRAW = 3
 
 
-class UpdateGameStateResult(Enum):
+class GameStateResult(Enum):
+    """Enum representing the current state of the move."""
+
     INVALID_ROBOT_MOVE = 1
     VALID_WRONG_ROBOT_MOVE = 2
     VALID_RIGHT_ROBOT_MOVE = 3
