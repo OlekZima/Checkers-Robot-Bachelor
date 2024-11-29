@@ -101,7 +101,7 @@ class Board:
 
         # STEP 6 - mirroring self.points for future use
 
-        self.points = self.get_mirrored_2d_matrix_y_axis(self.points)
+        self.points = self._get_mirrored_2d_matrix_y_axis(self.points)
 
         # STEP 7 - drawing board for testing purposes
 
@@ -520,13 +520,15 @@ class Board:
         v3 = self.points[x + 1][y + 1]
         v4 = self.points[x][y + 1]
 
-        field_area = self.get_triangle_area(v1, v2, v3) + self.get_triangle_area(v3, v4, v1)
+        field_area = self._get_triangle_area(v1, v2, v3) + self._get_triangle_area(
+            v3, v4, v1
+        )
 
         calculated_area = (
-            self.get_triangle_area(v1, pt, v2)
-            + self.get_triangle_area(v2, pt, v3)
-            + self.get_triangle_area(v3, pt, v4)
-            + self.get_triangle_area(v4, pt, v1)
+            self._get_triangle_area(v1, pt, v2)
+            + self._get_triangle_area(v2, pt, v3)
+            + self._get_triangle_area(v3, pt, v4)
+            + self._get_triangle_area(v4, pt, v1)
         )
 
         if field_area == calculated_area:
@@ -562,7 +564,7 @@ class Board:
             return True
         
     @staticmethod
-    def get_mirrored_2d_matrix_y_axis(matrix):
+    def _get_mirrored_2d_matrix_y_axis(matrix):
         new_matrix = []
         col_num = len(matrix)
 
