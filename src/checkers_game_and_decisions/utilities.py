@@ -8,7 +8,7 @@ import cv2
 from src.checkers_game_and_decisions.enum_entities import Color
 
 
-def get_coord_from_field_id(
+def get_coord_from_tile_id(
     field_id: int, color: Optional[Color] = None
 ) -> tuple[int, int]:
     y, x = divmod((field_id - 1), 4)
@@ -24,7 +24,7 @@ def get_coord_from_field_id(
     return x, y
 
 
-def get_field_id_from_coord(x_cord: float, y_cord: float) -> int:
+def get_tile_id_from_coord(x_cord: float, y_cord: float) -> int:
     field_id = y_cord * 4 + 1
 
     if y_cord % 2 == 1:
