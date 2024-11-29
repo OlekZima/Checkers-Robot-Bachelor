@@ -4,12 +4,9 @@ from src.checkers_game_and_decisions.negamax_decission_engine import (
 )
 from src.checkers_game_and_decisions.enum_entities import (
     RobotGameReportItem,
-    UpdateGameStateResult,
+    GameStateResult,
 )
-from src.checkers_game_and_decisions.utilities import get_coord_from_field_id
-
-
-
+from src.checkers_game_and_decisions.utilities import get_coord_from_tile_id
 
 
 class PVRobotController:
@@ -82,7 +79,7 @@ class PVRobotController:
             if is_robot_turn:
                 if self.robot_move is None or self.is_crowned is None:
                     self.robot_move = self.decision_engine.decide_move(self.game)
-                    x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
+                    x_tmp, y_tmp = get_coord_from_tile_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
                         self.computer_color == Color.BLUE
@@ -97,9 +94,8 @@ class PVRobotController:
                         self.is_crowned = True
                     else:
                         self.is_crowned = False
-                return UpdateGameStateResult.NO_ROBOT_MOVE
-            else:
-                return UpdateGameStateResult.NO_OPPONENT_MOVE
+                return GameStateResult.NO_ROBOT_MOVE
+            return GameStateResult.NO_OPPONENT_MOVE
 
         # 2 - checking if move was permitted, and if yes what was the exact move
         is_permitted = False
@@ -133,20 +129,20 @@ class PVRobotController:
                     self.game.perform_move(move_performed)
                     self.robot_move = None
                     self.is_crowned = None
-                    return UpdateGameStateResult.VALID_RIGHT_ROBOT_MOVE
+                    return GameStateResult.VALID_RIGHT_ROBOT_MOVE
                 else:
                     if allow_different_robot_moves:
                         self.game.perform_move(move_performed)
                         self.robot_move = None
                         self.is_crowned = None
-                    return UpdateGameStateResult.VALID_WRONG_ROBOT_MOVE
+                    return GameStateResult.VALID_WRONG_ROBOT_MOVE
 
             else:
                 self.game.perform_move(move_performed)
 
                 if self.game.get_status() == Status.IN_PROGRESS:
                     self.robot_move = self.decision_engine.decide_move(self.game)
-                    x_tmp, y_tmp = get_coord_from_field_id(self.robot_move[0])
+                    x_tmp, y_tmp = get_coord_from_tile_id(self.robot_move[0])
                     piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
                     if (
                         self.computer_color == Color.BLUE
@@ -165,14 +161,14 @@ class PVRobotController:
                     self.robot_move = None
                     self.is_crowned = None
 
-                return UpdateGameStateResult.VALID_OPPONENT_MOVE
+                return GameStateResult.VALID_OPPONENT_MOVE
 
         # 3 - informing about invalid move
         if is_robot_turn:
-            return UpdateGameStateResult.INVALID_ROBOT_MOVE
+            return GameStateResult.INVALID_ROBOT_MOVE
 
-        return UpdateGameStateResult.INVALID_OPPONENT_MOVE
-    
+        return GameStateResult.INVALID_OPPONENT_MOVE
+
     @staticmethod
     def rotate_2d_matrix_180_deg(matrix):
         new_matrix = []
