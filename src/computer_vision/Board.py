@@ -307,11 +307,24 @@ class Board:
     @classmethod
     def extrapolate_last_point(
         cls,
-        pts=[[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
+        pts=None,
     ):
         # This function will take one side of a Board as list of points
         # Then check what are 2 not None values the most appart from itself
         # Finally extrapolating the last item on this list accordingly
+
+        if pts is None:
+            pts = [
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+            ]
 
         min_idx = 8
         max_idx = 0
@@ -496,8 +509,11 @@ class Board:
                         [get_avg_pos(pts_to_avg_same_i), get_avg_pos(pts_to_avg_same_j)]
                     )
 
-    def is_point_in_field(self, x, y, pt=[0, 0]):
+    def is_point_in_field(self, x, y, pt=None):
         # the idea is to check if field area == area of 4 triangles with pt vertex
+
+        if pt is None:
+            pt = [0, 0]
 
         v1 = self.points[x][y]
         v2 = self.points[x + 1][y]
@@ -555,10 +571,18 @@ class Board:
 
         return new_matrix
 
-
     @staticmethod
-    def get_triangle_area(p1=[0, 0], p2=[0, 0], p3=[0, 0]):
+    def _get_triangle_area(p1=None, p2=None, p3=None):
         # Area = (1/2) |x1(y2 − y3) + x2(y3 − y1) + x3(y1 − y2)|
+
+        if p1 is None:
+            p1 = [0, 0]
+
+        if p2 is None:
+            p2 = [0, 0]
+
+        if p3 is None:
+            p3 = [0, 0]
 
         area = abs(
             p1[0] * (p2[1] - p3[1]) + p2[0] * (p3[1] - p1[1]) + p3[0] * (p1[1] - p2[1])
@@ -567,4 +591,3 @@ class Board:
         area = float(area) / 2.0
 
         return area
-
