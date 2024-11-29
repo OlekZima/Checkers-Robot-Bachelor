@@ -1,18 +1,13 @@
 import cv2
 import numpy as np
-from src.checkers_game_and_decisions.utilities import (
-    get_pts_dist,
-    get_avg_pos,
-)
+from src.checkers_game_and_decisions.utilities import get_pts_dist, get_avg_pos
 
 
 # https://www.youtube.com/watch?v=Fchzk1lDt7Q
-def get_contours(
+def _get_contours(
     src, min_area=150, area_margin=20, approx_peri_fraction=0.03, px_dist_to_join=15.0
 ):
-    contours_oryg, hierarchy = cv2.findContours(
-        src, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
-    )
+    contours_oryg, _ = cv2.findContours(src, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     contours_rects_only = []
     contours_approx = np.ndarray((1, 4, 1, 2), dtype=int)
@@ -26,14 +21,13 @@ def get_contours(
         if len(approx) == 4:
             contours_rects_only.append(cnt)
             contours_approx = np.append(contours_approx, [approx], axis=0)
-            pass
 
     contours_rects_only = np.array(contours_rects_only, dtype=object)
-    contours_approx = contours_approx[
-        1:
-    ]  # dropping item 0 that was made to initialize the array
 
-    # STEP 1 - filtering out by area being too small and then not close enough to median of all areas
+    # dropping item 0 that was made to initialize the array
+    contours_approx = contours_approx[1:]
+
+    # STEP 1 - filtering out by too small area and then not close enough to median of all areas
 
     area_margin = float(area_margin / 100.0)
     if area_margin == 0.0:
@@ -61,7 +55,7 @@ def get_contours(
     keep_cnt = np.zeros(contours_rects_only.shape, dtype=bool)
     for i, cnt in enumerate(contours_rects_only):
         area = cv2.contourArea(cnt)
-        if (area >= area_min) and (area <= area_max):
+        if area_min <= area <= area_max:
             keep_cnt[i] = True
 
     # contours_area_filtered = contours_rects_only[keep_cnt]
@@ -97,7 +91,7 @@ def get_contours(
 
     # 3.2 - find countours in those, and filter only quadrangels
 
-    contours_syntetic_frame, hierarchy = cv2.findContours(
+    contours_syntetic_frame, _ = cv2.findContours(
         syntetic_frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
     )
 
@@ -139,36 +133,40 @@ def get_contours(
     return flattened_approx_pnts_syntetic
 
 
-def image_prep(img, t1=140, t2=255, kernel=np.ones((3, 3))):
+def _image_prep(img, t1=140, t2=255, kernel=np.ones((3, 3))):
     # cv.imshow("ORIGINAL", img)
 
     img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    img_h, img_s, img_v = cv2.split(img_hsv)
+    _, _, img_v = cv2.split(img_hsv)
     # cv.imshow("BOARD_RECOGNITION_V_from_HSV", img_v)
 
-    imgCanny = cv2.Canny(img_v, t1, t2)
-    # cv.imshow("BOARD_RECOGNITION_CANNY", imgCanny)
+    img_canny = cv2.Canny(img_v, t1, t2)
+    # cv.imshow("BOARD_RECOGNITION_CANNY", img_canny)
 
-    imgDil = cv2.dilate(imgCanny, kernel, iterations=1)
-    imgDil_resized = cv2.resize(imgDil, (0, 0), fx=0.8, fy=0.8)
-    cv2.imshow("BOARD_RECOGNITION_DILATED", imgDil_resized)
+    img_dil = cv2.dilate(img_canny, kernel, iterations=1)
+    img_dil_resized = cv2.resize(img_dil, (0, 0), fx=0.8, fy=0.8)
+    cv2.imshow("BOARD_RECOGNITION_DILATED", img_dil_resized)
 
-    return imgDil
+    return img_dil
 
 
 def get_game_tiles_contours(
     img_src,
     t1=140,
     t2=255,
-    kernel=np.ones((2, 2)),
+    kernel=None,
     min_area=150,
     area_margin=20,
     approx_peri_fraction=0.03,
     px_dist_to_join=10.0,
-):  # if run from import returns list of chosen game tiles
-    img_prepped = image_prep(img_src, t1=t1, t2=t2, kernel=kernel)
+):
+    """Function that returns contours of the game tiles."""
+    if kernel is None:
+        kernel = np.ones((2, 2))
 
-    contours = get_contours(
+    img_prepped = _image_prep(img_src, t1=t1, t2=t2, kernel=kernel)
+
+    contours = _get_contours(
         img_prepped,
         min_area=min_area,
         area_margin=area_margin,
