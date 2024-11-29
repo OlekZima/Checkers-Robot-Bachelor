@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+from src.exceptions import BoardMappingError, CameraReadError
 from src.computer_vision.Board import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
 from src.checkers_game_and_decisions.utilities import list_camera_ports, empty_function
@@ -50,12 +51,24 @@ class Game:
 
             cv2.namedWindow("Parameters - Board")
             cv2.resizeWindow("Parameters - Board", 640, 340)
-            cv2.createTrackbar("Threshold1", "Parameters - Board", 140, 255, empty_function)
-            cv2.createTrackbar("Threshold2", "Parameters - Board", 255, 255, empty_function)
-            cv2.createTrackbar("Min_area", "Parameters - Board", 150, 600, empty_function)
-            cv2.createTrackbar("Area_margin", "Parameters - Board", 500, 700, empty_function)
-            cv2.createTrackbar("Kernel_size", "Parameters - Board", 5, 10, empty_function)
-            cv2.createTrackbar("Approx_peri", "Parameters - Board", 3, 50, empty_function)
+            cv2.createTrackbar(
+                "Threshold1", "Parameters - Board", 140, 255, empty_function
+            )
+            cv2.createTrackbar(
+                "Threshold2", "Parameters - Board", 255, 255, empty_function
+            )
+            cv2.createTrackbar(
+                "Min_area", "Parameters - Board", 150, 600, empty_function
+            )
+            cv2.createTrackbar(
+                "Area_margin", "Parameters - Board", 500, 700, empty_function
+            )
+            cv2.createTrackbar(
+                "Kernel_size", "Parameters - Board", 5, 10, empty_function
+            )
+            cv2.createTrackbar(
+                "Approx_peri", "Parameters - Board", 3, 50, empty_function
+            )
             cv2.createTrackbar("Px_dist", "Parameters - Board", 15, 100, empty_function)
             cv2.createTrackbar(
                 "Color_dist_threshold", "Parameters - Board", 80, 200, empty_function
@@ -81,7 +94,7 @@ class Game:
         self.lack_of_trust_level = lack_of_trust_level
 
     @classmethod
-    def build_game_state(cls, checkers, is_00_white:bool):
+    def build_game_state(cls, checkers, is_00_white: bool):
         game_state = [
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
@@ -126,6 +139,9 @@ class Game:
         while len(self.bgrs) < 4:
             success, img = self.cap.read()
 
+            if not success:
+                raise CameraReadError("Couldn't capture frame")
+
             cv2.putText(
                 img,
                 texts[cnt],
@@ -158,40 +174,28 @@ class Game:
         is_dark = False
         for x in range(0, 8, 1):  # drawing fields
             for y in range(0, 8, 1):
-                if is_dark:
-                    cv2.rectangle(
-                        img,
-                        (x * 50 + 50, y * 50 + 50),
-                        (x * 50 + 100, y * 50 + 100),
-                        (0, 25, 80),
-                        -1,
-                    )
-                else:
-                    cv2.rectangle(
-                        img,
-                        (x * 50 + 50, y * 50 + 50),
-                        (x * 50 + 100, y * 50 + 100),
-                        (180, 225, 255),
-                        -1,
-                    )
+                cv2.rectangle(
+                    img,
+                    (x * 50 + 50, y * 50 + 50),
+                    (x * 50 + 100, y * 50 + 100),
+                    (0, 25, 80) if is_dark else (180, 225, 225),
+                    -1,
+                )
 
                 is_dark = not is_dark
             is_dark = not is_dark
 
         for i in range(0, 9, 1):
-            cv2.line(
-                img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3
-            )  # drawing vertical lines
-            cv2.line(
-                img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3
-            )  # drawing horizontal lines
+            # drawing vertical lines
+            cv2.line(img, [50 + i * 50, 50], [50 + i * 50, 450], (0, 0, 0), 3)
+
+            # drawing horizontal lines
+            cv2.line(img, [50, 50 + i * 50], [450, 50 + i * 50], (0, 0, 0), 3)
 
         for x, _ in enumerate(self.game_state):  # drawing checkers
             for y, _ in enumerate(self.game_state[x]):
-                if self.game_state[x][y] == 1:
-                    cv2.circle(img, [x * 50 + 75, y * 50 + 75], 20, (50, 85, 220), -1)
-                if self.game_state[x][y] == -1:
-                    cv2.circle(img, [x * 50 + 75, y * 50 + 75], 20, (205, 105, 60), -1)
+                color = (50, 85, 220) if self.game_state[x][y] == 1 else (205, 105, 60)
+                cv2.circle(img, [x * 50 + 75, y * 50 + 75], 20, color, -1)
 
         return img
 
@@ -224,29 +228,29 @@ class Game:
             )
 
             Checkers.detect_checkers(
-                board,
-                frame,
-                self.orange_bgr,
-                self.blue_bgr,
-                color_dist_thresh,
+                board=board,
+                frame=frame,
+                orange_bgr=self.orange_bgr,
+                blue_bgr=self.blue_bgr,
+                color_dist_thresh=color_dist_thresh,
             )
 
             has_changed = self.challenge_game_state_change(
-                Game.build_game_state(
-                    Checkers.checkers,
+                game_state=Game.build_game_state(
+                    checkers=Checkers.checkers,
                     is_00_white=board.is_00_white(
                         dark_field_bgr=self.dark_field_bgr,
                         light_field_bgr=self.light_field_bgr,
                         orange_bgr=self.orange_bgr,
-                        green_bgr=self.blue_bgr,
+                        blue_bgr=self.blue_bgr,
                         color_dist_thresh=color_dist_thresh,
                     ),
                 )
             )
 
         except Exception as exc:
-            # print("\n=-=-=--=-=-=-=-=-=-=-=-=-=-= Couldn't map board =-=-=--=-=-=-=-=-=-=-=-=-=-=\n")
-            print(e)
+            # print("\n=-=-=--=-=-=-=-=-=-=-=-=-= Couldn't map board =-=--=-=-=-=-=-=-=-=-=-=-=\n")
+            print(exc)
             img_res = cv2.resize(img_res, (0, 0), fx=0.8, fy=0.8)
             cv2.imshow("RESULT", img_res)
             raise BoardMappingError("Couldn't map board") from exc
@@ -258,6 +262,7 @@ class Game:
         return has_changed
 
     def capture_next_frame(self):
+        img = None
         if not self.handle_capture:
             success = False
         else:
@@ -295,12 +300,14 @@ class Game:
     def get_fresh_game_state(self):
         new_frame = self.capture_next_frame()
 
-        has_state_possibly_change = self.handle_next_frame(new_frame)
+        is_state_changed = self.handle_next_frame(new_frame)
 
-        return has_state_possibly_change, [i.copy() for i in self.game_state]
+        return is_state_changed, [i.copy() for i in self.game_state]
 
     @staticmethod
     def rotate_square_2D_matrix_right(matrix):
+        # transposed_matrix =
+
         new_matrix = []
 
         for _ in matrix[0]:
