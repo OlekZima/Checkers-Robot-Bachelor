@@ -79,9 +79,9 @@ def get_avg_pos(pts=None):
 
 
 def distance_from_color(bgr_sample, bgr_target) -> float:
-    distance = sum([(bgr_sample[i] - bgr_target[i]) ** 2 for i in range(3)])
+    distance = sum((bgr_sample[i] - bgr_target[i]) ** 2 for i in range(3))
     return math.sqrt(distance)
 
 
-def empty_function(a):
+def empty_function(_):
     pass
