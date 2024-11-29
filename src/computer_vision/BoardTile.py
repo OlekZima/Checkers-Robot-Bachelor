@@ -110,6 +110,7 @@ class BoardTile:
     #         )
     #     return contours[1:]
 
+    def _assign_if_neighbour(self, poss_neighbour):
         for i, _ in enumerate(self.vertexes):
             for j, _ in enumerate(poss_neighbour.vertexes):
                 if (self.vertexes[i] == poss_neighbour.vertexes[j]).all():
@@ -171,7 +172,10 @@ class BoardTile:
 
         return self.get_dir_2_point_rad(self.n01.center)
 
-    def get_dir_2_point_rad(self, point=[0, 0]):
+    def get_dir_2_point_rad(self, point=None):
+        if point is None:
+            point = [0, 0]
+
         dx = point[0] - self.center[0]
         dy = point[1] - self.center[1]
 
@@ -210,7 +214,10 @@ class BoardTile:
 
             return res
 
-    def is_point_in_rad_range(self, rad_min, rad_max, point=[0, 0]):
+    def _is_point_in_rad_range(self, rad_min, rad_max, point):
+        if point is None:
+            point = [0, 0]
+
         dir_tmp = self.get_dir_2_point_rad(point)
         # print(f'''Sprawdzam, czy podany punkt jest w zakresie
         # Dostałem: rad_min = {rad_min}, rad_max = {rad_max}
@@ -227,16 +234,16 @@ class BoardTile:
 
     def get_neighbour_in_rad_range(self, rad_min, rad_max):
         if self.n01 is not None:
-            if self.is_point_in_rad_range(rad_min, rad_max, self.n01.center):
+            if self._is_point_in_rad_range(rad_min, rad_max, self.n01.center):
                 return self.n01
         if self.n12 is not None:
-            if self.is_point_in_rad_range(rad_min, rad_max, self.n12.center):
+            if self._is_point_in_rad_range(rad_min, rad_max, self.n12.center):
                 return self.n12
         if self.n23 is not None:
-            if self.is_point_in_rad_range(rad_min, rad_max, self.n23.center):
+            if self._is_point_in_rad_range(rad_min, rad_max, self.n23.center):
                 return self.n23
         if self.n30 is not None:
-            if self.is_point_in_rad_range(rad_min, rad_max, self.n30.center):
+            if self._is_point_in_rad_range(rad_min, rad_max, self.n30.center):
                 return self.n30
 
         return None
@@ -356,6 +363,6 @@ class BoardTile:
 
     def get_vertex_in_rad_range(self, rad_min, rad_max):
         for v in self.vertexes:
-            if self.is_point_in_rad_range(rad_min, rad_max, v):
+            if self._is_point_in_rad_range(rad_min, rad_max, v):
                 return v
         return None
