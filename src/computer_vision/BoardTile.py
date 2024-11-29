@@ -1,16 +1,41 @@
-from src.checkers_game_and_decisions.utilities import get_avg_pos
-
+import math
 
 import cv2
 import numpy as np
 
-
-import math
+from src.checkers_game_and_decisions.utilities import get_avg_pos
 
 
 class BoardTile:
     tiles = []  # storing all board tiles
     frame = None
+
+    def __init__(self, points):
+        if points is None:
+            points = [[0, 0], [0, 0], [0, 0], [0, 0]]
+
+        # theese will be used to see relation with other tiles
+        # and get the final position of the board
+        self.vertexes = points
+        self.center = get_avg_pos(points)
+        # print (self.vertexes)
+
+        # neighbouring tiles - theese will be assigned later to map the board
+        #
+        # neighbour n01 means that the neighbour share vertexes[0] and vertexes[1] points
+        # with this tile
+        self.n01 = None
+        self.n12 = None
+        self.n23 = None
+        self.n30 = None
+        self.n_of_neighbours = 0  # will be updated when neighbours are assigned
+
+        # ilustration showing direction naming convention and indexing algorithm:
+        # https://drive.google.com/file/d/1BF7BsXUdXmlOtog8Z4uC_gXMGwE0EBmd/view?usp=sharing
+        self.x_idx = None
+        self.y_idx = None  # Position on checkers board
+
+        self.was_checked_in_dir_idx = [False, False, False, False]
 
     @classmethod
     def create_tiles(cls, img, contours):
@@ -75,42 +100,17 @@ class BoardTile:
                     cv2.line(BoardTile.frame, tile.center, tile.n30.center, (0, 0, 0), 1)
             # cv.putText(BoardTile.frame, f'{tile.n_of_neighbours}', tile.center, cv.FONT_HERSHEY_SIMPLEX, 0.35, (0,255,0), 1, cv.LINE_AA)
 
-    @classmethod
-    def get_tiles_contours(cls):
-        contours = np.ndarray((1, 4, 1, 2), dtype=int)
-        for t in BoardTile.tiles:
-            contours = np.append(
-                contours,
-                [[[t.vertexes[0]], [t.vertexes[1]], [t.vertexes[2]], [t.vertexes[3]]]],
-                axis=0,
-            )
-        return contours[1:]
+    # @classmethod
+    # def get_tiles_contours(cls):
+    #     contours = np.ndarray((1, 4, 1, 2), dtype=int)
+    #     for t in BoardTile.tiles:
+    #         contours = np.append(
+    #             contours,
+    #             [[[t.vertexes[0]], [t.vertexes[1]], [t.vertexes[2]], [t.vertexes[3]]]],
+    #             axis=0,
+    #         )
+    #     return contours[1:]
 
-    def __init__(self, points=[[0, 0], [0, 0], [0, 0], [0, 0]]):
-        # theese will be used to see relation with other tiles
-        # and get the final position of the board
-        self.vertexes = points
-        self.center = get_avg_pos(points)
-        # print (self.vertexes)
-
-        # neighbouring tiles - theese will be assigned later to map the board
-        #
-        # neighbour n01 means that the neighbour share vertexes[0] and vertexes[1] points
-        # with this tile
-        self.n01 = None
-        self.n12 = None
-        self.n23 = None
-        self.n30 = None
-        self.n_of_neighbours = 0  # will be updated when neighbours are assigned
-
-        # ilustration showing direction naming convention and indexing algorithm:
-        # https://drive.google.com/file/d/1BF7BsXUdXmlOtog8Z4uC_gXMGwE0EBmd/view?usp=sharing
-        self.x_idx = None
-        self.y_idx = None  # Position on checkers board
-
-        self.was_checked_in_dir_idx = [False, False, False, False]
-
-    def assign_if_neighbour(self, poss_neighbour):
         for i, _ in enumerate(self.vertexes):
             for j, _ in enumerate(poss_neighbour.vertexes):
                 if (self.vertexes[i] == poss_neighbour.vertexes[j]).all():
