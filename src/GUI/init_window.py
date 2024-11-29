@@ -1,16 +1,21 @@
+from pathlib import Path
+
+import cv2
 import PySimpleGUI as sg
 from serial.tools import list_ports
-import cv2
-from src.computer_vision.gameplay_recognition import list_camera_ports
+
 from src.checkers_game_and_decisions.enum_entities import Color
-from pathlib import Path
+from src.computer_vision.gameplay_recognition import list_camera_ports
+
+from src.robot_manipulation.CalibrationController import CalibrationController
 
 
 class ConfigurationWindow:
+    """Configuration window for the checkers robot."""
+
     def __init__(self) -> None:
         self._selected_color: Color = None
 
-        self._recording = False
         self._robot_port = None
         self._camera_port = None
         self._configuration_file_path: Path = None
@@ -28,29 +33,51 @@ class ConfigurationWindow:
             "White": (0, 0, 0),
         }
 
+        self._controller = CalibrationController()
+
         self._window = sg.Window(
-            "Configuration", self._setup_main_layout(), resizable=False
+            "Configuration",
+            self._setup_main_layout(),
+            resizable=False,
+            return_keyboard_events=True,
         )
 
     def _get_property_if_exist(self, property_name: str) -> bool:
-        if getattr(self, f"_{property_name}",f"No {property_name} property!\nLooks like you didn't start the `run` method." ) is None:
-            raise AttributeError(f"No {property_name} property!\nLooks like you didn't start the `run` method.")
+        if getattr(self, f"_{property_name}") is None:
+            raise AttributeError(
+                f"No {property_name} property!\nLooks like you didn't start the `run` method."
+            )
         return getattr(self, f"_{property_name}")
-    
 
     def get_robot_port(self) -> str:
+        """Returns the selected port for the robot."""
         return self._get_property_if_exist("robot_port")
 
     def get_camera_port(self) -> int:
-        return int(self._get_property_if_exist("camera_port"))
+        """Returns the selected port for the camera."""
+        return self._get_property_if_exist("camera_port")
 
     def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
+        """
+        Returns the selected colors dictionary for the game.
+
+        ```python
+        {
+            "Orange": (r, g, b),
+            "Blue": (r, g, b),
+            "Black": (r, g, b),
+            "White": (r, g, b),
+        }
+        ```
+        """
         return self._get_property_if_exist("configuration_colors")
 
     def get_robot_color(self) -> Color:
+        """Returns the selected color as enum (Color.ORANGE or Color.BLUE) for the robot."""
         return self._get_property_if_exist("selected_color")
 
     def get_configuration_file_path(self) -> Path:
+        """Returns the selected configuration file path."""
         return self._get_property_if_exist("configuration_file_path")
 
     @staticmethod
@@ -244,7 +271,7 @@ class ConfigurationWindow:
                                 "Forward",
                                 size=(8, 2),
                                 pad=((60, 0), (5, 5)),
-                                key="-Robot_Forward-",
+                                key="-Robot_Move_Forward-",
                             ),
                         ],
                         [
@@ -252,16 +279,16 @@ class ConfigurationWindow:
                                 "Left",
                                 size=(8, 2),
                                 pad=((10, 10), (5, 5)),
-                                key="-Robot_Left-",
+                                key="-Robot_Move_Left-",
                             ),
-                            sg.Button("Right", size=(8, 2), key="-Robot_Right-"),
+                            sg.Button("Right", size=(8, 2), key="-Robot_Move_Right-"),
                         ],
                         [
                             sg.Button(
                                 "Down",
                                 size=(8, 2),
                                 pad=((60, 0), (5, 5)),
-                                key="-Robot_Down-",
+                                key="-Robot_Move_Down-",
                             ),
                         ],
                     ]
@@ -273,7 +300,7 @@ class ConfigurationWindow:
                                 "Up",
                                 size=(8, 2),
                                 pad=((60, 0), (5, 5)),
-                                key="-Robot_Up-",
+                                key="-Robot_Move_Up-",
                             ),
                         ],
                         [
@@ -281,7 +308,7 @@ class ConfigurationWindow:
                                 "Backward",
                                 size=(8, 2),
                                 pad=((60, 0), (5, 5)),
-                                key="-Robot_Backward-",
+                                key="-Robot_Move_Backward-",
                             ),
                         ],
                     ],
@@ -320,14 +347,16 @@ class ConfigurationWindow:
         text_label: sg.Text = self._window["-Selected_Color-"]
         text_label.update(f"Selected Color for robot is: {self._selected_color}")
 
-    def _handle_mouse_click(self, values):
+    def _handle_graph_mouse_click_event(self, values) -> None:
         mouse = values["-Graph-"]
         mouse_x, mouse_y = mouse
         mouse_y = 480 - mouse_y
         if self._frame is None:
             return
 
-        if 0 <= mouse_x <= self._frame.shape[1] and 0 <= mouse_y <= self._frame.shape[0]:
+        frame_y, frame_x, _ = self._frame.shape
+
+        if 0 <= mouse_x <= frame_x and 0 <= mouse_y <= frame_y:
             b, g, r = self._frame[mouse_y, mouse_x]
             if values["-Step_Orange-"]:
                 self._selected_config_color = "Orange"
@@ -337,17 +366,79 @@ class ConfigurationWindow:
                 self._selected_config_color = "Black"
             elif values["-Step_White-"]:
                 self._selected_config_color = "White"
-            if self._selected_config_color:
-                self._configuration_colors[self._selected_config_color] = (
-                    r,
-                    g,
-                    b,
-                )
+
+            if self._selected_config_color is not None:
+                self._configuration_colors[self._selected_config_color] = (r, g, b)
                 sg.popup(
                     f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
                 )
 
+    def _handle_open_config_event(self) -> None:
+        self._configuration_file_path = Path(
+            sg.popup_get_file(
+                message="Select a configuration file.",
+                initial_folder="configs",
+                file_types=(("Configuration file", "*.txt"),),
+                keep_on_top=True,
+                no_window=True,
+            )
+        )
+
+        with open(self._configuration_file_path, "r", encoding="utf8") as f:
+            lines = f.readlines()
+            if lines != 42:
+                sg.popup("Invalid configuration file!")
+            else:
+                sg.popup(
+                    f"Configuration file {self._configuration_file_path.name} loaded successfully!"
+                )
+
+    def _handle_end_color_configuration_event(self) -> None:
+        self._configuration_colors = {
+            key: tuple(map(int, self._configuration_colors[key]))
+            for key in self._configuration_colors
+        }
+
+        sg.popup(
+            "Selected colors for the game [R, G, B]",
+            f"""Orange: {self._configuration_colors["Orange"]}
+            Blue: {self._configuration_colors["Blue"]}
+            Black: {self._configuration_colors["Black"]}
+            White: {self._configuration_colors["White"]}""",
+        )
+
+        print(self._configuration_colors)
+
+        self._show_calibration_tab()
+
+    def _handle_next_frame_event(self) -> None:
+        ret, frame = self._cap.read()
+        if ret:
+            self._frame = frame
+            imgbytes = cv2.imencode(".png", frame)[1].tobytes()
+            if self._image_id:
+                self._window["-Graph-"].delete_figure(self._image_id)
+            self._image_id = self._window["-Graph-"].draw_image(
+                data=imgbytes, location=(0, 480)
+            )
+
+    def _handle_robot_movement_event(self, event) -> None:
+        if event == "-Robot_Move_Forward-":
+            self._controller.move_forward()
+        elif event == "-Robot_Move_Backward-":
+            self._controller.move_backward()
+        elif event == "-Robot_Move_Left-":
+            self._controller.move_left()
+        elif event == "-Robot_Move_Right-":
+            self._controller.move_right()
+        elif event == "-Robot_Move_Up-":
+            self._controller.move_up()
+        elif event == "-Robot_Move_Down-":
+            self._controller.move_down()
+
     def run(self) -> None:
+        """Main loop for the configuration window."""
+        recording = False
         while True:
             event, values = self._window.read(20)
             if event in [sg.WIN_CLOSED, "Cancel"]:
@@ -364,9 +455,9 @@ class ConfigurationWindow:
             elif (
                 event == "-TABGROUP-"
                 and values["-TABGROUP-"] != "-Color_Configuration-"
-                and self._recording
+                and recording
             ):
-                self._recording = False
+                recording = False
                 if self._cap:
                     self._cap.release()
                     self._cap = None
@@ -386,27 +477,22 @@ class ConfigurationWindow:
             elif (
                 event == "-TABGROUP-"
                 and values["-TABGROUP-"] == "-Color_Configuration-"
-                and not self._recording
+                and not recording
             ):
                 if self._camera_port is not None:
                     self._cap = cv2.VideoCapture(self._camera_port)
                     if not self._cap.isOpened():
                         sg.popup("Failed to access the camera.")
                     else:
-                        self._recording = True
+                        recording = True
                 else:
                     sg.popup("No camera port selected!")
 
-            if self._cap is not None and self._cap.isOpened() and self._recording:
-                ret, frame = self._cap.read()
-                if ret:
-                    self._frame = frame
-                    imgbytes = cv2.imencode(".png", frame)[1].tobytes()
-                    if self._image_id:
-                        self._window["-Graph-"].delete_figure(self._image_id)
-                    self._image_id = self._window["-Graph-"].draw_image(
-                        data=imgbytes, location=(0, 480)
-                    )
+            elif "-Robot_Move" in event:
+                self._handle_robot_movement_event(event)
+
+            if self._cap is not None and self._cap.isOpened() and recording:
+                self._handle_next_frame_event()
 
             if values["-Step_Orange-"]:
                 self._window["-Info_Color_Selection-"].update("Orange color selection")
@@ -417,43 +503,11 @@ class ConfigurationWindow:
             elif values["-Step_White-"]:
                 self._window["-Info_Color_Selection-"].update("White color selection")
 
-            if event == "-Graph-" and self._recording:
-                self._handle_mouse_click(values)
+            if event == "-Graph-" and recording:
+                self._handle_graph_mouse_click_event(values)
 
             if event == "-End_Color_Configuration-":
-                self._configuration_colors = {
-                    key: tuple(map(int, self._configuration_colors[key]))
-                    for key in self._configuration_colors
-                }
-
-                sg.popup(
-                    "Selected colors for the game [R, G, B]",
-                    f"Orange: {self._configuration_colors["Orange"]}\nBlue: {self._configuration_colors["Blue"]}\nBlack: {self._configuration_colors["Black"]}\nWhite: {self._configuration_colors["White"]}",
-                )
-
-                print(self._configuration_colors)
-
-                self._show_calibration_tab()
-
-            if event == "-Load_Config-":
-                self._configuration_file_path = Path(
-                    sg.popup_get_file(
-                        message="Select a configuration file.",
-                        initial_folder="configs",
-                        file_types=(("Configuration file", "*.txt"),),
-                        keep_on_top=True,
-                        no_window=True,
-                    )
-                )
-
-                with open(self._configuration_file_path, "r") as f:
-                    lines = f.readlines()
-                    if lines != 42:
-                        sg.popup("Invalid configuration file!")
-                    else:
-                        sg.popup(
-                            f"Configuration file `{self._configuration_file_path.name}` loaded successfully!"
-                        )
+                self._handle_end_color_configuration_event()
 
         if self._cap:
             self._cap.release()
