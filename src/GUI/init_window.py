@@ -32,17 +32,26 @@ class ConfigurationWindow:
             "Configuration", self._setup_main_layout(), resizable=False
         )
 
+    def _get_property_if_exist(self, property_name: str) -> bool:
+        if getattr(self, f"_{property_name}",f"No {property_name} property!\nLooks like you didn't start the `run` method." ) is None:
+            raise AttributeError(f"No {property_name} property!\nLooks like you didn't start the `run` method.")
+        return getattr(self, f"_{property_name}")
+    
+
     def get_robot_port(self) -> str:
-        return self._robot_port
+        return self._get_property_if_exist("robot_port")
 
     def get_camera_port(self) -> int:
-        return self._camera_port
+        return int(self._get_property_if_exist("camera_port"))
 
     def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
-        return self._configuration_colors
+        return self._get_property_if_exist("configuration_colors")
 
     def get_robot_color(self) -> Color:
-        return self._selected_color
+        return self._get_property_if_exist("selected_color")
+
+    def get_configuration_file_path(self) -> Path:
+        return self._get_property_if_exist("configuration_file_path")
 
     @staticmethod
     def _setup_main_layout() -> list[sg.Element]:
