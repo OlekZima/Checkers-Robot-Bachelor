@@ -43,14 +43,12 @@ class Board:
                 break
 
         if start_tile is None:
-            # print('======== jestem w Board __init__ -> niue znalazłem początkowego pola =======')
-            raise Exception("Couldn't find starting tile")  # TODO -> custom exceptions
-        else:
-            # print(board.start_tile.vertexes)
-            cv2.circle(
-                self.frame, start_tile.center, 3, (0, 0, 255), -1
-            )  # just for testing purposes
-            # print(start_tile.vertexes)
+            raise NoStartTileError("Couldn't find start tile")
+        # print(board.start_tile.vertexes)
+
+        # just for testing purposes
+        cv2.circle(self.frame, start_tile.center, 3, (0, 0, 255), -1)
+        # print(start_tile.vertexes)
 
         # STEP 1 - finding indexes of start_tile by recursive function of BoardTile (flood_fill like)
 
@@ -537,11 +535,11 @@ class Board:
 
     def is_00_white(
         self,
+        dark_field_bgr,
+        light_field_bgr,
+        orange_bgr,
+        blue_bgr,
         radius=4,
-        dark_field_bgr=[0, 0, 0],
-        light_field_bgr=[255, 255, 255],
-        red_bgr=[0, 0, 255],
-        green_bgr=[0, 255, 0],
         color_dist_thresh=60,
     ):
         pt = get_avg_pos(
@@ -556,13 +554,12 @@ class Board:
         if (
             distance_from_color(sample_avg_bgr, dark_field_bgr)
             < distance_from_color(sample_avg_bgr, light_field_bgr)
-            or distance_from_color(sample_avg_bgr, red_bgr) <= color_dist_thresh
-            or distance_from_color(sample_avg_bgr, green_bgr) <= color_dist_thresh
+            or distance_from_color(sample_avg_bgr, orange_bgr) <= color_dist_thresh
+            or distance_from_color(sample_avg_bgr, blue_bgr) <= color_dist_thresh
         ):
             return False
-        else:
-            return True
-        
+        return True
+
     @staticmethod
     def _get_mirrored_2d_matrix_y_axis(matrix):
         new_matrix = []
