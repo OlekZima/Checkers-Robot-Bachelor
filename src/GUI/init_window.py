@@ -441,8 +441,10 @@ class ConfigurationWindow:
 
         with open(self._configuration_file_path, "r", encoding="UTF-8") as f:
             lines = f.readlines()
-            if lines != 42:
-                sg.popup("Invalid configuration file!")
+            if len(lines) != 42:
+                sg.popup(
+                    f"Invalid configuration faile named {self._configuration_file_path}"
+                )
             else:
                 sg.popup(
                     f"Configuration file {self._configuration_file_path.name} loaded successfully!"
@@ -647,6 +649,7 @@ class ConfigurationWindow:
                 self._window["-Corner_Tiles_Method-"].update(disabled=True)
                 self._window["-All_Tiles_Method-"].update(disabled=True)
                 self._show_calibration_controller()
+                self._start_calibration()
 
             elif "-Robot_Move" in event:
                 self._handle_robot_movement_event(event)
@@ -668,6 +671,17 @@ class ConfigurationWindow:
 
             if event == "-End_Color_Configuration-":
                 self._handle_end_color_configuration_event()
+
+            if event == "-Load_Config-":
+                self._handle_open_config_event()
+                self._window.close()
+
+            if event == "-Next_Calibration_Step-":
+                self._handle_calibration_step_completion()
+
+            if event == "-Save_Calibration_Config-":
+                self._save_calibration_config()
+                self._window.close()
 
         if self._cap:
             self._cap.release()
