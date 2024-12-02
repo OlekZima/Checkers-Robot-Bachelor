@@ -78,7 +78,7 @@ class DobotController:
         user_input: int = self._get_user_input(len(configs))
         base_file: str = configs[user_input]
 
-        with open(config_dir + "/" + base_file, "r", encoding="utf8") as f:
+        with open(config_dir + "/" + base_file, "r", encoding="UTF-8") as f:
             lines: list[str] = f.readlines()
 
         if len(lines) < 42:
