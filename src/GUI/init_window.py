@@ -299,10 +299,10 @@ class ConfigurationWindow:
                         ],
                         [
                             sg.Button(
-                                "Down",
+                                "Backward",
                                 size=(8, 2),
                                 pad=((60, 0), (5, 5)),
-                                key="-Robot_Move_Down-",
+                                key="-Robot_Move_Backward-",
                             ),
                         ],
                     ],
@@ -322,10 +322,10 @@ class ConfigurationWindow:
                         ],
                         [
                             sg.Button(
-                                "Backward",
+                                "Down",
                                 size=(8, 2),
                                 pad=((60, 0), (5, 5)),
-                                key="-Robot_Move_Backward-",
+                                key="-Robot_Move_Down-",
                             ),
                         ],
                     ],
