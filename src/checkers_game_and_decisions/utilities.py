@@ -9,9 +9,9 @@ from src.checkers_game_and_decisions.enum_entities import Color
 
 
 def get_coord_from_tile_id(
-    field_id: int, color: Optional[Color] = None
+    tile_id: int, color: Optional[Color] = None
 ) -> tuple[int, int]:
-    y, x = divmod((field_id - 1), 4)
+    y, x = divmod((tile_id - 1), 4)
     x *= 2
 
     if y % 2 == 0:
@@ -25,14 +25,14 @@ def get_coord_from_tile_id(
 
 
 def get_tile_id_from_coord(x_cord: float, y_cord: float) -> int:
-    field_id = y_cord * 4 + 1
+    tile_id = y_cord * 4 + 1
 
     if y_cord % 2 == 1:
-        field_id += x_cord / 2
+        tile_id += x_cord / 2
     else:
-        field_id += (x_cord - 1) / 2
+        tile_id += (x_cord - 1) / 2
 
-    return int(field_id)
+    return int(tile_id)
 
 
 def linear_interpolate(a: float, b: float, t: float) -> float:

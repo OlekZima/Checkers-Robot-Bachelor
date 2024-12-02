@@ -508,7 +508,7 @@ class Board:
                     )
 
     def is_point_in_field(self, x, y, pt=None):
-        # the idea is to check if field area == area of 4 triangles with pt vertex
+        # the idea is to check if tile area == area of 4 triangles with pt vertex
 
         if pt is None:
             pt = [0, 0]
@@ -518,7 +518,7 @@ class Board:
         v3 = self.points[x + 1][y + 1]
         v4 = self.points[x][y + 1]
 
-        field_area = self._get_triangle_area(v1, v2, v3) + self._get_triangle_area(
+        tile_area = self._get_triangle_area(v1, v2, v3) + self._get_triangle_area(
             v3, v4, v1
         )
 
@@ -529,14 +529,14 @@ class Board:
             + self._get_triangle_area(v4, pt, v1)
         )
 
-        if field_area == calculated_area:
+        if tile_area == calculated_area:
             return True
         return False
 
     def is_00_white(
         self,
-        dark_field_bgr,
-        light_field_bgr,
+        dark_tile_bgr,
+        light_tile_bgr,
         orange_bgr,
         blue_bgr,
         radius=4,
@@ -552,8 +552,8 @@ class Board:
         sample_avg_bgr = get_avg_color(sample)
 
         if (
-            distance_from_color(sample_avg_bgr, dark_field_bgr)
-            < distance_from_color(sample_avg_bgr, light_field_bgr)
+            distance_from_color(sample_avg_bgr, dark_tile_bgr)
+            < distance_from_color(sample_avg_bgr, light_tile_bgr)
             or distance_from_color(sample_avg_bgr, orange_bgr) <= color_dist_thresh
             or distance_from_color(sample_avg_bgr, blue_bgr) <= color_dist_thresh
         ):

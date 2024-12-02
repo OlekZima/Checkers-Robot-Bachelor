@@ -33,7 +33,7 @@ class ConfigurationWindow:
             "White": (0, 0, 0),
         }
 
-        self._controller = CalibrationController()
+        self._controller = None
 
         self._window = sg.Window(
             "Configuration",
@@ -262,8 +262,22 @@ class ConfigurationWindow:
     def _setup_calibration_layout() -> list[list[sg.Element]]:
         layout = [
             [
+                sg.Text("Select calibration method"),
+                sg.Radio(
+                    text="Corner tiles",
+                    group_id=2,
+                    key="-Corner_Tiles_Method-",
+                    enable_events=True,
+                ),
+                sg.Radio(
+                    text="All tiles",
+                    group_id=2,
+                    key="-All_Tiles_Method-",
+                    enable_events=True,
+                ),
+            ],
+            [
                 sg.VPush(),
-                sg.Push(),
                 sg.Column(
                     [
                         [
@@ -291,7 +305,10 @@ class ConfigurationWindow:
                                 key="-Robot_Move_Down-",
                             ),
                         ],
-                    ]
+                    ],
+                    justification="center",
+                    key="-Robot_XY_Movement_Controller-",
+                    visible=False,
                 ),
                 sg.Column(
                     [
@@ -312,20 +329,37 @@ class ConfigurationWindow:
                             ),
                         ],
                     ],
+                    justification="center",
+                    key="-Robot_Z_Movement_Controller-",
+                    visible=False,
+                ),
+                sg.VPush(),
+            ],
+            [
+                sg.Push(),
+                sg.Text(
+                    "",
+                    expand_x=True,
+                    justification="center",
+                    key="-Robot_Next_Position-",
+                    visible=False,
+                ),
+                sg.Text(
+                    "Current robot position: ",
+                    expand_x=True,
+                    justification="center",
+                    key="-Robot_Position-",
+                    visible=False,
                 ),
                 sg.Push(),
-                sg.VPush(),
-            ],
-            [
-                sg.Push(),
-                sg.Text("Current position: ", expand_x=True, justification="center"),
-                sg.Push(),
             ],
             [
                 sg.VPush(),
             ],
             [
-                sg.Button("Load a config file and finish", key="-Load_Config-"),
+                sg.Button(
+                    "Load config file and finish", visible=False, key="-Load_Config-"
+                ),
             ],
         ]
 
@@ -342,6 +376,14 @@ class ConfigurationWindow:
     def _show_calibration_tab(self) -> None:
         calibration_tab: sg.Tab = self._window["-Calibration-"]
         calibration_tab.update(visible=True)
+        self._controller = CalibrationController(self.get_robot_port())
+
+    def _show_calibration_controller(self) -> None:
+        self._window["-Robot_XY_Movement_Controller-"].update(visible=True)
+        self._window["-Robot_Z_Movement_Controller-"].update(visible=True)
+        self._window["-Robot_Position-"].update(visible=True)
+        self._window["-Robot_Next_Position-"].update(visible=True)
+        self._window["-Load_Config-"].update(visible=True)
 
     def _update_selected_color_label(self) -> None:
         text_label: sg.Text = self._window["-Selected_Color-"]
@@ -436,6 +478,31 @@ class ConfigurationWindow:
         elif event == "-Robot_Move_Down-":
             self._controller.move_down()
 
+    def _start_calibration(self):
+        """Start the calibration process when entering the Calibration tab."""
+        self._controller.start_calibration()
+        self._update_calibration_instruction()
+        self._controller.move_to_current_calibration_position()
+
+    def _update_calibration_instruction(self):
+        """Update the instruction displayed in the '-Robot_Next_Position-' Text element."""
+        instruction = self._controller.get_current_calibration_step()
+        if instruction:
+            self._window["-Robot_Next_Position-"].update(instruction)
+        else:
+            self._window["-Robot_Next_Position-"].update("Calibration complete.")
+
+    def _handle_calibration_step_completion(self):
+        """Handle the completion of the current calibration step."""
+        self._controller.save_current_calibration_position()
+        if not self._controller.is_calibration_complete():
+            self._update_calibration_instruction()
+            self._controller.move_to_current_calibration_position()
+        else:
+            self._window["-Robot_Next_Position-"].update("Calibration complete.")
+            self._controller.finalize_calibration()
+            sg.popup("Calibration completed successfully!")
+
     def run(self) -> None:
         """Main loop for the configuration window."""
         recording = False
@@ -487,6 +554,11 @@ class ConfigurationWindow:
                         recording = True
                 else:
                     sg.popup("No camera port selected!")
+
+            if event in ("-Corner_Tiles_Method-", "-All_Tiles_Method-"):
+                self._window["-Corner_Tiles_Method-"].update(disabled=True)
+                self._window["-All_Tiles_Method-"].update(disabled=True)
+                self._show_calibration_controller()
 
             elif "-Robot_Move" in event:
                 self._handle_robot_movement_event(event)

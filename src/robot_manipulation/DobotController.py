@@ -1,9 +1,10 @@
 import os
-from src.checkers_game_and_decisions.checkers_game import Color
-from src.checkers_game_and_decisions.utilities import get_coord_from_field_id
+
 import numpy as np
 from serial.tools import list_ports
 
+from src.checkers_game_and_decisions.checkers_game import Color
+from src.checkers_game_and_decisions.utilities import get_coord_from_tile_id
 from src.robot_manipulation.CalibrationController import CalibrationController
 
 
@@ -19,10 +20,10 @@ class DobotController:
 
         print("Do you want to calibrate dobot (Y/N)?")
         user_input = None
-        while user_input not in ['Y', 'N']:
+        while user_input not in ("Y", "N"):
             user_input = input().upper()
 
-        if user_input == 'Y':
+        if user_input == "Y":
             calibration_controller = CalibrationController(self.device)
             calibration_controller.calibrate()
 
@@ -61,8 +62,8 @@ class DobotController:
     @staticmethod
     def _display_options(configs: list[str]) -> None:
         print("\nPlease choose a robot position configuration file by id\n")
-        for id, c in enumerate(configs):
-            print(f"[{id}]: {c}")
+        for i, c in enumerate(configs):
+            print(f"[{i}]: {c}")
 
     def read_calibration_file(self):
         config_dir = "src/robot_manipulation/configuration_files"
@@ -77,7 +78,7 @@ class DobotController:
         user_input: int = self._get_user_input(len(configs))
         base_file: str = configs[user_input]
 
-        with open(config_dir + "/" + base_file, "r") as f:
+        with open(config_dir + "/" + base_file, "r", encoding="utf8") as f:
             lines: list[str] = f.readlines()
 
         if len(lines) < 42:
@@ -89,7 +90,7 @@ class DobotController:
 
     def _set_config_positions(self, lines):
         for i in range(0, 32):
-            x, y = get_coord_from_field_id(i + 1, Color.BLUE)
+            x, y = get_coord_from_tile_id(i + 1, Color.BLUE)
             self.board[x][y] = self._parse_calibration_line(lines[i])
 
         for i in range(32, 36):
@@ -126,13 +127,13 @@ class DobotController:
             print("\n==========\n")
 
     def perform_move(
-            self, move: list[int] = None, is_crown: bool = False, height: float = 10
+        self, move: list[int] = None, is_crown: bool = False, height: float = 10
     ):
 
         # Grabbing the first piece
         if move is None:
             move = [1, 1]
-        x, y = get_coord_from_field_id(move[0], self.color)
+        x, y = get_coord_from_tile_id(move[0], self.color)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
@@ -153,7 +154,7 @@ class DobotController:
         # Mid-move movements
         for i in range(1, len(move) - 1, 1):
             if move[i] > 0:
-                x, y = get_coord_from_field_id(move[i], self.color)
+                x, y = get_coord_from_tile_id(move[i], self.color)
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
@@ -174,7 +175,7 @@ class DobotController:
                 )
 
         # Finishing movement of my piece
-        x, y = get_coord_from_field_id(move[len(move) - 1], self.color)
+        x, y = get_coord_from_tile_id(move[len(move) - 1], self.color)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
@@ -195,7 +196,7 @@ class DobotController:
         # Removing opponent taken out pieces
         for i in range(1, len(move) - 1, 1):
             if move[i] < 0:
-                x, y = get_coord_from_field_id(-move[i], self.color)
+                x, y = get_coord_from_tile_id(-move[i], self.color)
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
@@ -226,7 +227,7 @@ class DobotController:
         # Changing simple piece for king
         # TODO Restorin kings for rematch and situation where all kings are already used - error
         if is_crown:
-            x, y = get_coord_from_field_id(move[len(move) - 1], self.color)
+            x, y = get_coord_from_tile_id(move[len(move) - 1], self.color)
 
             self.move_arm(
                 self.board[x][y][0],

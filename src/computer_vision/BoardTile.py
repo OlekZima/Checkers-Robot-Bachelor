@@ -10,7 +10,7 @@ class BoardTile:
     tiles = []  # storing all board tiles
     frame = None
 
-    def __init__(self, points):
+    def __init__(self, points=None):
         if points is None:
             points = [[0, 0], [0, 0], [0, 0], [0, 0]]
 

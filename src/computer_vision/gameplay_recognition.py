@@ -13,8 +13,8 @@ class Game:
         # game state is 2d matrix -> list of columns
         # 1 represents orange, -1 represents blue
         # the orange are on the upper side
-        # the game_state[0][0] is the upper left field
-        # the game_state[7][7] is the bottom right field
+        # the game_state[0][0] is the upper left tile
+        # the game_state[7][7] is the bottom right tile
         # the upper side is y = 0
         # the bottom side is y = 7
 
@@ -45,8 +45,8 @@ class Game:
             (
                 self.orange_bgr,
                 self.blue_bgr,
-                self.dark_field_bgr,
-                self.light_field_bgr,
+                self.dark_tile_bgr,
+                self.light_tile_bgr,
             ) = self.calibrate_colors()
 
             cv2.namedWindow("Parameters - Board")
@@ -239,8 +239,8 @@ class Game:
                 game_state=Game.build_game_state(
                     checkers=Checkers.checkers,
                     is_00_white=board.is_00_white(
-                        dark_field_bgr=self.dark_field_bgr,
-                        light_field_bgr=self.light_field_bgr,
+                        dark_tile_bgr=self.dark_tile_bgr,
+                        light_tile_bgr=self.light_tile_bgr,
                         orange_bgr=self.orange_bgr,
                         blue_bgr=self.blue_bgr,
                         color_dist_thresh=color_dist_thresh,
