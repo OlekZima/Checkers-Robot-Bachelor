@@ -522,7 +522,8 @@ class ConfigurationWindow:
             self._window["-Next_Calibration_Step-"].update(visible=False)
             self._window["-Save_Calibration_Config-"].update(visible=True)
             self._controller.finalize_calibration()
-            sg.popup("Calibration completed successfully!")
+            sg.popup("Calibration completed successfully!\nSave the configuration file")
+
     def _save_calibration_config(self) -> None:
         """
         Save the calibration configuration to a file.
@@ -601,16 +602,16 @@ class ConfigurationWindow:
             event, values = self._window.read(20)
             if event in [sg.WIN_CLOSED, "Cancel"]:
                 break
-            elif event == "-Select_Orange-":
+            if event == "-Select_Orange-":
                 self._selected_color = Color.ORANGE
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
-            elif event == "-Select_Blue-":
+            if event == "-Select_Blue-":
                 self._selected_color = Color.BLUE
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
 
-            elif (
+            if (
                 event == "-TABGROUP-"
                 and values["-TABGROUP-"] != "-Color_Configuration-"
                 and recording
@@ -620,19 +621,20 @@ class ConfigurationWindow:
                     self._cap.release()
                     self._cap = None
 
-            elif event == "-Camera_Port-":
+            if event == "-Camera_Port-":
                 self._camera_port = int(values["-Camera_Port-"])
 
-            elif event == "-Robot_Port-":
+            if event == "-Robot_Port-":
                 self._robot_port = values["-Robot_Port-"]
+                self._robot_port = self._robot_port[: self._robot_port.index(" ")]
 
-            elif not self._window["-Color_Configuration-"].visible and None not in [
+            if not self._window["-Color_Configuration-"].visible and None not in [
                 self._camera_port,
                 self._robot_port,
             ]:
                 self._show_color_configuration_tab()
 
-            elif (
+            if (
                 event == "-TABGROUP-"
                 and values["-TABGROUP-"] == "-Color_Configuration-"
                 and not recording
