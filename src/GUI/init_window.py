@@ -518,6 +518,76 @@ class ConfigurationWindow:
             self._window["-Save_Calibration_Config-"].update(visible=True)
             self._controller.finalize_calibration()
             sg.popup("Calibration completed successfully!")
+    def _save_calibration_config(self) -> None:
+        """
+        Save the calibration configuration to a file.
+        Uses the existing CalibrationController methods.
+        """
+        try:
+            # Prompt user for filename with a popup
+            filename = sg.popup_get_text(
+                "Enter configuration filename (without extension):",
+                title="Save Calibration Configuration",
+                default_text="calibration_config",
+                keep_on_top=True,
+            )
+
+            # Cancel if user doesn't enter a filename
+            if filename is None:
+                sg.popup_error("No filename provided. Configuration not saved.")
+                return
+
+            # Ensure filename is valid
+            filename = re.sub(r"[^\w\-_\.]", "", filename)  # Remove invalid characters
+            if not filename:
+                sg.popup_error("Invalid filename. Configuration not saved.")
+                return
+
+            # Create full path in configs directory
+            config_path = self._controller.get_config_path() / f"{filename}.txt"
+
+            # Ensure configs directory exists
+            config_path.touch(exist_ok=True)
+
+            # Use the existing method to save corners configuration
+            with open(config_path, "w", encoding="utf-8") as f:
+                # Save board tiles (32 tiles)
+                for i in range(1, 33):
+                    x, y = get_coord_from_tile_id(i)
+                    f.write(
+                        f"{self._controller.get_board_pos()[x][y][0]};{self._controller.get_board_pos()[x][y][1]};{self._controller.get_board_pos()[x][y][2]}\n"
+                    )
+
+                # Save side pockets (2 sides, 4 pockets each)
+                for i in range(2):
+                    for j in range(4):
+                        f.write(
+                            f"{self._controller.get_side_pockets_pos()[i][j][0]};{self._controller.get_side_pockets_pos()[i][j][1]};{self._controller.get_side_pockets_pos()[i][j][2]}\n"
+                        )
+
+                # Save dispose area
+                f.write(
+                    f"{self._controller.get_dispose_pos()[0]};{self._controller.get_dispose_pos()[1]};{self._controller.get_dispose_pos()[2]}\n"
+                )
+
+                # Save home position
+                f.write(
+                    f"{self._controller.get_home_pos()[0]};{self._controller.get_home_pos()[1]};{self._controller.get_home_pos()[2]}"
+                )
+
+            # Show success popup
+            sg.popup(
+                f"Calibration configuration saved to {config_path}",
+                title="Configuration Saved",
+            )
+
+            sg.popup(
+                "End of calibration. Starting the game.", title="Configuration complete"
+            )
+
+        except Exception as e:
+            # Handle any unexpected errors
+            sg.popup_error(f"Error saving configuration: {str(e)}")
 
     def run(self) -> None:
         """Main loop for the configuration window."""
