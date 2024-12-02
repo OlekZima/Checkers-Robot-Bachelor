@@ -20,7 +20,7 @@ class CalibrationController:
 
     _HEIGHT_OFFSET: float = 10.0
     _INCREMENT: float = 1.0
-    _CONFIG_PATH: str = Path("configs")
+    _CONFIG_PATH: Path = Path("configs")
 
     def __init__(self, dobot_port) -> None:
         self._CONFIG_PATH.mkdir(exist_ok=True)
@@ -56,6 +56,10 @@ class CalibrationController:
 
         self.calibration_points = self._prepare_calibration_points()
         self.current_calibration_index = 0
+
+    @staticmethod
+    def get_config_path() -> Path:
+        return CalibrationController._CONFIG_PATH
 
     # def calibrate(self) -> None:
     #     input_method = None
@@ -383,10 +387,6 @@ class CalibrationController:
             ) / 3.0
 
     def _read_file_config(self) -> None:
-        if not exists(self._CONFIG_PATH):
-            print("Configuration files are not found. Creating new folder.")
-            os.mkdir(self._CONFIG_PATH, exist_ok=True)
-
         configs = os.listdir(self._CONFIG_PATH)
 
         if len(configs) == 0:
@@ -411,9 +411,9 @@ class CalibrationController:
                 base_config_name = configs[user_input]
                 is_correct_input = True
 
-        base_config_path = self._CONFIG_PATH + "/" + base_config_name
+        base_config_path = self._CONFIG_PATH / base_config_name
         config: np.ndarray = np.zeros((42, 3), dtype=float)
-        with open(base_config_path, "r", encoding="utf8") as config_file:
+        with open(base_config_path, "r", encoding="UTF-8") as config_file:
             file_lines = config_file.readlines()
             if len(file_lines) < 42:
                 raise ValueError(
@@ -441,8 +441,10 @@ class CalibrationController:
         print("\nPut name of the file you would like to save configuration in:")
         flush_input()
         config_name = input()
-        config_path = self._CONFIG_PATH + "/" + config_name
-        with open(config_path, mode="x", encoding="utf8") as f:
+        config_path = self._CONFIG_PATH / config_name + ".txt"
+        config_path.touch(exist_ok=True)
+
+        with open(config_path, mode="w", encoding="UTF-8") as f:
             for i in range(1, 33):
                 x, y = get_coord_from_tile_id(i)
                 f.write(
@@ -459,4 +461,4 @@ class CalibrationController:
                 f"{self._dispose_area[0]};{self._dispose_area[1]};{self._dispose_area[2]}\n"
             )
 
-            f.write(f"{self._home_pos[0]};{self._home_pos[1]};{self._home_pos[2]}\n")
+            f.write(f"{self._home_pos[0]};{self._home_pos[1]};{self._home_pos[2]}")

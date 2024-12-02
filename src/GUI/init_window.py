@@ -426,7 +426,7 @@ class ConfigurationWindow:
             )
         )
 
-        with open(self._configuration_file_path, "r", encoding="utf8") as f:
+        with open(self._configuration_file_path, "r", encoding="UTF-8") as f:
             lines = f.readlines()
             if lines != 42:
                 sg.popup("Invalid configuration file!")
