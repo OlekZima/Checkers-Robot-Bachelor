@@ -57,6 +57,18 @@ class CalibrationController:
         self.calibration_points = self._prepare_calibration_points()
         self.current_calibration_index = 0
 
+    def get_board_pos(self):
+        return self._board
+
+    def get_side_pockets_pos(self):
+        return self._side_pockets
+
+    def get_home_pos(self):
+        return self._home_pos
+
+    def get_dispose_pos(self):
+        return self._dispose_area
+
     @staticmethod
     def get_config_path() -> Path:
         return CalibrationController._CONFIG_PATH
