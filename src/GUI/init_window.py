@@ -360,6 +360,16 @@ class ConfigurationWindow:
                 sg.Button(
                     "Load config file and finish", visible=False, key="-Load_Config-"
                 ),
+                sg.Button(
+                    "Next Calibration Step",
+                    visible=False,
+                    key="-Next_Calibration_Step-",
+                ),
+                sg.Button(
+                    "Save Calibration Config",
+                    visible=False,
+                    key="-Save_Calibration_Config-",
+                ),
             ],
         ]
 
@@ -384,6 +394,7 @@ class ConfigurationWindow:
         self._window["-Robot_Position-"].update(visible=True)
         self._window["-Robot_Next_Position-"].update(visible=True)
         self._window["-Load_Config-"].update(visible=True)
+        self._window["-Next_Calibration_Step-"].update(visible=False)
 
     def _update_selected_color_label(self) -> None:
         text_label: sg.Text = self._window["-Selected_Color-"]
@@ -483,14 +494,17 @@ class ConfigurationWindow:
         self._controller.start_calibration()
         self._update_calibration_instruction()
         self._controller.move_to_current_calibration_position()
+        self._window["-Next_Calibration_Step-"].update(visible=True)
 
     def _update_calibration_instruction(self):
         """Update the instruction displayed in the '-Robot_Next_Position-' Text element."""
         instruction = self._controller.get_current_calibration_step()
         if instruction:
             self._window["-Robot_Next_Position-"].update(instruction)
+            self._window["-Next_Calibration_Step-"].update(disabled=False)
         else:
             self._window["-Robot_Next_Position-"].update("Calibration complete.")
+            self._window["-Next_Calibration_Step-"].update(disabled=True)
 
     def _handle_calibration_step_completion(self):
         """Handle the completion of the current calibration step."""
@@ -500,6 +514,8 @@ class ConfigurationWindow:
             self._controller.move_to_current_calibration_position()
         else:
             self._window["-Robot_Next_Position-"].update("Calibration complete.")
+            self._window["-Next_Calibration_Step-"].update(visible=False)
+            self._window["-Save_Calibration_Config-"].update(visible=True)
             self._controller.finalize_calibration()
             sg.popup("Calibration completed successfully!")
 
