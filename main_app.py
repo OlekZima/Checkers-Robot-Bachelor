@@ -1,4 +1,7 @@
-from src.checkers_game_and_decisions.pvrobot_game_controller import PVRobotController, UpdateGameStateResult
+from src.checkers_game_and_decisions.pvrobot_game_controller import (
+    PVRobotController,
+    GameStateResult,
+)
 from src.checkers_game_and_decisions.enum_entities import RobotGameReportItem
 from src.checkers_game_and_decisions.checkers_game import Status
 from src.computer_vision.gameplay_recognition import Game
@@ -25,7 +28,9 @@ def main():
             continue
 
         try:
-            has_state_possibly_change, game_state = board_recognition.get_fresh_game_state()
+            has_state_possibly_change, game_state = (
+                board_recognition.get_fresh_game_state()
+            )
 
         except Exception as e:
             # print(e)
@@ -39,20 +44,26 @@ def main():
                 break
             continue
 
-        update_game_state_result = game.update_game_state(game_state, allow_different_robot_moves=False)
+        update_game_state_result = game.update_game_state(
+            game_state, allow_different_robot_moves=False
+        )
 
         if update_game_state_result in [
-            UpdateGameStateResult.INVALID_OPPONENT_MOVE,
-            UpdateGameStateResult.INVALID_ROBOT_MOVE
+            GameStateResult.INVALID_OPPONENT_MOVE,
+            GameStateResult.INVALID_ROBOT_MOVE,
         ]:
-            print(f"======\n{update_game_state_result}\nMove went wrong! Correct it!\n=========\n")
+            print(
+                f"======\n{update_game_state_result}\nMove went wrong! Correct it!\n=========\n"
+            )
 
             if cv2.waitKey(1500) == ord("q"):  # & 0xFF == ord("q"):
                 break
             continue
 
-        if update_game_state_result == UpdateGameStateResult.VALID_WRONG_ROBOT_MOVE:
-            print(f"======\n{update_game_state_result}\nNot the move selected! Correct it!\n=========\n")
+        if update_game_state_result == GameStateResult.VALID_WRONG_ROBOT_MOVE:
+            print(
+                f"======\n{update_game_state_result}\nNot the move selected! Correct it!\n=======\n"
+            )
             cv2.waitKey(1500)
             continue
 
@@ -64,7 +75,10 @@ def main():
 
             if game_state_report[RobotGameReportItem.STATUS] == Status.DRAW:
                 print("The match ended in DRAW")
-            elif game_state_report[RobotGameReportItem.WINNER] == game_state_report[RobotGameReportItem.ROBOT_COLOR]:
+            elif (
+                game_state_report[RobotGameReportItem.WINNER]
+                == game_state_report[RobotGameReportItem.ROBOT_COLOR]
+            ):
                 print("The winner is ROBOT!!!")
             else:
                 print("The winner is HUMAN")
@@ -72,17 +86,24 @@ def main():
             print("=========================================================")
             break
 
-        if game_state_report[RobotGameReportItem.TURN_OF] == game_state_report[RobotGameReportItem.ROBOT_COLOR]:
-            print(f"======\n{update_game_state_result}\nAwaiting for robot move\n=========\n")
+        if (
+            game_state_report[RobotGameReportItem.TURN_OF]
+            == game_state_report[RobotGameReportItem.ROBOT_COLOR]
+        ):
+            print(
+                f"======\n{update_game_state_result}\nAwaiting for robot move\n=========\n"
+            )
             dobot.perform_move(
                 game_state_report[RobotGameReportItem.ROBOT_MOVE],
-                is_crown=game_state_report[RobotGameReportItem.IS_CROWNED]
+                is_crown=game_state_report[RobotGameReportItem.IS_CROWNED],
             )
             cv2.waitKey(30)
             buffer_clean_cnt = 20
             continue
 
-        print(f"======\n{update_game_state_result}\nAwaiting for opponent move\n=========\n")
+        print(
+            f"======\n{update_game_state_result}\nAwaiting for opponent move\n=========\n"
+        )
 
         if cv2.waitKey(30) == ord("q"):  # & 0xFF == ord("q"):
             break
