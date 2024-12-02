@@ -126,7 +126,7 @@ class CalibrationController:
     #         self._save_corners_config()
 
     def _move_and_update(self, index: int, offset_height: float) -> None:
-        """Move arm to a specified position and update base_config at the given index."""
+        """Move arm to a specified by the index position and update base_config."""
         if self.base_config is not None:
             self._move_arm(
                 self.base_config[index][0],
@@ -255,8 +255,7 @@ class CalibrationController:
                 self.current_calibration_index
             ]
             return f"Please place the DOBOT on {description} (from its perspective)"
-        else:
-            return None
+        return None
 
     def move_to_current_calibration_position(self):
         """Move the robot to the default position for the current calibration point."""
