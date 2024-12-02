@@ -117,7 +117,7 @@ class ConfigurationWindow:
                                 title="Calibration",
                                 layout=ConfigurationWindow._setup_calibration_layout(),
                                 key="-Calibration-",
-                                visible=True,
+                                visible=False,
                             ),
                         ]
                     ],
@@ -391,6 +391,7 @@ class ConfigurationWindow:
         self._controller = CalibrationController(self.get_robot_port())
 
     def _show_calibration_controller(self) -> None:
+        self._controller = CalibrationController(self.get_robot_port())
         self._window["-Robot_XY_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Z_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Position-"].update(visible=True)
