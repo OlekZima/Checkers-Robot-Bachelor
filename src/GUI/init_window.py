@@ -397,6 +397,7 @@ class ConfigurationWindow:
         self._window["-Robot_Position-"].update(visible=True)
         self._window["-Robot_Next_Position-"].update(visible=True)
         self._window["-Load_Config-"].update(visible=True)
+
         self._window["-Next_Calibration_Step-"].update(visible=False)
 
     def _update_selected_color_label(self) -> None:
@@ -499,6 +500,8 @@ class ConfigurationWindow:
         self._controller.start_calibration()
         self._update_calibration_instruction()
         self._controller.move_to_current_calibration_position()
+
+        # Show the Next Calibration Step button
         self._window["-Next_Calibration_Step-"].update(visible=True)
 
     def _update_calibration_instruction(self):
@@ -506,9 +509,13 @@ class ConfigurationWindow:
         instruction = self._controller.get_current_calibration_step()
         if instruction:
             self._window["-Robot_Next_Position-"].update(instruction)
+
+            # Enable the Next Calibration Step button
             self._window["-Next_Calibration_Step-"].update(disabled=False)
         else:
             self._window["-Robot_Next_Position-"].update("Calibration complete.")
+
+            # Disable the Next Calibration Step button
             self._window["-Next_Calibration_Step-"].update(disabled=True)
 
     def _handle_calibration_step_completion(self):
@@ -530,7 +537,6 @@ class ConfigurationWindow:
         Uses the existing CalibrationController methods.
         """
         try:
-            # Prompt user for filename with a popup
             filename = sg.popup_get_text(
                 "Enter configuration filename (without extension):",
                 title="Save Calibration Configuration",
@@ -538,18 +544,15 @@ class ConfigurationWindow:
                 keep_on_top=True,
             )
 
-            # Cancel if user doesn't enter a filename
             if filename is None:
                 sg.popup_error("No filename provided. Configuration not saved.")
                 return
 
-            # Ensure filename is valid
-            filename = re.sub(r"[^\w\-_\.]", "", filename)  # Remove invalid characters
+            filename = re.sub(r"[^\w\-_\.]", "", filename)
             if not filename:
                 sg.popup_error("Invalid filename. Configuration not saved.")
                 return
 
-            # Create full path in configs directory
             config_path = self._controller.get_config_path() / f"{filename}.txt"
 
             # Ensure configs directory exists
