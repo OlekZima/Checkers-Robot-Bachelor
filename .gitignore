@@ -8,8 +8,6 @@ __pycache__/
 # C extensions
 *.so
 
-src/robot_manipulation/configuration_files/*
-
 # Distribution / packaging
 .Python
 env/
