@@ -452,7 +452,7 @@ class CalibrationController:
         print("\nPut name of the file you would like to save configuration in:")
         flush_input()
         config_name = input()
-        config_path = self._CONFIG_PATH / config_name + ".txt"
+        config_path = self._CONFIG_PATH / f"{config_name}.txt"
         config_path.touch(exist_ok=True)
 
         with open(config_path, mode="w", encoding="UTF-8") as f:
