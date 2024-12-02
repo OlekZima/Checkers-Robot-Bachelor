@@ -657,7 +657,7 @@ class ConfigurationWindow:
                 self._show_calibration_controller()
                 self._start_calibration()
 
-            elif "-Robot_Move" in event:
+            if "-Robot_Move" in event:
                 self._handle_robot_movement_event(event)
 
             if self._cap is not None and self._cap.isOpened() and recording:
