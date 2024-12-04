@@ -502,8 +502,38 @@ class ConfigurationWindow:
             self._controller.move_down()
 
     def _start_all_tiles_calibration(self):
-        # TODO: Implement this method
-        pass
+        """Start the all tiles calibration process."""
+        self._handle_load_config_event()
+
+        if self._configuration_file_path is None:
+            sg.popup_error("No configuration file selected. Calibration aborted.")
+            return
+
+        try:
+            self._controller.read_file_config()
+
+            self._update_calibration_instruction(CalibrationMethod.ALL)
+            self._controller.move_to_current_all_tiles_calibration_position()
+
+            self._window["-Next_Calibration_Step-"].update(visible=True)
+
+        except Exception as e:
+            sg.popup_error(f"Error preparing all tiles calibration: {str(e)}")
+
+    def _handle_calibration_step_completion(self):
+        """Handle the completion of the current calibration step."""
+        # Check which calibration method is active
+        if self._window["-Corner_Tiles_Method-"].get():
+            # Existing corner calibration logic
+            self._controller.save_current_all_tiles_calibration_position()
+            if not self._controller.is_all_tiles_calibration_complete():
+                self._update_calibration_instruction(CalibrationMethod.ALL)
+                self._controller.move_to_current_all_tiles_calibration_position()
+            else:
+                self._window["-Robot_Next_Position-"].update(
+                    "Corner Calibration complete."
+                )
+                self._window["-Next_Calibration_Step-"].update(visible=False)
 
     def _start_corner_calibration(self):
         """Start the calibration process when entering the Calibration tab."""
@@ -514,18 +544,21 @@ class ConfigurationWindow:
         # Show the Next Calibration Step button
         self._window["-Next_Calibration_Step-"].update(visible=True)
 
-    def _update_calibration_instruction(self):
+    def _update_calibration_instruction(
+        self, calibration_method: Optional[CalibrationMethod] = CalibrationMethod.CORNER
+    ):
         """Update the instruction displayed in the '-Robot_Next_Position-' Text element."""
-        instruction = self._controller.get_current_corner_calibration_step()
+        if calibration_method == CalibrationMethod.ALL:
+            instruction = self._controller.get_current_all_tiles_calibration_step()
+        else:
+            instruction = self._controller.get_current_corner_calibration_step()
         if instruction:
             self._window["-Robot_Next_Position-"].update(instruction)
 
-            # Enable the Next Calibration Step button
             self._window["-Next_Calibration_Step-"].update(disabled=False)
         else:
             self._window["-Robot_Next_Position-"].update("Calibration complete.")
 
-            # Disable the Next Calibration Step button
             self._window["-Next_Calibration_Step-"].update(disabled=True)
 
     def _handle_calibration_step_completion(self):
@@ -539,7 +572,10 @@ class ConfigurationWindow:
             self._window["-Next_Calibration_Step-"].update(visible=False)
             self._window["-Save_Calibration_Config-"].update(visible=True)
             self._controller.finalize_corner_calibration()
-            sg.popup("Calibration completed successfully!\nSave the configuration file")
+            sg.popup(
+                "Calibration completed successfully!\nSave the configuration file",
+                keep_on_top=True,
+            )
 
     def _save_calibration_config(self) -> None:
         """
@@ -569,14 +605,16 @@ class ConfigurationWindow:
             sg.popup(
                 f"Calibration configuration saved to {config_path}",
                 title="Configuration Saved",
+                keep_on_top=True,
             )
 
             sg.popup(
-                "End of calibration. Starting the game.", title="Configuration complete"
+                "End of calibration. Starting the game.",
+                title="Configuration complete",
+                keep_on_top=True,
             )
 
         except Exception as e:
-            # Handle any unexpected errors
             sg.popup_error(f"Error saving configuration: {str(e)}")
 
     def run(self) -> None:

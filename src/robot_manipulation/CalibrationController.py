@@ -1,5 +1,4 @@
 import os
-from os.path import exists
 from pathlib import Path
 from typing import Optional
 
@@ -55,6 +54,7 @@ class CalibrationController:
 
         self.calibration_points = self._prepare_calibration_points()
         self._current_corner_calibration_index = 0
+        self._current_all_tiles_calibration_index = 0
 
     def get_board_pos(self):
         return self._board
@@ -121,115 +121,112 @@ class CalibrationController:
         x, y, z, _ = self.device.get_pose().position
         return x, y, z
 
-    # def _calibrate(self, method: str) -> None:
-    #     if method == "all":
-    #         self._read_file_config()
-    #         self._calibrate_all_fields()
-    #         self._save_all_field_config()
-    #     else:
-    #         self._calibrate_corners()
-    #         self._save_corners_config()
-
-    def _move_and_update(self, index: int, offset_height: float) -> None:
-        """Move arm to a specified by the index position and update base_config."""
-        if self.base_config is not None:
-            self._move_arm(
-                self.base_config[index][0],
-                self.base_config[index][1],
-                self.base_config[index][2] + offset_height,
-                True,
-            )
-        self._move_arm(
-            self.base_config[index][0],
-            self.base_config[index][1],
-            self.base_config[index][2],
-            True,
-        )
-        print(f"\nSet to position of id {index + 1}")
-        self._keyboard_move_dobot()
-        x, y, z, _ = self.device.get_pose().position
-        self.base_config[index][0] = x
-        self.base_config[index][1] = y
-        self.base_config[index][2] = z
-        self._move_arm(x, y, z + offset_height, True)
-
-    def _calibrate_all_tiles(self) -> None:
-        # Calibrate fields in 3 ranges: 0-31, 32-35, 36-39, and special positions 40 and 41.
-
-        # Calibrate positions 0 to 31
-        for i in range(32):
-            self._move_and_update(i, self._HEIGHT_OFFSET)
-
-        # Calibrate positions 32 to 35 (side pocket left)
-        for i in range(32, 36):
-            print(f"\nSet to side pocket (left) of id {i - 31}")
-            self._move_and_update(i, self._HEIGHT_OFFSET)
-
-        # Calibrate positions 36 to 39 (side pocket right)
-        for i in range(36, 40):
-            print(f"\nSet to side pocket (right) of id {i - 35}")
-            self._move_and_update(i, self._HEIGHT_OFFSET)
-
-        # Calibrate position 40 (dispose area)
-        print("\nSet to dispose area")
-        self._move_and_update(40, self._HEIGHT_OFFSET)
-
-        # Calibrate position 41 (home position)
-        print("\nSet to home position")
-        self._move_and_update(41, self._HEIGHT_OFFSET)
-
-    # def _calibrate_corners(self) -> None:
-
-    #     def _calibrate_point(
-    #         index: int,
-    #         storage_array: np.ndarray,
-    #         storage_indices: list,
-    #         message_info: str,
-    #     ):
-    #         print(message_info)
-    #         default_pos = self._default_calibration_positions[index]
-    #         # Move to default position plus height
+    # def _move_and_update(self, index: int, offset_height: float) -> None:
+    #     """Move arm to a specified by the index position and update base_config."""
+    #     if self.base_config is not None:
     #         self._move_arm(
-    #             default_pos[0],
-    #             default_pos[1],
-    #             default_pos[2] + self._HEIGHT_OFFSET,
-    #             wait=True,
+    #             self.base_config[index][0],
+    #             self.base_config[index][1],
+    #             self.base_config[index][2] + offset_height,
+    #             True,
     #         )
-    #         self._move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
-    #         self._keyboard_move_dobot()
-    #         x, y, z, _ = self.device.get_pose().position
+    #     self._move_arm(
+    #         self.base_config[index][0],
+    #         self.base_config[index][1],
+    #         self.base_config[index][2],
+    #         True,
+    #     )
+    #     print(f"\nSet to position of id {index + 1}")
+    #     self._keyboard_move_dobot()
+    #     x, y, z, _ = self.device.get_pose().position
+    #     self.base_config[index][0] = x
+    #     self.base_config[index][1] = y
+    #     self.base_config[index][2] = z
+    #     self._move_arm(x, y, z + offset_height, True)
 
-    #         piece_storage = storage_array
-    #         if storage_indices:
-    #             for i in storage_indices[:-1]:
-    #                 piece_storage = piece_storage[i]
-    #             storage_idx = storage_indices[-1]
-    #             piece_storage[storage_idx][:] = [x, y, z]
-    #         else:
-    #             piece_storage[:] = [x, y, z]
-    #         print(f"x = {x}\ty = {y}\tz = {z}")
-    #         # Move the arm back up
-    #         self._move_arm(x, y, z + self._HEIGHT_OFFSET, wait=True)
+    # def _calibrate_all_tiles(self) -> None:
+    #     for i in range(32):
+    #         self._move_and_update(i, self._HEIGHT_OFFSET)
 
-    #     calibration_points = [
-    #         (0, self._board, [0, 0], "upper left board corner"),
-    #         (1, self._board, [7, 0], "upper right board corner"),
-    #         (2, self._board, [0, 7], "bottom left board corner"),
-    #         (3, self._board, [7, 7], "bottom right board corner"),
-    #         (4, self._side_pockets, [0, 0], "upper left side pocket"),
-    #         (5, self._side_pockets, [0, 3], "bottom left side pocket"),
-    #         (6, self._side_pockets, [1, 0], "upper right side pocket"),
-    #         (7, self._side_pockets, [1, 3], "bottom right side pocket"),
-    #         (8, self._dispose_area, [], "dispose area"),
-    #         (9, self._home_pos, [], "default/home position"),
-    #     ]
+    #     for i in range(32, 36):
+    #         print(f"\nSet to side pocket (left) of id {i - 31}")
+    #         self._move_and_update(i, self._HEIGHT_OFFSET)
 
-    #     for idx, storage, indices, description in calibration_points:
-    #         message = f"Please place the DOBOT on {description} (from its perspective)"
-    #         _calibrate_point(idx, storage, indices, message)
+    #     for i in range(36, 40):
+    #         print(f"\nSet to side pocket (right) of id {i - 35}")
+    #         self._move_and_update(i, self._HEIGHT_OFFSET)
 
-    #     self._interpolate_board_fields()
-    #     self._interpolate_side_pockets()
+    #     print("\nSet to dispose area")
+    #     self._move_and_update(40, self._HEIGHT_OFFSET)
+
+    #     print("\nSet to home position")
+    #     self._move_and_update(41, self._HEIGHT_OFFSET)
+
+    # region All tiles calibration
+
+    def move_to_current_all_tiles_calibration_position(self):
+        """Move the robot to the default position for the current all tiles calibration point."""
+        if 0 <= self._current_all_tiles_calibration_index < 42:
+            default_pos = self.base_config[self._current_all_tiles_calibration_index]
+            self._move_arm(
+                default_pos[0],
+                default_pos[1],
+                default_pos[2] + self._HEIGHT_OFFSET,
+                wait=True,
+            )
+            self._move_arm(default_pos[0], default_pos[1], default_pos[2], wait=True)
+        else:
+            pass
+
+    def get_current_all_tiles_calibration_step(self):
+        """Retrieve the instruction for the current all tiles calibration point."""
+        if 0 <= self._current_all_tiles_calibration_index < 32:
+            return (
+                f"Calibrate board tile {self._current_all_tiles_calibration_index + 1}"
+            )
+        elif 32 <= self._current_all_tiles_calibration_index < 36:
+            return f"Calibrate left side pocket {self._current_all_tiles_calibration_index - 31}"
+        elif 36 <= self._current_all_tiles_calibration_index < 40:
+            return f"Calibrate right side pocket {self._current_all_tiles_calibration_index - 35}"
+        elif self._current_all_tiles_calibration_index == 40:
+            return "Calibrate dispose area"
+        elif self._current_all_tiles_calibration_index == 41:
+            return "Calibrate home position"
+        else:
+            return None
+
+    def save_current_all_tiles_calibration_position(self):
+        """Save the adjusted position for the current all tiles calibration point."""
+        if 0 <= self._current_all_tiles_calibration_index < 42:
+            x, y, z = self._get_xyz_position()
+
+            # Update the base_config with the new position
+            self.base_config[self._current_all_tiles_calibration_index] = [x, y, z]
+
+            # Move the arm up
+            self._move_arm(x, y, z + self._HEIGHT_OFFSET, wait=True)
+
+            # Increment the calibration index
+            self._current_all_tiles_calibration_index += 1
+        else:
+            pass
+
+    def is_all_tiles_calibration_complete(self):
+        """Check if the all tiles calibration process is complete."""
+        return self._current_all_tiles_calibration_index >= 42
+
+    def _save_all_tiles_config(self, filename: str):
+        """Save the all tiles calibration configuration."""
+        config_path = self._CONFIG_PATH / f"{filename}.txt"
+
+        with open(config_path, mode="w", encoding="UTF-8") as config_file:
+            for i in range(0, 42):
+                base_x, base_y, base_z = self.base_config[i]
+                config_file.write(f"{base_x};{base_y};{base_z}\n")
+
+    # endregion
+
+    # region Corner calibration
 
     def _prepare_calibration_points(self):
         """Prepare the list of calibration points for step-by-step calibration."""
@@ -311,39 +308,7 @@ class CalibrationController:
         self._interpolate_board_tiles()
         self._interpolate_side_pockets()
 
-    # def _keyboard_move_dobot(self) -> None:
-    #     x, y, z, _ = self.device.get_pose().position
-
-    #     instruction_frame = np.zeros(
-    #         shape=(300, 300)
-    #     )
-
-    #     while True:
-    #         self._move_arm(x, y, z, wait=True)
-    #         cv2.imshow("Calibrate instruction", instruction_frame)
-    #         key = cv2.waitKey(0)
-
-    #         x, y, z, _ = self.device.get_pose().position
-
-    #         if key == 13:
-    #             break
-    #         elif key == ord("w"):
-    #             x += self._INCREMENT
-    #         elif key == ord("s"):
-    #             x -= self._INCREMENT
-    #         elif key == ord("a"):
-    #             y += self._INCREMENT
-    #         elif key == ord("d"):
-    #             y -= self._INCREMENT
-    #         elif key == ord("q"):
-    #             z -= self._INCREMENT
-    #         elif key == ord("e"):
-    #             z += self._INCREMENT
-    #         elif key == 27:
-    #             cv2.destroyAllWindows()
-    #             exit(1)
-
-    #     cv2.destroyAllWindows()
+    # endregion
 
     def _move_arm(self, x, y, z, wait: Optional[bool] = True) -> None:
         try:
@@ -404,7 +369,7 @@ class CalibrationController:
                 self._side_pockets[1][0][k] + self._side_pockets[1][3][k] * 2
             ) / 3.0
 
-    def _read_file_config(self) -> None:
+    def read_file_config(self) -> None:
         configs = os.listdir(self._CONFIG_PATH)
 
         if len(configs) == 0:
