@@ -481,17 +481,17 @@ class ConfigurationWindow:
             )
 
     def _handle_robot_movement_event(self, event) -> None:
-        if event == "-Robot_Move_Forward-":
+        if event in ("-Robot_Move_Forward-", "w:25"):
             self._controller.move_forward()
-        elif event == "-Robot_Move_Backward-":
+        elif event in ("-Robot_Move_Backward-", "s:39"):
             self._controller.move_backward()
-        elif event == "-Robot_Move_Left-":
+        elif event in ("-Robot_Move_Left-", "a:38"):
             self._controller.move_left()
-        elif event == "-Robot_Move_Right-":
+        elif event in ("-Robot_Move_Right-", "d:40"):
             self._controller.move_right()
-        elif event == "-Robot_Move_Up-":
+        elif event in ("-Robot_Move_Up-", "e:26"):
             self._controller.move_up()
-        elif event == "-Robot_Move_Down-":
+        elif event in ("-Robot_Move_Down-", "q:24"):
             self._controller.move_down()
 
     def _start_calibration(self):
@@ -678,7 +678,7 @@ class ConfigurationWindow:
                 self._handle_end_color_configuration_event()
 
             if event == "-Load_Config-":
-                self._handle_open_config_event()
+                self._handle_load_config_event()
                 self._window.close()
 
             if event == "-Next_Calibration_Step-":

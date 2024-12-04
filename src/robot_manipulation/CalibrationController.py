@@ -3,7 +3,6 @@ from os.path import exists
 from pathlib import Path
 from typing import Optional
 
-import cv2
 import numpy as np
 from pydobotplus import Dobot
 
@@ -55,7 +54,7 @@ class CalibrationController:
         ]
 
         self.calibration_points = self._prepare_calibration_points()
-        self.current_calibration_index = 0
+        self._current_corner_calibration_index = 0
 
     def get_board_pos(self):
         return self._board
@@ -83,31 +82,37 @@ class CalibrationController:
     #     print("\nCalibration done\n")
 
     def move_forward(self) -> None:
+        """Move the arm forward from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
         x += self._INCREMENT
         self._move_arm(x, y, z, wait=True)
 
     def move_backward(self) -> None:
+        """Move the arm backward from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
         x -= self._INCREMENT
         self._move_arm(x, y, z, wait=True)
 
     def move_left(self) -> None:
+        """Move the arm left from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
         y += self._INCREMENT
         self._move_arm(x, y, z, wait=True)
 
     def move_right(self) -> None:
+        """Move the arm right from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
         y -= self._INCREMENT
         self._move_arm(x, y, z, wait=True)
 
     def move_up(self):
+        """Move the arm up from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
         z += self._INCREMENT
         self._move_arm(x, y, z, wait=True)
 
     def move_down(self):
+        """Move the arm down from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
         z -= self._INCREMENT
         self._move_arm(x, y, z, wait=True)
@@ -244,23 +249,25 @@ class CalibrationController:
 
         return calibration_points
 
-    def start_calibration(self):
+    def start_corner_calibration(self):
         """Initialize the calibration process."""
-        self.current_calibration_index = 0
+        self._current_corner_calibration_index = 0
 
-    def get_current_calibration_step(self):
+    def get_current_corner_calibration_step(self):
         """Retrieve the instruction for the current calibration point."""
-        if self.current_calibration_index < len(self.calibration_points):
+        if self._current_corner_calibration_index < len(self.calibration_points):
             _, _, _, description = self.calibration_points[
-                self.current_calibration_index
+                self._current_corner_calibration_index
             ]
             return f"Please place the DOBOT on {description} (from its perspective)"
         return None
 
-    def move_to_current_calibration_position(self):
+    def move_to_current_corner_calibration_position(self):
         """Move the robot to the default position for the current calibration point."""
-        if self.current_calibration_index < len(self.calibration_points):
-            idx, _, _, _ = self.calibration_points[self.current_calibration_index]
+        if self._current_corner_calibration_index < len(self.calibration_points):
+            idx, _, _, _ = self.calibration_points[
+                self._current_corner_calibration_index
+            ]
             default_pos = self._default_calibration_positions[idx]
             self._move_arm(
                 default_pos[0],
@@ -272,11 +279,11 @@ class CalibrationController:
         else:
             pass
 
-    def save_current_calibration_position(self):
+    def save_current_corner_calibration_position(self):
         """Save the adjusted position for the current calibration point."""
-        if self.current_calibration_index < len(self.calibration_points):
+        if self._current_corner_calibration_index < len(self.calibration_points):
             _, storage_array, storage_indices, _ = self.calibration_points[
-                self.current_calibration_index
+                self._current_corner_calibration_index
             ]
             x, y, z = self._get_xyz_position()
 
@@ -291,15 +298,15 @@ class CalibrationController:
 
             self._move_arm(x, y, z + self._HEIGHT_OFFSET, wait=True)
 
-            self.current_calibration_index += 1
+            self._current_corner_calibration_index += 1
         else:
             pass
 
-    def is_calibration_complete(self):
+    def is_corner_calibration_complete(self):
         """Check if the calibration process is complete."""
-        return self.current_calibration_index >= len(self.calibration_points)
+        return self._current_corner_calibration_index >= len(self.calibration_points)
 
-    def finalize_calibration(self):
+    def finalize_corner_calibration(self):
         """Perform final steps after calibration (e.g., interpolation)."""
         self._interpolate_board_tiles()
         self._interpolate_side_pockets()
@@ -448,11 +455,9 @@ class CalibrationController:
                 base_x, base_y, base_z = self.base_config[i]
                 config_file.write(f"{base_x};{base_y};{base_z}\n")
 
-    def _save_corners_config(self) -> None:
-        print("\nPut name of the file you would like to save configuration in:")
-        flush_input()
-        config_name = input()
-        config_path = self._CONFIG_PATH / f"{config_name}.txt"
+    def save_corners_config(self, file_name: str) -> None:
+        """Save the interpolated calibration points for the corners to a file."""
+        config_path = self._CONFIG_PATH / f"{file_name}.txt"
         config_path.touch(exist_ok=True)
 
         with open(config_path, mode="w", encoding="UTF-8") as f:
