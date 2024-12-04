@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+from typing import Optional
 
 import cv2
 import PySimpleGUI as sg
@@ -41,6 +42,7 @@ class ConfigurationWindow:
             self._setup_main_layout(),
             resizable=False,
             return_keyboard_events=True,
+            use_default_focus=False,
         )
 
     def _get_property_if_exist(self, property_name: str) -> bool:
@@ -359,7 +361,9 @@ class ConfigurationWindow:
             ],
             [
                 sg.Button(
-                    "Load config file and finish", visible=False, key="-Load_Config-"
+                    "Load config file and finish",
+                    visible=False,
+                    key="-Load_Config-",
                 ),
                 sg.Button(
                     "Next Calibration Step",
@@ -389,15 +393,18 @@ class ConfigurationWindow:
         calibration_tab.update(visible=True)
         self._controller = CalibrationController(self.get_robot_port())
 
-    def _show_calibration_controller(self) -> None:
+    def _show_calibration_controller(
+        self, calibration_method: Optional[CalibrationMethod] = CalibrationMethod.CORNER
+    ) -> None:
         self._controller = CalibrationController(self.get_robot_port())
         self._window["-Robot_XY_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Z_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Position-"].update(visible=True)
         self._window["-Robot_Next_Position-"].update(visible=True)
-        self._window["-Load_Config-"].update(visible=True)
-
         self._window["-Next_Calibration_Step-"].update(visible=False)
+
+        if calibration_method == CalibrationMethod.ALL:
+            self._window["-Load_Config-"].update(visible=True)
 
     def _update_selected_color_label(self) -> None:
         text_label: sg.Text = self._window["-Selected_Color-"]
@@ -429,7 +436,7 @@ class ConfigurationWindow:
                     f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
                 )
 
-    def _handle_open_config_event(self) -> None:
+    def _handle_load_config_event(self) -> None:
         self._configuration_file_path = Path(
             sg.popup_get_file(
                 message="Select a configuration file.",
@@ -494,18 +501,22 @@ class ConfigurationWindow:
         elif event in ("-Robot_Move_Down-", "q:24"):
             self._controller.move_down()
 
-    def _start_calibration(self):
+    def _start_all_tiles_calibration(self):
+        # TODO: Implement this method
+        pass
+
+    def _start_corner_calibration(self):
         """Start the calibration process when entering the Calibration tab."""
-        self._controller.start_calibration()
+        self._controller.start_corner_calibration()
         self._update_calibration_instruction()
-        self._controller.move_to_current_calibration_position()
+        self._controller.move_to_current_corner_calibration_position()
 
         # Show the Next Calibration Step button
         self._window["-Next_Calibration_Step-"].update(visible=True)
 
     def _update_calibration_instruction(self):
         """Update the instruction displayed in the '-Robot_Next_Position-' Text element."""
-        instruction = self._controller.get_current_calibration_step()
+        instruction = self._controller.get_current_corner_calibration_step()
         if instruction:
             self._window["-Robot_Next_Position-"].update(instruction)
 
@@ -519,15 +530,15 @@ class ConfigurationWindow:
 
     def _handle_calibration_step_completion(self):
         """Handle the completion of the current calibration step."""
-        self._controller.save_current_calibration_position()
-        if not self._controller.is_calibration_complete():
+        self._controller.save_current_corner_calibration_position()
+        if not self._controller.is_corner_calibration_complete():
             self._update_calibration_instruction()
-            self._controller.move_to_current_calibration_position()
+            self._controller.move_to_current_corner_calibration_position()
         else:
             self._window["-Robot_Next_Position-"].update("Calibration complete.")
             self._window["-Next_Calibration_Step-"].update(visible=False)
             self._window["-Save_Calibration_Config-"].update(visible=True)
-            self._controller.finalize_calibration()
+            self._controller.finalize_corner_calibration()
             sg.popup("Calibration completed successfully!\nSave the configuration file")
 
     def _save_calibration_config(self) -> None:
@@ -552,38 +563,9 @@ class ConfigurationWindow:
                 sg.popup_error("Invalid filename. Configuration not saved.")
                 return
 
+            self._controller.save_corners_config(filename)
+
             config_path = self._controller.get_config_path() / f"{filename}.txt"
-
-            # Ensure configs directory exists
-            config_path.touch(exist_ok=True)
-
-            # Use the existing method to save corners configuration
-            with open(config_path, "w", encoding="utf-8") as f:
-                # Save board tiles (32 tiles)
-                for i in range(1, 33):
-                    x, y = get_coord_from_tile_id(i)
-                    f.write(
-                        f"{self._controller.get_board_pos()[x][y][0]};{self._controller.get_board_pos()[x][y][1]};{self._controller.get_board_pos()[x][y][2]}\n"
-                    )
-
-                # Save side pockets (2 sides, 4 pockets each)
-                for i in range(2):
-                    for j in range(4):
-                        f.write(
-                            f"{self._controller.get_side_pockets_pos()[i][j][0]};{self._controller.get_side_pockets_pos()[i][j][1]};{self._controller.get_side_pockets_pos()[i][j][2]}\n"
-                        )
-
-                # Save dispose area
-                f.write(
-                    f"{self._controller.get_dispose_pos()[0]};{self._controller.get_dispose_pos()[1]};{self._controller.get_dispose_pos()[2]}\n"
-                )
-
-                # Save home position
-                f.write(
-                    f"{self._controller.get_home_pos()[0]};{self._controller.get_home_pos()[1]};{self._controller.get_home_pos()[2]}"
-                )
-
-            # Show success popup
             sg.popup(
                 f"Calibration configuration saved to {config_path}",
                 title="Configuration Saved",
@@ -650,11 +632,17 @@ class ConfigurationWindow:
                 else:
                     sg.popup("No camera port selected!")
 
-            if event in ("-Corner_Tiles_Method-", "-All_Tiles_Method-"):
+            if event == "-All_Tiles_Method-":
+                self._window["-Corner_Tiles_Method-"].update(disabled=True)
+                self._window["-All_Tiles_Method-"].update(disabled=True)
+                self._show_calibration_controller(CalibrationMethod.ALL)
+                self._start_all_tiles_calibration()
+
+            if event == "-Corner_Tiles_Method-":
                 self._window["-Corner_Tiles_Method-"].update(disabled=True)
                 self._window["-All_Tiles_Method-"].update(disabled=True)
                 self._show_calibration_controller()
-                self._start_calibration()
+                self._start_corner_calibration()
 
             if "-Robot_Move" in event:
                 self._handle_robot_movement_event(event)
