@@ -42,3 +42,10 @@ class GameStateResult(Enum):
     INVALID_OPPONENT_MOVE = 5
     VALID_OPPONENT_MOVE = 6
     NO_OPPONENT_MOVE = 7
+
+
+class CalibrationMethod(Enum):
+    """Enum representing the method of calibration (All or Corner)"""
+
+    CORNER = 1
+    ALL = 2

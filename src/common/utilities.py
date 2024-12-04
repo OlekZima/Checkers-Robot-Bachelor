@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 import cv2
-from src.checkers_game_and_decisions.enum_entities import Color
+from src.common.enum_entities import Color
 
 
 def get_coord_from_tile_id(
