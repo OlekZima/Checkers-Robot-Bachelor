@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
 
-from src.exceptions import BoardMappingError, CameraReadError
+from src.common.exceptions import BoardMappingError, CameraReadError
 from src.computer_vision.Board import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
-from src.checkers_game_and_decisions.utilities import list_camera_ports, empty_function
+from src.common.utilities import list_camera_ports, empty_function
 
 
 class Game:

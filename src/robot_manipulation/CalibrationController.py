@@ -7,12 +7,12 @@ import cv2
 import numpy as np
 from pydobotplus import Dobot
 
-from src.checkers_game_and_decisions.utilities import (
+from src.common.utilities import (
     flush_input,
     get_coord_from_tile_id,
     linear_interpolate,
 )
-from src.exceptions import DobotError
+from src.common.exceptions import DobotError
 
 
 class CalibrationController:

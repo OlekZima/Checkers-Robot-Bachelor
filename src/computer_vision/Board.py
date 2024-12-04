@@ -3,14 +3,18 @@ import math
 import cv2
 import numpy as np
 
-from src.checkers_game_and_decisions.utilities import (
+from src.common.utilities import (
     distance_from_color,
     get_avg_color,
     get_avg_pos,
 )
 from src.computer_vision.BoardTile import BoardTile
 from src.computer_vision.contours_recognition import get_game_tiles_contours
-from src.exceptions import BoardDetectionError, InsufficientDataError, NoStartTileError
+from src.common.exceptions import (
+    BoardDetectionError,
+    InsufficientDataError,
+    NoStartTileError,
+)
 
 
 class Board:

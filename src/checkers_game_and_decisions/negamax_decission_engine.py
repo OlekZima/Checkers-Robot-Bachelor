@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from src.exceptions import DecisionEngineError
+from src.common.exceptions import DecisionEngineError
 from src.checkers_game_and_decisions.checkers_game import CheckersGame
-from src.checkers_game_and_decisions.enum_entities import Color
+from src.common.enum_entities import Color
 
 
 class NegamaxDecisionEngine:

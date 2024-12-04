@@ -5,9 +5,8 @@ import cv2
 import PySimpleGUI as sg
 from serial.tools import list_ports
 
-from src.checkers_game_and_decisions.enum_entities import Color
+from src.common.enum_entities import Color, CalibrationMethod
 from src.computer_vision.gameplay_recognition import list_camera_ports
-from src.checkers_game_and_decisions.utilities import get_coord_from_tile_id
 
 from src.robot_manipulation.CalibrationController import CalibrationController
 

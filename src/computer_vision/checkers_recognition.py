@@ -1,10 +1,10 @@
 from typing import Optional, Self
-from src.checkers_game_and_decisions.utilities import (
+from src.common.utilities import (
     get_avg_color,
     get_avg_pos,
     distance_from_color,
 )
-from src.checkers_game_and_decisions.enum_entities import Color
+from src.common.enum_entities import Color
 
 
 class Checkers:

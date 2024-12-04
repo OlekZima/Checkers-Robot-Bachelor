@@ -4,7 +4,7 @@ import numpy as np
 from serial.tools import list_ports
 
 from src.checkers_game_and_decisions.checkers_game import Color
-from src.checkers_game_and_decisions.utilities import get_coord_from_tile_id
+from src.common.utilities import get_coord_from_tile_id
 from src.robot_manipulation.CalibrationController import CalibrationController
 
 

@@ -3,7 +3,7 @@ import math
 import cv2
 import numpy as np
 
-from src.checkers_game_and_decisions.utilities import get_avg_pos
+from src.common.utilities import get_avg_pos
 
 
 class BoardTile:

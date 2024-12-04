@@ -1,7 +1,7 @@
 from copy import deepcopy
 
-from src.checkers_game_and_decisions.enum_entities import Color, Status
-from src.checkers_game_and_decisions.utilities import (
+from src.common.enum_entities import Color, Status
+from src.common.utilities import (
     get_coord_from_tile_id,
     get_tile_id_from_coord,
 )

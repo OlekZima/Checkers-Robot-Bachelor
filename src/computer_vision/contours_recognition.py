@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from src.checkers_game_and_decisions.utilities import get_pts_dist, get_avg_pos
+from src.common.utilities import get_pts_dist, get_avg_pos
 
 
 # https://www.youtube.com/watch?v=Fchzk1lDt7Q
