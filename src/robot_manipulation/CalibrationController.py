@@ -6,7 +6,7 @@ import numpy as np
 from pydobotplus import Dobot
 
 from src.common.utilities import (
-    flush_input,
+    # flush_input,
     get_coord_from_tile_id,
     linear_interpolate,
 )
@@ -72,15 +72,6 @@ class CalibrationController:
     def get_config_path() -> Path:
         return CalibrationController._CONFIG_PATH
 
-    # def calibrate(self) -> None:
-    #     input_method = None
-    #     print("Select calibration method (all/corners):")
-    #     while input_method not in ("all", "corners"):
-    #         input_method = input().strip().lower()
-
-    #     self._calibrate(input_method)
-    #     print("\nCalibration done\n")
-
     def move_forward(self) -> None:
         """Move the arm forward from robots perspective by a specified increment."""
         x, y, z = self._get_xyz_position()
@@ -121,49 +112,6 @@ class CalibrationController:
         x, y, z, _ = self.device.get_pose().position
         return x, y, z
 
-    # def _move_and_update(self, index: int, offset_height: float) -> None:
-    #     """Move arm to a specified by the index position and update base_config."""
-    #     if self.base_config is not None:
-    #         self._move_arm(
-    #             self.base_config[index][0],
-    #             self.base_config[index][1],
-    #             self.base_config[index][2] + offset_height,
-    #             True,
-    #         )
-    #     self._move_arm(
-    #         self.base_config[index][0],
-    #         self.base_config[index][1],
-    #         self.base_config[index][2],
-    #         True,
-    #     )
-    #     print(f"\nSet to position of id {index + 1}")
-    #     self._keyboard_move_dobot()
-    #     x, y, z, _ = self.device.get_pose().position
-    #     self.base_config[index][0] = x
-    #     self.base_config[index][1] = y
-    #     self.base_config[index][2] = z
-    #     self._move_arm(x, y, z + offset_height, True)
-
-    # def _calibrate_all_tiles(self) -> None:
-    #     for i in range(32):
-    #         self._move_and_update(i, self._HEIGHT_OFFSET)
-
-    #     for i in range(32, 36):
-    #         print(f"\nSet to side pocket (left) of id {i - 31}")
-    #         self._move_and_update(i, self._HEIGHT_OFFSET)
-
-    #     for i in range(36, 40):
-    #         print(f"\nSet to side pocket (right) of id {i - 35}")
-    #         self._move_and_update(i, self._HEIGHT_OFFSET)
-
-    #     print("\nSet to dispose area")
-    #     self._move_and_update(40, self._HEIGHT_OFFSET)
-
-    #     print("\nSet to home position")
-    #     self._move_and_update(41, self._HEIGHT_OFFSET)
-
-    # region All tiles calibration
-
     def move_to_current_all_tiles_calibration_position(self):
         """Move the robot to the default position for the current all tiles calibration point."""
         if 0 <= self._current_all_tiles_calibration_index < 42:
@@ -184,13 +132,13 @@ class CalibrationController:
             return (
                 f"Calibrate board tile {self._current_all_tiles_calibration_index + 1}"
             )
-        elif 32 <= self._current_all_tiles_calibration_index < 36:
+        if 32 <= self._current_all_tiles_calibration_index < 36:
             return f"Calibrate left side pocket {self._current_all_tiles_calibration_index - 31}"
-        elif 36 <= self._current_all_tiles_calibration_index < 40:
+        if 36 <= self._current_all_tiles_calibration_index < 40:
             return f"Calibrate right side pocket {self._current_all_tiles_calibration_index - 35}"
-        elif self._current_all_tiles_calibration_index == 40:
+        if self._current_all_tiles_calibration_index == 40:
             return "Calibrate dispose area"
-        elif self._current_all_tiles_calibration_index == 41:
+        if self._current_all_tiles_calibration_index == 41:
             return "Calibrate home position"
         else:
             return None
@@ -200,13 +148,10 @@ class CalibrationController:
         if 0 <= self._current_all_tiles_calibration_index < 42:
             x, y, z = self._get_xyz_position()
 
-            # Update the base_config with the new position
             self.base_config[self._current_all_tiles_calibration_index] = [x, y, z]
 
-            # Move the arm up
             self._move_arm(x, y, z + self._HEIGHT_OFFSET, wait=True)
 
-            # Increment the calibration index
             self._current_all_tiles_calibration_index += 1
         else:
             pass
@@ -215,7 +160,7 @@ class CalibrationController:
         """Check if the all tiles calibration process is complete."""
         return self._current_all_tiles_calibration_index >= 42
 
-    def _save_all_tiles_config(self, filename: str):
+    def save_all_tiles_config(self, filename: str):
         """Save the all tiles calibration configuration."""
         config_path = self._CONFIG_PATH / f"{filename}.txt"
 
@@ -223,10 +168,6 @@ class CalibrationController:
             for i in range(0, 42):
                 base_x, base_y, base_z = self.base_config[i]
                 config_file.write(f"{base_x};{base_y};{base_z}\n")
-
-    # endregion
-
-    # region Corner calibration
 
     def _prepare_calibration_points(self):
         """Prepare the list of calibration points for step-by-step calibration."""
@@ -369,7 +310,7 @@ class CalibrationController:
                 self._side_pockets[1][0][k] + self._side_pockets[1][3][k] * 2
             ) / 3.0
 
-    def read_file_config(self) -> None:
+    def read_file_config(self, path: str) -> None:
         configs = os.listdir(self._CONFIG_PATH)
 
         if len(configs) == 0:
@@ -380,21 +321,7 @@ class CalibrationController:
             self.base_config = config
             return
 
-        print("\nPlease select file id\n")
-        for file_num, config in enumerate(configs):
-            print(f"[{file_num}]: {config}")
-
-        is_correct_input = False
-        base_config_name = ""
-        while not is_correct_input:
-            user_input = int(input("> "))
-            if user_input not in range(0, len(configs)):
-                print("Please select a correct configuration file.")
-            else:
-                base_config_name = configs[user_input]
-                is_correct_input = True
-
-        base_config_path = self._CONFIG_PATH / base_config_name
+        base_config_path = self._CONFIG_PATH / path
         config: np.ndarray = np.zeros((42, 3), dtype=float)
         with open(base_config_path, "r", encoding="UTF-8") as config_file:
             file_lines = config_file.readlines()
@@ -409,16 +336,6 @@ class CalibrationController:
                 config[i] = positions
 
             self.base_config = config
-
-    def _save_all_tiles_config(self) -> None:
-        print("\nPut name of the file you would like to save configuration in:")
-        flush_input()
-        config_name = input()
-        config_path = self._CONFIG_PATH + "/" + config_name
-        with open(config_path, mode="x", encoding="utf8") as config_file:
-            for i in range(0, 42):
-                base_x, base_y, base_z = self.base_config[i]
-                config_file.write(f"{base_x};{base_y};{base_z}\n")
 
     def save_corners_config(self, file_name: str) -> None:
         """Save the interpolated calibration points for the corners to a file."""
