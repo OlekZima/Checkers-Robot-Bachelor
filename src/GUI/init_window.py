@@ -17,6 +17,7 @@ class ConfigurationWindow:
 
     def __init__(self) -> None:
         self._selected_color: Color = None
+        self._difficulty_level: int = None
 
         self._robot_port = None
         self._camera_port = None
@@ -82,6 +83,10 @@ class ConfigurationWindow:
     def get_configuration_file_path(self) -> Path:
         """Returns the selected configuration file path."""
         return self._get_property_if_exist("configuration_file_path")
+
+    def get_difficulty_level(self) -> int:
+        """Returns selected difficulty level (original range is [1 ... 10])"""
+        return self._get_property_if_exist("difficulty_level")
 
     @staticmethod
     def _setup_main_layout() -> list[sg.Element]:
@@ -153,6 +158,25 @@ class ConfigurationWindow:
                     justification="center",
                     expand_x=True,
                 )
+            ],
+            [sg.VPush()],
+            [
+                sg.Text(
+                    "Select difficulty level",
+                    justification="center",
+                    expand_x=True,
+                ),
+            ],
+            [
+                sg.Push(),
+                sg.Slider(
+                    (1, 10),
+                    3,
+                    orientation="horizontal",
+                    enable_events=True,
+                    key="-Difficulty_Level-",
+                ),
+                sg.Push(),
             ],
             [sg.VPush()],
         ]
@@ -632,6 +656,10 @@ class ConfigurationWindow:
                 self._selected_color = Color.BLUE
                 self._update_selected_color_label()
                 self._show_port_selection_tab()
+
+            if event == "-Difficulty_Level-":
+                self._difficulty_level = int(values["-Difficulty_Level-"])
+                print(f"difficulty is: {self._difficulty_level}")
 
             if (
                 event == "-TABGROUP-"
