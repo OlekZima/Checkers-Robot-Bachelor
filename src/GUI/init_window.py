@@ -29,6 +29,8 @@ class ConfigurationWindow:
 
         self._selected_config_color = None
 
+        self._config_method: CalibrationMethod = None
+
         self._configuration_colors: dict[str, tuple[int, int, int]] = {
             "Orange": (0, 0, 0),
             "Blue": (0, 0, 0),
@@ -417,18 +419,14 @@ class ConfigurationWindow:
         calibration_tab.update(visible=True)
         self._controller = CalibrationController(self.get_robot_port())
 
-    def _show_calibration_controller(
-        self, calibration_method: Optional[CalibrationMethod] = CalibrationMethod.CORNER
-    ) -> None:
+    def _show_calibration_controller(self) -> None:
         self._controller = CalibrationController(self.get_robot_port())
         self._window["-Robot_XY_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Z_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Position-"].update(visible=True)
         self._window["-Robot_Next_Position-"].update(visible=True)
         self._window["-Next_Calibration_Step-"].update(visible=False)
-
-        if calibration_method == CalibrationMethod.ALL:
-            self._window["-Load_Config-"].update(visible=True)
+        self._window["-Load_Config-"].update(visible=True)
 
     def _update_selected_color_label(self) -> None:
         text_label: sg.Text = self._window["-Selected_Color-"]
@@ -534,7 +532,7 @@ class ConfigurationWindow:
             return
 
         try:
-            self._controller.read_file_config()
+            self._controller.read_file_config(self._configuration_file_path)
 
             self._update_calibration_instruction(CalibrationMethod.ALL)
             self._controller.move_to_current_all_tiles_calibration_position()
@@ -587,19 +585,64 @@ class ConfigurationWindow:
 
     def _handle_calibration_step_completion(self):
         """Handle the completion of the current calibration step."""
-        self._controller.save_current_corner_calibration_position()
-        if not self._controller.is_corner_calibration_complete():
-            self._update_calibration_instruction()
-            self._controller.move_to_current_corner_calibration_position()
+        if self._config_method == CalibrationMethod.CORNER:
+            self._controller.save_current_corner_calibration_position()
+            if not self._controller.is_corner_calibration_complete():
+                self._update_calibration_instruction()
+                self._controller.move_to_current_corner_calibration_position()
+            else:
+                self._window["-Robot_Next_Position-"].update("Calibration complete.")
+                self._window["-Next_Calibration_Step-"].update(visible=False)
+                self._window["-Save_Calibration_Config-"].update(visible=True)
+                self._controller.finalize_corner_calibration()
+                sg.popup(
+                    "Calibration completed successfully!\nSave the configuration file",
+                    keep_on_top=True,
+                )
         else:
-            self._window["-Robot_Next_Position-"].update("Calibration complete.")
-            self._window["-Next_Calibration_Step-"].update(visible=False)
-            self._window["-Save_Calibration_Config-"].update(visible=True)
-            self._controller.finalize_corner_calibration()
-            sg.popup(
-                "Calibration completed successfully!\nSave the configuration file",
-                keep_on_top=True,
-            )
+            # Check which calibration method is active
+            # if self._window["-Corner_Tiles_Method-"].get():
+            # Existing corner calibration logic
+            self._controller.save_current_all_tiles_calibration_position()
+            if not self._controller.is_all_tiles_calibration_complete():
+                self._update_calibration_instruction(CalibrationMethod.ALL)
+                self._controller.move_to_current_all_tiles_calibration_position()
+            else:
+                self._window["-Robot_Next_Position-"].update("Calibration complete.")
+                self._window["-Next_Calibration_Step-"].update(visible=False)
+                sg.popup(
+                    "Calibration completed successfully!\nSave the configuration file",
+                    keep_on_top=True,
+                )
+                filename = sg.popup_get_text(
+                    "Enter configuration filename (without extension):",
+                    title="Save Calibration Configuration",
+                    default_text="calibration_config",
+                    keep_on_top=True,
+                )
+                if filename is None:
+                    sg.popup_error("No filename provided. Configuration not saved.")
+                    return
+
+                filename = re.sub(r"[^\w\-_\.]", "", filename)
+                if not filename:
+                    sg.popup_error("Invalid filename. Configuration not saved.")
+                    return
+
+                self._controller.save_all_tiles_config(filename)
+
+                config_path = self._controller.get_config_path() / f"{filename}.txt"
+                sg.popup(
+                    f"Calibration configuration saved to {config_path}",
+                    title="Configuration Saved",
+                    keep_on_top=True,
+                )
+
+                sg.popup(
+                    "End of calibration. Starting the game.",
+                    title="Configuration complete",
+                    keep_on_top=True,
+                )
 
     def _save_calibration_config(self) -> None:
         """
@@ -701,17 +744,29 @@ class ConfigurationWindow:
             if event == "-All_Tiles_Method-":
                 self._window["-Corner_Tiles_Method-"].update(disabled=True)
                 self._window["-All_Tiles_Method-"].update(disabled=True)
-                self._show_calibration_controller(CalibrationMethod.ALL)
+                self._show_calibration_controller()
+                self._config_method = CalibrationMethod.ALL
                 self._start_all_tiles_calibration()
 
             if event == "-Corner_Tiles_Method-":
                 self._window["-Corner_Tiles_Method-"].update(disabled=True)
                 self._window["-All_Tiles_Method-"].update(disabled=True)
                 self._show_calibration_controller()
+                self._config_method = CalibrationMethod.CORNER
                 self._start_corner_calibration()
 
-            if "-Robot_Move" in event:
-                self._handle_robot_movement_event(event)
+            if event in ("-Robot_Move_Forward-", "w:25"):
+                self._controller.move_forward()
+            elif event in ("-Robot_Move_Backward-", "s:39"):
+                self._controller.move_backward()
+            elif event in ("-Robot_Move_Left-", "a:38"):
+                self._controller.move_left()
+            elif event in ("-Robot_Move_Right-", "d:40"):
+                self._controller.move_right()
+            elif event in ("-Robot_Move_Up-", "e:26"):
+                self._controller.move_up()
+            elif event in ("-Robot_Move_Down-", "q:24"):
+                self._controller.move_down()
 
             if self._cap is not None and self._cap.isOpened() and recording:
                 self._handle_next_frame_event()
