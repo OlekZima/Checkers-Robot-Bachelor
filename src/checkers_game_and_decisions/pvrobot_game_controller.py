@@ -2,11 +2,11 @@ from src.checkers_game_and_decisions.checkers_game import CheckersGame, Color, S
 from src.checkers_game_and_decisions.negamax_decission_engine import (
     NegamaxDecisionEngine,
 )
-from src.checkers_game_and_decisions.enum_entities import (
+from src.common.enum_entities import (
     RobotGameReportItem,
     GameStateResult,
 )
-from src.checkers_game_and_decisions.utilities import get_coord_from_tile_id
+from src.common.utilities import get_coord_from_tile_id
 
 
 class PVRobotController:
