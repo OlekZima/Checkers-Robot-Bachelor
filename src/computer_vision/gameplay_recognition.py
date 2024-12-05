@@ -5,6 +5,7 @@ from src.common.exceptions import BoardMappingError, CameraReadError
 from src.computer_vision.Board import Board
 from src.computer_vision.checkers_recognition import Checkers, Color
 from src.common.utilities import list_camera_ports, empty_function
+from copy import deepcopy
 
 
 class Game:
@@ -302,7 +303,7 @@ class Game:
 
         is_state_changed = self.handle_next_frame(new_frame)
 
-        return is_state_changed, [i.copy() for i in self.game_state]
+        return is_state_changed, deepcopy(self.game_state)
 
     @staticmethod
     def rotate_square_2D_matrix_right(matrix):
