@@ -13,6 +13,7 @@ class GameWindow:
 
         self._cap = None
 
+        self._frame = None
         self._frame_main = None
         self._frame_vertices = None
         self._frame_game_mask = None
@@ -33,7 +34,9 @@ class GameWindow:
             [
                 sg.TabGroup(
                     [
-                        [sg.Tab("Game", GameWindow._setup_main_game_layout())],
+                        [
+                            sg.Tab("Game", GameWindow._setup_main_game_layout()),
+                        ],
                         [
                             sg.Tab(
                                 "Additional views",
@@ -111,7 +114,7 @@ class GameWindow:
         self._recording = True
         self._cap = cv2.VideoCapture(self._camera_port)
         while True:
-            event, values = self._window.read(10)
+            event, values = self._window.read(20)
             ret, frame = self._cap.read()
 
             if event in [sg.WIN_CLOSED, "Cancel"]:
