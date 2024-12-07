@@ -1,11 +1,16 @@
 import math
 import sys
 import termios
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import cv2
 from src.common.enum_entities import Color
+
+TWO_PI: float = 2.0 * math.pi
+QUARTER_PI: float = math.pi / 4.0
+HALF_PI: float = math.pi / 2.0
+THREE_QUARTER_PI: float = 3.0 * math.pi / 4.0
 
 
 def get_coord_from_tile_id(
@@ -68,12 +73,20 @@ def get_pts_dist(pt1, pt2):
     return math.hypot(dx, dy)
 
 
-def get_avg_pos(pts=None):
-    if pts is None:
-        pts = [[0, 0], [0, 0]]
+def get_avg_pos(points: List[List[int]] = None) -> List[int, int]:
+    """Calculate average position of points
 
-    x_avg = sum(pt[0] for pt in pts) // len(pts)
-    y_avg = sum(pt[1] for pt in pts) // len(pts)
+    Args:
+        points: List of List of [x,y] coordinates
+
+    Returns:
+        Point: Average position as Point object
+    """
+    if points is None or not points:
+        return 0, 0
+
+    x_avg = sum(p[0] for p in points) // len(points)
+    y_avg = sum(p[1] for p in points) // len(points)
 
     return [x_avg, y_avg]
 
