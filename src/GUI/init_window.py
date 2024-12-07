@@ -7,7 +7,7 @@ import PySimpleGUI as sg
 from serial.tools import list_ports
 
 from src.common.enum_entities import Color, CalibrationMethod
-from src.computer_vision.gameplay_recognition import list_camera_ports
+from src.common.utilities import list_camera_ports
 
 from src.robot_manipulation.CalibrationController import CalibrationController
 
