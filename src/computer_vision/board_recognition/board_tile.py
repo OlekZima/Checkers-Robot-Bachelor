@@ -110,60 +110,64 @@ class BoardTile:
             )
         return contours[1:]
 
-    def assign_if_neighbour(self, poss_neighbour: Self):
+    def _connect_with_neigbor(self, poss_neighbor: Self):
         for i, vertex in enumerate(self.vertexes):
-            for j, other_vertex in enumerate(poss_neighbour.vertexes):
-                if (vertex == other_vertex).all():
-                    # jp = (j + 1) % 4
-                    jm = (j - 1) % 4
-                    ip = (i + 1) % 4
+            for j, other_vertex in enumerate(poss_neighbor.vertexes):
+                if self._are_vertices_connected(
+                    vertex, other_vertex, i, j, poss_neighbor
+                ):
+                    self._create_neighbor_connection(poss_neighbor, i, j)
 
-                    # if (self.vertexes[ip] == poss_neighbour.vertexes[jp]).all():
-                    #     indices = ["n01", "n12", "n23", "n30"]
-                    #     for indice in indices:
-                    #         self.neighbors[indice] = (
-                    #             poss_neighbour
-                    #             if i == int(indice[1])
-                    #             else self.neighbors[indice]
-                    #         )
-                    #         poss_neighbour.neighbors[indice] = (
-                    #             self
-                    #             if j == int(indice[1])
-                    #             else poss_neighbour.neighbors[indice]
-                    #         )
+    def _are_vertices_connected(
+        self,
+        vertex: List[int],
+        other_vertex: List[int],
+        i: int,
+        j: int,
+        possible_neighbor: Self,
+    ):
+        jm = (j - 1) % 4
+        ip = (i + 1) % 4
 
-                    #     self.neighbors_count += 1
-                    #     poss_neighbour.neighbors_count += 1
+        return (vertex == other_vertex).all() and (
+            self.vertexes[ip] == possible_neighbor.vertexes[jm]
+        ).all()
 
-                    #     return True
-                    if (self.vertexes[ip] == poss_neighbour.vertexes[jm]).all():
-                        indices = ["n01", "n12", "n23", "n30"]
-                        for indice in indices:
-                            self.neighbors[indice] = (
-                                poss_neighbour
-                                if i == int(indice[1])
-                                else self.neighbors[indice]
-                            )
-                            poss_neighbour.neighbors[indice] = (
-                                self
-                                if jm == int(indice[1])
-                                else poss_neighbour.neighbors[indice]
-                            )
+    def _create_neighbor_connection(self, neighbor: Self, i: int, j: int) -> None:
+        jm = (j - 1) % 4
+        for key in self.NEIGHBORS_KEYS:
+            index = int(key[1])
 
-                        self.neighbors_count += 1
-                        poss_neighbour.neighbors_count += 1
+            self.neighbors[key] = neighbor if i == index else self.neighbors[key]
+            neighbor.neighbors[key] = self if jm == index else neighbor.neighbors[key]
 
-                        return True
-        return False
+        self.neighbors_count += 1
+        neighbor.neighbors_count += 1
 
-    def assign_indexes(self, x: int, y: int) -> None:
-        self.x_idx, self.y_idx = x, y
+    def set_indexes(self, x: int, y: int) -> None:
+        """Sets the indexes of the tile on the board.
 
-    def assign_x_idx(self, x_idx) -> None:
-        self.x_idx = x_idx
+        Args:
+            x (int): X index.
+            y (int): Y index.
+        """
+        self.position = (x, y)
 
-    def assign_y_idx(self, y_idx) -> None:
-        self.y_idx = y_idx
+    def set_x_index(self, x: int) -> None:
+        """Sets the x index of the tile on the board.
+
+        Args:
+            x (int): X index.
+        """
+        self.position = (x, self.position[1])
+
+    def set_y_index(self, y: int) -> None:
+        """Sets the y index of the tile on the board.
+
+        Args:
+            y (int): Y index.
+        """
+        self.position = (self.position[0], y)
 
     def get_dir_0_radians(self) -> Optional[float]:
         if self.neighbors["n01"] is None:
