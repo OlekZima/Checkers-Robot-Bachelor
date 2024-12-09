@@ -51,96 +51,56 @@ class BoardTile:
 
     @classmethod
     def create_tiles(cls, image: np.ndarray, contours: np.ndarray) -> None:
-        BoardTile.frame = image
-        # contours.shape == ( -1, 4, 1, 2)
+        """Creates tiles from the image and contours and stores them in the class variables.
 
-        # STEP 0 - creating tiles from all contours
-        # RESET - removing all previous tiles
-        BoardTile.tiles = np.array([])
+        Args:
+            image (np.ndarray): Image on which the tiles are located.
+            contours (np.ndarray): Contours detected on the image of the tiles.
+        """
+        cls._frame = image
+        cls.tiles = np.array([])
+
+        # creating tiles from all contours
         for cnt in contours:
-            BoardTile.tiles = np.append(
-                BoardTile.tiles,
-                BoardTile(points=[cnt[0][0], cnt[1][0], cnt[2][0], cnt[3][0]]),
-            )
+            points = [cnt[i][0] for i in range(4)]
+            cls.tiles = np.append(cls.tiles, BoardTile(points=points))
 
-        # STEP 1 - only keepeing tiles that have at least 1 neighbors_count
-        # - so that we only get our board tiles and not disconected false readings
-        #
-        # ALSO - connecting touching tiles with neighbour relation (see constructor)
-        keep_cnt = np.zeros(BoardTile.tiles.shape, dtype=bool)
-        for i, cnt1 in enumerate(BoardTile.tiles):
-            for cntn in BoardTile.tiles[i + 1 :]:
-                cnt1.assign_if_neighbour(cntn)
+        # keepeing tiles that have at least 1 neighbor tile
+        keep_cnt = cls._connect_neighboring_tiles()
+        cls.tiles = cls.tiles[keep_cnt]
 
-            if cnt1.neighbors_count >= 1:  # Finally 1 works well
-                keep_cnt[i] = True
-                cv2.circle(BoardTile.frame, cnt1.center, 3, (0, 0, 255), 1)
-                # print(cnt1.neighbors_count)
-        # Keeping only tiles with at least 2 neighbours
-        BoardTile.tiles = BoardTile.tiles[keep_cnt]
-
-        for tile in BoardTile.tiles:
-            if tile.neighbors["n01"] is not None:
-                if tile.neighbors["n01"] not in BoardTile.tiles:
-                    tile.neighbors["n01"] = None
-                    tile.neighbors_count -= 1
-                else:
-                    cv2.line(
-                        BoardTile.frame,
-                        tile.center,
-                        tile.neighbors["n01"].center,
-                        (0, 0, 0),
-                        1,
-                    )
-            if tile.neighbors["n12"] is not None:
-                if tile.neighbors["n12"] not in BoardTile.tiles:
-                    tile.neighbors["n12"] = None
-                    tile.neighbors_count -= 1
-                else:
-                    cv2.line(
-                        BoardTile.frame,
-                        tile.center,
-                        tile.neighbors["n12"].center,
-                        (0, 0, 0),
-                        1,
-                    )
-            if tile.neighbors["n23"] is not None:
-                if tile.neighbors["n23"] not in BoardTile.tiles:
-                    tile.neighbors["n23"] = None
-                    tile.neighbors_count -= 1
-                else:
-                    cv2.line(
-                        BoardTile.frame,
-                        tile.center,
-                        tile.neighbors["n23"].center,
-                        (0, 0, 0),
-                        1,
-                    )
-            if tile.neighbors["n30"] is not None:
-                if tile.neighbors["n30"] not in BoardTile.tiles:
-                    tile.neighbors["n30"] = None
-                    tile.neighbors_count -= 1
-                else:
-                    cv2.line(
-                        BoardTile.frame,
-                        tile.center,
-                        tile.neighbors["n30"].center,
-                        (0, 0, 0),
-                        1,
-                    )
-            cv2.putText(
-                BoardTile.frame,
-                f"{tile.neighbors_count}",
-                tile.center,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.35,
-                (0, 255, 0),
-                1,
-                cv2.LINE_AA,
-            )
+        # connecting touching tiles with neighbor relation (see constructor)
+        cls._update_neighbors_connections()
 
     @classmethod
-    def get_tiles_contours(cls):
+    def _connect_neighboring_tiles(cls) -> np.ndarray:
+        keep_contour = np.zeros(cls.tiles.shape, dtype=bool)
+        tile: Self = None
+        other_tile: Self = None
+
+        for i, tile in enumerate(cls.tiles):
+            for other_tile in cls.tiles[i + 1 :]:
+                tile._connect_with_neigbor(other_tile)  # pylint: disable=protected-access
+
+            if tile.neighbors_count >= 1:
+                keep_contour[i] = True
+                cv2.circle(BoardTile._frame, tile.center, 3, (0, 0, 255), 1)
+        return keep_contour
+
+    @classmethod
+    def _update_neighbors_connections(cls) -> None:
+        tile: Self = None
+        neighbor: Self = None
+
+        for tile in cls.tiles:
+            for neighbor_key, neighbor in tile.neighbors.items():
+                if neighbor is not None:
+                    if neighbor not in cls.tiles:
+                        tile.neighbors[neighbor_key] = None
+                        tile.neighbors_count -= 1
+                    else:
+                        cv2.line(cls._frame, tile.center, neighbor.center, (0, 0, 0), 1)
+
         contours = np.ndarray((1, 4, 1, 2), dtype=int)
         for tile in cls.tiles:
             contours = np.append(
