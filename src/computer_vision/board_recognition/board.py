@@ -81,7 +81,7 @@ class Board:
             Board.set_index_of_start_tile(start_tile)
             cv2.putText(
                 self.frame,
-                f"{start_tile.x_idx},{start_tile.y_idx}",
+                f"{start_tile.position[0]},{start_tile.position[1]}",
                 start_tile.center,
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
@@ -190,7 +190,7 @@ class Board:
         # \nn30.center = {start_tile.n30.center}
         # \ndir_to_n30 = {start_tile.get_dir_2_point_rad(start_tile.n30.center)}''')
         # getting x index and checking if we have sufficient data to settle it
-        dir_1_neighbour = start_tile.get_neighbour_in_rad_range(dir_01, dir_12)
+        dir_1_neighbour = start_tile.get_neighbor_in_rad_range(dir_01, dir_12)
         if dir_1_neighbour is None:
             # print("Nie mam somsiada na dir_1 :(")
             dir_1_steps = 0
@@ -198,7 +198,7 @@ class Board:
             dir_1_steps = start_tile.get_num_of_steps_in_dir_rad(dir_1, 1)
             # print(f"Mam somsiada na dir_1!!!, dir_1 = {dir_1_steps} kroków")
 
-        dir_3_neighbour = start_tile.get_neighbour_in_rad_range(dir_23, dir_30)
+        dir_3_neighbour = start_tile.get_neighbor_in_rad_range(dir_23, dir_30)
         if dir_3_neighbour is None:
             # print("Nie mam somsiada na dir_3 :(")
             dir_3_steps = 0
@@ -209,9 +209,9 @@ class Board:
             raise InsufficientDataError(
                 "Not enough board is recognized on the `X` axis"
             )
-        start_tile.assign_x_idx(dir_3_steps)
+        start_tile.set_x_index(dir_3_steps)
         # getting y index and checking if we have sufficient data to settle it
-        dir_2_neighbour = start_tile.get_neighbour_in_rad_range(dir_12, dir_23)
+        dir_2_neighbour = start_tile.get_neighbor_in_rad_range(dir_12, dir_23)
         if dir_2_neighbour is None:
             # print("Nie mam somsiada na dir_2 :(")
             dir_2_steps = 0
@@ -219,7 +219,7 @@ class Board:
             dir_2_steps = start_tile.get_num_of_steps_in_dir_rad(dir_2, 2)
             # print(f"Mam somsiada na dir_2!!!, dir_2 = {dir_2_steps} kroków")
 
-        dir_0_neighbour = start_tile.get_neighbour_in_rad_range(dir_30, dir_01)
+        dir_0_neighbour = start_tile.get_neighbor_in_rad_range(dir_30, dir_01)
         if dir_0_neighbour is None:
             # print("Nie mam somsiada na dir_0 :(")
             dir_0_steps = 0
@@ -230,13 +230,13 @@ class Board:
             raise InsufficientDataError(
                 "Not enough board is recognized on the `Y` axis"
             )
-        start_tile.assign_y_idx(dir_0_steps)
+        start_tile.set_y_index(dir_0_steps)
         # print(f'Index start_tile to x = {dir_3_steps} y = {dir_0_steps}')
 
     @classmethod
     def set_all_tiles_indexes(cls, start_tile: BoardTile):
         dir_0 = start_tile.get_dir_0_radians()
-        start_tile.index_neighbours(dir_0)
+        start_tile.index_neighbors(dir_0)
 
     def set_all_known_board_points(self, dir_0):
 
@@ -251,22 +251,22 @@ class Board:
             dir_3 -= math.pi * 2.0
 
         for tile in self.tiles:
-            if tile.x_idx is None or tile.y_idx is None:
+            if tile.position[0] is None or tile.position[1] is None:
                 continue
-            if self.points[tile.x_idx][tile.y_idx] is None:
-                self.points[tile.x_idx][tile.y_idx] = tile.get_vertex_in_rad_range(
+            if self.points[tile.position[0]][tile.position[1]] is None:
+                self.points[tile.position[0]][tile.position[1]] = tile.get_vertex_in_rad_range(
                     dir_3, dir_0
                 )
-            if self.points[tile.x_idx + 1][tile.y_idx] is None:
-                self.points[tile.x_idx + 1][tile.y_idx] = tile.get_vertex_in_rad_range(
+            if self.points[tile.position[0] + 1][tile.position[1]] is None:
+                self.points[tile.position[0] + 1][tile.position[1]] = tile.get_vertex_in_rad_range(
                     dir_0, dir_1
                 )
-            if self.points[tile.x_idx + 1][tile.y_idx + 1] is None:
-                self.points[tile.x_idx + 1][tile.y_idx + 1] = (
+            if self.points[tile.position[0] + 1][tile.position[1] + 1] is None:
+                self.points[tile.position[0] + 1][tile.position[1] + 1] = (
                     tile.get_vertex_in_rad_range(dir_1, dir_2)
                 )
-            if self.points[tile.x_idx][tile.y_idx + 1] is None:
-                self.points[tile.x_idx][tile.y_idx + 1] = tile.get_vertex_in_rad_range(
+            if self.points[tile.position[0]][tile.position[1] + 1] is None:
+                self.points[tile.position[0]][tile.position[1] + 1] = tile.get_vertex_in_rad_range(
                     dir_2, dir_3
                 )
 
