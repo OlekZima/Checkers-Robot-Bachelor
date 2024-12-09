@@ -1,14 +1,14 @@
 """Module for representing a tile on the board for the cv2 processing."""
 
 import math
-from typing import ClassVar, List, Optional, Self
+from typing import ClassVar, List, Optional, Self, Tuple, Dict
 
 import cv2
 import numpy as np
 from src.common.utilities import (
+    get_avg_pos,
     HALF_PI,
     THREE_QUARTER_PI,
-    get_avg_pos,
     TWO_PI,
     QUARTER_PI,
 )
@@ -17,8 +17,11 @@ from .contours_recognition import ContourProcessor
 
 
 class BoardTile:
+    """Class representing a tile on the board for the cv2 processing."""
+
     tiles: ClassVar[np.ndarray[Self]] = np.array([])
-    frame: ClassVar[Optional[np.ndarray]] = None
+    _frame: ClassVar[Optional[np.ndarray]] = None
+    NEIGHBORS_KEYS: ClassVar[List[str]] = ["n01", "n12", "n23", "n30"]
 
     def __init__(self, points: Optional[List[List[int]]] = None) -> None:
         """Initializes the BoardTile.
@@ -101,7 +104,16 @@ class BoardTile:
                     else:
                         cv2.line(cls._frame, tile.center, neighbor.center, (0, 0, 0), 1)
 
+    @classmethod
+    def get_tiles_contours(cls) -> np.ndarray:
+        """Returns the contours of the tiles.
+
+        Returns:
+            np.ndarray: Contours of the tiles.
+        """
         contours = np.ndarray((1, 4, 1, 2), dtype=int)
+        tile: Self = None
+
         for tile in cls.tiles:
             contours = np.append(
                 contours,
@@ -191,9 +203,7 @@ class BoardTile:
 
         dx = point[0] - self.center[0]
         dy = point[1] - self.center[1]
-        # print(f'''Jestem sprawdzaczem kierunku do punktu
-        # Ta kostka {self.center}, cel {point}
-        # dx = {dx}, dy = {dy}''')
+
         dpi = 0
         if dy < 0 <= dx:
             dpi = HALF_PI
@@ -222,7 +232,7 @@ class BoardTile:
 
         return res
 
-    def is_point_in_rad_range(
+    def _is_point_in_rad_range(
         self, rad_min: float, rad_max: float, point: Optional[List[int]] = None
     ):
         if point is None:
@@ -236,9 +246,11 @@ class BoardTile:
             or (rad_max < rad_min <= dir_tmp)
         )
 
-    def get_neighbour_in_rad_range(self, rad_min, rad_max) -> Optional[Self]:
+    def get_neighbor_in_rad_range(self, rad_min, rad_max) -> Optional[Self]:
         for n in self.neighbors.values():
-            if n is not None and self.is_point_in_rad_range(rad_min, rad_max, n.center):
+            if n is not None and self._is_point_in_rad_range(
+                rad_min, rad_max, n.center
+            ):
                 return n
 
         return None
@@ -276,37 +288,37 @@ class BoardTile:
             dir_plus_max -= TWO_PI
         # calling this func recursively for possibly 3 next tiles and gathering readings
         results = []
-        same_dir = self.get_neighbour_in_rad_range(dir_minus_max, dir_plus_min)
+        same_dir = self.get_neighbor_in_rad_range(dir_minus_max, dir_plus_min)
         if same_dir is not None:
-            results.append(
-                same_dir.get_num_of_steps_in_dir_rad(dir_rad, dir_idx) + 1
-            )  # one more because it is in checked direction
+            # one more because it is in checked direction
+            results.append(same_dir.get_num_of_steps_in_dir_rad(dir_rad, dir_idx) + 1)
 
-        dir_minus = self.get_neighbour_in_rad_range(dir_minus_min, dir_minus_max)
+        dir_minus = self.get_neighbor_in_rad_range(dir_minus_min, dir_minus_max)
         if dir_minus is not None:
             results.append(dir_minus.get_num_of_steps_in_dir_rad(dir_rad, dir_idx))
-        dir_plus = self.get_neighbour_in_rad_range(dir_plus_min, dir_plus_max)
+        dir_plus = self.get_neighbor_in_rad_range(dir_plus_min, dir_plus_max)
         if dir_plus is not None:
             results.append(dir_plus.get_num_of_steps_in_dir_rad(dir_rad, dir_idx))
+
         # retrieving data of max num of steps in dir
         max_num_of_steps = max(results, default=0)
 
         return max_num_of_steps
 
-    def index_neighbours(self, dir_0) -> None:
-        if self.x_idx is None or self.y_idx is None:
+    def index_neighbors(self, dir_0) -> None:
+        if self.position[0] is None or self.position[1] is None:
             return
 
-        cv2.putText(
-            BoardTile.frame,
-            f"{self.x_idx},{self.y_idx}",
-            [self.center[0] - 5, self.center[1]],
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.3,
-            (0, 255, 0),
-            1,
-            cv2.LINE_AA,
-        )
+        # cv2.putText(
+        #     BoardTile.frame,
+        #     f"{self.position[0]},{self.position[1]}",
+        #     [self.center[0] - 5, self.center[1]],
+        #     cv2.FONT_HERSHEY_SIMPLEX,
+        #     0.3,
+        #     (0, 255, 0),
+        #     1,
+        #     cv2.LINE_AA,
+        # )
 
         dir_01 = dir_0 + QUARTER_PI
         if dir_01 >= TWO_PI:
@@ -321,32 +333,32 @@ class BoardTile:
         dir_30 = dir_23 + HALF_PI
         if dir_30 >= TWO_PI:
             dir_30 -= TWO_PI
-        dir_0_n = self.get_neighbour_in_rad_range(dir_30, dir_01)
-        dir_1_n = self.get_neighbour_in_rad_range(dir_01, dir_12)
-        dir_2_n = self.get_neighbour_in_rad_range(dir_12, dir_23)
-        dir_3_n = self.get_neighbour_in_rad_range(dir_23, dir_30)
+        dir_0_n = self.get_neighbor_in_rad_range(dir_30, dir_01)
+        dir_1_n = self.get_neighbor_in_rad_range(dir_01, dir_12)
+        dir_2_n = self.get_neighbor_in_rad_range(dir_12, dir_23)
+        dir_3_n = self.get_neighbor_in_rad_range(dir_23, dir_30)
         if dir_0_n is not None:
-            if dir_0_n.x_idx is None or dir_0_n.y_idx is None:
-                dir_0_n.assign_indexes(self.x_idx, self.y_idx - 1)
-                dir_0_n.index_neighbours(dir_0)
+            if dir_0_n.position[0] is None or dir_0_n.position[1] is None:
+                dir_0_n.set_indexes(self.position[0], self.position[1] - 1)
+                dir_0_n.index_neighbors(dir_0)
         if dir_1_n is not None:
-            if dir_1_n.x_idx is None or dir_1_n.y_idx is None:
-                dir_1_n.assign_indexes(self.x_idx + 1, self.y_idx)
-                dir_1_n.index_neighbours(dir_0)
+            if dir_1_n.position[0] is None or dir_1_n.position[1] is None:
+                dir_1_n.set_indexes(self.position[0] + 1, self.position[1])
+                dir_1_n.index_neighbors(dir_0)
 
         if dir_2_n is not None:
-            if dir_2_n.x_idx is None or dir_2_n.y_idx is None:
-                dir_2_n.assign_indexes(self.x_idx, self.y_idx + 1)
-                dir_2_n.index_neighbours(dir_0)
+            if dir_2_n.position[0] is None or dir_2_n.position[1] is None:
+                dir_2_n.set_indexes(self.position[0], self.position[1] + 1)
+                dir_2_n.index_neighbors(dir_0)
 
         if dir_3_n is not None:
-            if dir_3_n.x_idx is None or dir_3_n.y_idx is None:
-                dir_3_n.assign_indexes(self.x_idx - 1, self.y_idx)
-                dir_3_n.index_neighbours(dir_0)
+            if dir_3_n.position[0] is None or dir_3_n.position[1] is None:
+                dir_3_n.set_indexes(self.position[0] - 1, self.position[1])
+                dir_3_n.index_neighbors(dir_0)
 
     def get_vertex_in_rad_range(self, rad_min, rad_max):
         for v in self.vertexes:
-            if self.is_point_in_rad_range(rad_min, rad_max, v):
+            if self._is_point_in_rad_range(rad_min, rad_max, v):
                 return v
         return None
 
@@ -363,7 +375,7 @@ if __name__ == "__main__":
         image_contours = processor.get_contours(frame)
         BoardTile.create_tiles(frame, image_contours)
 
-        display_image = BoardTile.frame.copy()
+        display_image = BoardTile.get_frame()
         cv2.drawContours(display_image, image_contours, -1, (0, 255, 0), 2)
         cv2.imshow("frame", display_image)
 
