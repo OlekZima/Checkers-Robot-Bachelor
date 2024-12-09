@@ -175,6 +175,16 @@ class BoardTile:
 
         return self.get_dir_2_point_rad(self.neighbors["n01"].center)
 
+    @classmethod
+    def get_frame(cls) -> Optional[np.ndarray]:
+        """Returns the frame of the board.
+        Frame is a copy of the original frame and can be used in OpenCV.
+
+        Returns:
+            Optional[np.ndarray]: Frame of the board.
+        """
+        return cls._frame.copy()
+
     def get_dir_2_point_rad(self, point: Optional[List[int]] = None) -> float:
         if point is None:
             point = [0, 0]
