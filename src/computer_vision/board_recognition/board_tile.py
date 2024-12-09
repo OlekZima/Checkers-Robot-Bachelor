@@ -21,31 +21,32 @@ class BoardTile:
     frame: ClassVar[Optional[np.ndarray]] = None
 
     def __init__(self, points: Optional[List[List[int]]] = None) -> None:
-        # theese will be used to see relation with other tiles
-        # and get the final position of the board
-        if points is not None:
-            self.vertexes = points
-        else:
-            self.vertexes = [[0, 0] for _ in range(4)]
+        """Initializes the BoardTile.
+        Creates a tile with 4 vertexes and a center point.
+        Each tile has 4 neighbors that share 2 vertexes with this tile.
+        Neigbors are stored in a dictionary with keys "n01", "n12", "n23", "n30".
+
+        Key "n01" means that the neighbor shares vertexes[0] and vertexes[1] points with this tile.
+
+
+        Args:
+            points (Optional[List[List[int]]], optional):
+                List of points where each point is represent by list of two int. Defaults to None.
+        """
+        self.vertexes = [[0, 0] for _ in range(4)] if points is None else points
 
         self.center = get_avg_pos(points)
-        # print (self.vertexes)
 
-        # neighbouring tiles - theese will be assigned later to map the board
-        #
-        # neighbour n01 means that the neighbour share vertexes[0] and vertexes[1] points
-        # with this tile
-
-        self.neighbors = {
-            "n01": None,
-            "n12": None,
-            "n23": None,
-            "n30": None,
+        self.neighbors: Dict[str, Optional[Self]] = {
+            key: None for key in self.NEIGHBORS_KEYS
         }
-        self.neighbors_count = 0  # will be updated when neighbours are assigned
+        self.neighbors_count = 0
 
-        self.x_idx = None
-        self.y_idx = None  # Position on checkers board
+        self.position: Tuple[Optional[int], Optional[int]] = (
+            None,
+            None,
+        )
+
         self.was_checked_in_dir_idx = [False, False, False, False]
 
     @classmethod
