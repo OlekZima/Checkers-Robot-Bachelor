@@ -73,7 +73,7 @@ def get_pts_dist(pt1, pt2):
     return math.hypot(dx, dy)
 
 
-def get_avg_pos(points: List[List[int]] = None) -> List[int, int]:
+def get_avg_pos(points: List[List[int]] = None) -> List[int]:
     """Calculate average position of points
 
     Args:
