@@ -83,11 +83,12 @@ class BoardTile:
 
         for i, tile in enumerate(cls.tiles):
             for other_tile in cls.tiles[i + 1 :]:
-                tile._connect_with_neigbor(other_tile)  # pylint: disable=protected-access
-
+                tile._connect_with_neigbor(  # pylint: disable=protected-access
+                    other_tile
+                )
             if tile.neighbors_count >= 1:
                 keep_contour[i] = True
-                cv2.circle(BoardTile._frame, tile.center, 3, (0, 0, 255), 1)
+                cls._draw_circle(tile.center)
         return keep_contour
 
     @classmethod
@@ -137,7 +138,6 @@ class BoardTile:
         i: int,
         j: int,
         possible_neighbor: Self,
-    ):
         jm = (j - 1) % 4
         ip = (i + 1) % 4
 
@@ -323,63 +323,32 @@ class BoardTile:
 
         return results
 
+    def index_neighbors(self, dir_0: float) -> None:
 
-    def index_neighbors(self, dir_0) -> None:
-        if self.position[0] is None or self.position[1] is None:
             return
 
-        # cv2.putText(
-        #     BoardTile.frame,
-        #     f"{self.position[0]},{self.position[1]}",
-        #     [self.center[0] - 5, self.center[1]],
-        #     cv2.FONT_HERSHEY_SIMPLEX,
-        #     0.3,
-        #     (0, 255, 0),
-        #     1,
-        #     cv2.LINE_AA,
-        # )
+        dir_01 = self._normalize_angle(dir_0 + QUARTER_PI)
+        dir_12 = self._normalize_angle(dir_01 + HALF_PI)
+        dir_23 = self._normalize_angle(dir_12 + HALF_PI)
+        dir_30 = self._normalize_angle(dir_23 + HALF_PI)
 
-        dir_01 = dir_0 + QUARTER_PI
-        if dir_01 >= TWO_PI:
-            dir_01 -= TWO_PI
+        neighbors_data = [
+            (self.get_neighbor_in_rad_range(dir_30, dir_01), (0, -1)),
+            (self.get_neighbor_in_rad_range(dir_01, dir_12), (1, 0)),
+            (self.get_neighbor_in_rad_range(dir_12, dir_23), (0, 1)),
+            (self.get_neighbor_in_rad_range(dir_23, dir_30), (-1, 0)),
+        ]
 
-        dir_12 = dir_01 + HALF_PI
-        if dir_12 >= TWO_PI:
-            dir_12 -= TWO_PI
-        dir_23 = dir_12 + HALF_PI
-        if dir_23 >= TWO_PI:
-            dir_23 -= TWO_PI
-        dir_30 = dir_23 + HALF_PI
-        if dir_30 >= TWO_PI:
-            dir_30 -= TWO_PI
-        dir_0_n = self.get_neighbor_in_rad_range(dir_30, dir_01)
-        dir_1_n = self.get_neighbor_in_rad_range(dir_01, dir_12)
-        dir_2_n = self.get_neighbor_in_rad_range(dir_12, dir_23)
-        dir_3_n = self.get_neighbor_in_rad_range(dir_23, dir_30)
-        if dir_0_n is not None:
-            if dir_0_n.position[0] is None or dir_0_n.position[1] is None:
-                dir_0_n.set_indexes(self.position[0], self.position[1] - 1)
-                dir_0_n.index_neighbors(dir_0)
-        if dir_1_n is not None:
-            if dir_1_n.position[0] is None or dir_1_n.position[1] is None:
-                dir_1_n.set_indexes(self.position[0] + 1, self.position[1])
-                dir_1_n.index_neighbors(dir_0)
+        for neighbor, (dx, dy) in neighbors_data:
+            if neighbor and (None in neighbor.position):
+                neighbor.set_indexes(self.position[0] + dx, self.position[1] + dy)
+                neighbor.index_neighbors(dir_0)
 
-        if dir_2_n is not None:
-            if dir_2_n.position[0] is None or dir_2_n.position[1] is None:
-                dir_2_n.set_indexes(self.position[0], self.position[1] + 1)
-                dir_2_n.index_neighbors(dir_0)
+    def get_vertex_in_rad_range(
+        self, rad_min: float, rad_max: float
+    ) -> Optional[List[int]]:
 
-        if dir_3_n is not None:
-            if dir_3_n.position[0] is None or dir_3_n.position[1] is None:
-                dir_3_n.set_indexes(self.position[0] - 1, self.position[1])
-                dir_3_n.index_neighbors(dir_0)
 
-    def get_vertex_in_rad_range(self, rad_min, rad_max):
-        for v in self.vertexes:
-            if self._is_point_in_rad_range(rad_min, rad_max, v):
-                return v
-        return None
 
 
 if __name__ == "__main__":
