@@ -275,37 +275,54 @@ class BoardTile:
         # flagging self as checked already in dir_idx
         self.was_checked_in_dir_idx[dir_idx] = True
 
-        # determining border between dirs
-        dir_minus_min = dir_rad - THREE_QUARTER_PI
-        if dir_minus_min < 0:
-            dir_minus_min += TWO_PI
-        dir_minus_max = dir_rad - QUARTER_PI
-        if dir_minus_max < 0:
-            dir_minus_max += TWO_PI
-        dir_plus_min = dir_rad + QUARTER_PI
-        if dir_plus_min >= TWO_PI:
-            dir_plus_min -= TWO_PI
-        dir_plus_max = dir_rad + THREE_QUARTER_PI
-        if dir_plus_max >= TWO_PI:
-            dir_plus_max -= TWO_PI
-        # calling this func recursively for possibly 3 next tiles and gathering readings
+        # getting the neighbor in the direction
+        direction_ranges = self._calculate_direction_ranges(dir_rad)
+        neighbor_steps = self._get_neighbor_steps(direction_ranges, dir_rad, dir_idx)
+
+        return max(neighbor_steps, default=0)
+
+    def _calculate_direction_ranges(self, dir_rad: float) -> Dict[str, float]:
+        ranges = {
+            "minus_min": self._normalize_angle(dir_rad - THREE_QUARTER_PI),
+            "minus_max": self._normalize_angle(dir_rad - QUARTER_PI),
+            "plus_min": self._normalize_angle(dir_rad + QUARTER_PI),
+            "plus_max": self._normalize_angle(dir_rad + THREE_QUARTER_PI),
+        }
+        return ranges
+
+    @staticmethod
+    def _normalize_angle(angle: float) -> float:
+        if angle < 0:
+            return angle + TWO_PI
+        if angle >= TWO_PI:
+            return angle - TWO_PI
+
+        return angle
+
+    def _get_neighbor_steps(
+        self, ranges: Dict[str, float], dir_rad: float, dir_idx: int
+    ) -> List[int]:
         results = []
-        same_dir = self.get_neighbor_in_rad_range(dir_minus_max, dir_plus_min)
+        same_dir = self.get_neighbor_in_rad_range(
+            ranges["minus_max"], ranges["plus_min"]
+        )
+
         if same_dir is not None:
             # one more because it is in checked direction
             results.append(same_dir.get_num_of_steps_in_dir_rad(dir_rad, dir_idx) + 1)
 
-        dir_minus = self.get_neighbor_in_rad_range(dir_minus_min, dir_minus_max)
-        if dir_minus is not None:
-            results.append(dir_minus.get_num_of_steps_in_dir_rad(dir_rad, dir_idx))
-        dir_plus = self.get_neighbor_in_rad_range(dir_plus_min, dir_plus_max)
-        if dir_plus is not None:
-            results.append(dir_plus.get_num_of_steps_in_dir_rad(dir_rad, dir_idx))
+        for min_range, max_range in (ranges["minus_min"], ranges["minus_max"]), (
+            ranges["plus_min"],
+            ranges["plus_max"],
+        ):
+            side_neighbor = self.get_neighbor_in_rad_range(min_range, max_range)
+            if side_neighbor is not None:
+                results.append(
+                    side_neighbor.get_num_of_steps_in_dir_rad(dir_rad, dir_idx)
+                )
 
-        # retrieving data of max num of steps in dir
-        max_num_of_steps = max(results, default=0)
+        return results
 
-        return max_num_of_steps
 
     def index_neighbors(self, dir_0) -> None:
         if self.position[0] is None or self.position[1] is None:
