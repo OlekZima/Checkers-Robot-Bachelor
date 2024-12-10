@@ -1,7 +1,8 @@
 # Rodzaje warcab
+
 1. **Warcaby Polskie/stupolowe/międzynarodowe**
     1. Plansza 10x10
-    2. Po 20 pionów 
+    2. Po 20 pionów
     3. gra się na turniejach
 2. **Warcaby amerykańskie**- [wiki](https://en.wikipedia.org/wiki/English_draughts)
     1. Plansza 8x8
@@ -17,7 +18,6 @@
     4. Bicie obowiązkowe, obowiązkowa sekwencja zbijająca najwięcej pionów
     5. Damka porusza się o dowolną ilość kroków w dowolną strone
     6. Zasady takie jak w Polskich, tylko plansza mniejsza i mniej pionków
-
 
 # Zasady gry w szczegółach
 
@@ -37,6 +37,7 @@
 Pierwszy ruch - RED / ciemniejszy kolor
 
 ### Ruch
+
 0. **Ogólne**
     1. Bicie jest obowiązkowe
     2. Można wybrać dowolne bicie (nie musi być największe z możliwych) - ale dana sekwencja **musi być dokończona**
@@ -51,6 +52,7 @@ Pierwszy ruch - RED / ciemniejszy kolor
     3. Bicie wielokrotne - możliwe jeśli po pierwszym biciu jest możliwe inne bicie
 
 ### Kryteria zwycięstwa
+
 1. Brak pionków u jednego z graczy -> zwycięstwo przeciwnika
 2. Brak możliwości wykonania następnego ruchu przez jednego z graczy -> zwycięstwo przeciwnika
 3. Jeśli żaden gracz nie może osiągnąć zwycięstwa, lub ustalenie remisu - remis
@@ -62,6 +64,7 @@ Pierwszy ruch - RED / ciemniejszy kolor
 Pierwszy ruch - WHITE/Green / jaśniejszy kolor
 
 ### Ruch
+
 0. **Ogólne**
     1. Bicie jest obowiązkowe
     2. **Trzeba** wybrać sekwencję bicia o największej ilości zbitych pionów przeciwnika - spośród różnych o tej samej liczbie zbić można wybrać
@@ -76,20 +79,22 @@ Pierwszy ruch - WHITE/Green / jaśniejszy kolor
     3. Bicie wielokrotne - możliwe oraz konieczne jeśli po pierwszym biciu jest możliwe inne bicie
 
 ### Kryteria zwycięstwa
+
 1. Brak pionków u jednego z graczy -> zwycięstwo przeciwnika
 2. Brak możliwości wykonania następnego ruchu przez jednego z graczy -> zwycięstwo przeciwnika
 3. Jeśli żaden gracz nie może osiągnąć zwycięstwa, lub ustalenie remisu - remis
 4. Jeśli po raz 3 powtórzy się sytuacja na planszy (nie koniecznie 3 pod rząd), w której takie same jest ułożenie pionków jak i ten sam gracz wykonuje następny ruch - **remis**
 
 ## Główne różnice odmiany amerykańskiej vs klasycznej
+
 1. W odmianie amerykańskiej zwykły pion nie może bić do tyłu
 2. W odmianie amerykańskiej damka porusza się o 1 pole
 3. W odmianie amerykańskiej nie trzeba wykonywać sekwencji z najwięszką ilością zbić
 
-
 # Finalny wybór do projektu
 
 Finalny wybór padł na odmianę ***Klasyczną/brazylijską*** z racji na:
+
 - Ograniczenie sekwencji do tej z największą ilością zbić
 - Zasadach takich samych jak w odmianie Polskiej/międzynarodowej przy zachowaniu planszy 8x8
 - Większej możliwości zderzenia rozwiązania z graczami trenującymi odmianę Polską w ramach ewauluacji projektu
