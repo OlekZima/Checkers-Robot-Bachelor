@@ -245,17 +245,20 @@ class BoardTile:
             or (rad_max < rad_min <= dir_tmp)
         )
 
-    def get_neighbor_in_rad_range(self, rad_min, rad_max) -> Optional[Self]:
-        for n in self.neighbors.values():
-            if n is not None and self._is_point_in_rad_range(
-                rad_min, rad_max, n.center
-            ):
-                return n
+    def get_neighbor_in_rad_range(
+        self, rad_min: float, rad_max: float
+    ) -> Optional[Self]:
 
-        return None
 
-    def get_num_of_steps_in_dir_rad(self, dir_rad, dir_idx) -> int:
-        """Recursively counts number of steps in given direction.
+        return next(
+            (
+                n
+                for n in self.neighbors.values()
+                if n is not None
+                and self._is_point_in_rad_range(rad_min, rad_max, n.center)
+            ),
+            None,
+        )
 
         Args:
             dir_rad (_type_): Radial direction.
