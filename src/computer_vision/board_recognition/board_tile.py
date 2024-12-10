@@ -198,39 +198,38 @@ class BoardTile:
         return cls._frame.copy()
 
     def get_dir_2_point_rad(self, point: Optional[List[int]] = None) -> float:
-        if point is None:
-            point = [0, 0]
 
+        point = point if point is not None else [0, 0]
         dx = point[0] - self.center[0]
         dy = point[1] - self.center[1]
 
-        dpi = 0
+        adjustment = self._get_quadrant_in_rad(dx, dy)
+        dx, dy = self._adujst_coordinates(dx, dy, adjustment[1])
+
+        return self._calculate_angle(dx, dy, adjustment[0])
+
+    def _get_quadrant_in_rad(self, dx: int, dy: int) -> Tuple[float, bool]:
         if dy < 0 <= dx:
-            dpi = HALF_PI
+            return HALF_PI, True
+        if dx < 0 and dy < 0:
+            return math.pi, False
+        if dx < 0 <= dy:
+            return 3 * HALF_PI, True
+
+        return 0, False
+
+    @staticmethod
+    def _adujst_coordinates(dx: int, dy: int, should_swap: bool) -> Tuple[int, int]:
+        if should_swap:
             dx, dy = dy, dx
-        elif dx < 0 and dy < 0:
-            dpi = math.pi
-        elif dx < 0 <= dy:
-            dpi = 3 * HALF_PI
-            dx, dy = dy, dx
 
-        dx = math.fabs(dx)
-        dy = math.fabs(dy)
+        return abs(dx), abs(dy)
 
-        # if dy != 0:
-        #     res = math.atan(float(dx) / float(dy))
-        #     res += dpi
-        #     # print(f'Obliczyłem: {res}')
-        #     return res
-        # else:
-        #     res = HALF_PI
-        #     res += dpi
-        #     # print(f'Obliczyłem: {res}')
-        #     return res
-        res = math.atan(dx / dy) if dy != 0 else HALF_PI
-        res += dpi
+    @staticmethod
+    def _calculate_angle(dx: int, dy: int, adjustment: float) -> float:
 
-        return res
+        angle = math.atan(dx / dy) if dy != 0 else HALF_PI
+        return angle + adjustment
 
     def _is_point_in_rad_range(
         self, rad_min: float, rad_max: float, point: Optional[List[int]] = None
