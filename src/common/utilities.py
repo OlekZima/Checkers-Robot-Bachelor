@@ -1,7 +1,7 @@
 import math
 import sys
 import termios
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 import cv2
@@ -98,3 +98,22 @@ def distance_from_color(bgr_sample, bgr_target) -> float:
 
 def empty_function(_):
     pass
+
+
+def normalize_angle(angle: float) -> float:
+    """Normalizes the angle to be in the range [0, 2 * pi).
+
+    Args:
+        angle (float):
+            Angle in radians.
+
+    Returns:
+        float:
+            Normalized angle in radians.
+    """
+    if angle < 0:
+        return angle + TWO_PI
+    if angle >= TWO_PI:
+        return angle - TWO_PI
+
+    return angle
