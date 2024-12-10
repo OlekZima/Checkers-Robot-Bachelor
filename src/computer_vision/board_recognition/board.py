@@ -3,7 +3,7 @@
 import math
 from dataclasses import dataclass
 import traceback
-from typing import List, Optional, Tuple
+from typing import ClassVar, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -31,83 +31,35 @@ class BoardConfig:
 
 
 class Board:
-    @classmethod
-    def detect_board(cls, img_src):
-        contours = ContourProcessor().get_contours(img_src)
-        BoardTile.create_tiles(img_src, contours)
-        try:
-            return Board(img_src, BoardTile.tiles)
-        except Exception as e:
-            raise BoardDetectionError(
-                "Error occured while trying to detect board"
-            ) from e
+    contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
+    frame: Optional[np.ndarray] = None
 
     def __init__(self, iamge, board_tiles: Optional[List[BoardTile]] = None):
         self.frame = iamge
+        Board.frame = iamge
 
         self.tiles = []
+
         if board_tiles is not None:
             self.tiles = board_tiles
 
-        self.points = []  # shape == (9,9,2)
-        for i in range(0, 9, 1):
-            self.points.append([])
-            for j in range(0, 9, 1):
-                self.points[i].append(None)
+        # shape == (9,9,2)
+        self.points = [[None for _ in range(9)] for _ in range(9)]
+
         self.vertexes = [None, None, None, None]
 
+        self._initialize_board()
+
+    def _initialize_board(self) -> None:
         # STEP 0 - choosing a starting tile that has a neighbour in direction0
-        #
-        # Also determinig what direction0 is in radians
-        start_tile = None
-        for tile in self.tiles:
-            print(tile.neighbors_count)
-            if tile.neighbors_count == 4:
-                start_tile = tile
-                break
-
-        if start_tile is None:
-            # print('======== jestem w Board __init__ -> niue znalazłem początkowego pola =======')
-            raise NoStartTileError("Couldn't find starting tile")
-
-        # print(board.start_tile.vertexes)
-        cv2.circle(
-            self.frame, start_tile.center, 3, (255, 0, 255), -1
-        )  # just for testing purposes
-        # print(start_tile.vertexes)
+        start_tile = self._find_start_tile()
 
         # STEP 1 - finding indexes of start_tile by recursive function of BoardTile (flood_fill like)
-        try:
-            Board.set_index_of_start_tile(start_tile)
-            cv2.putText(
-                self.frame,
-                f"{start_tile.position[0]},{start_tile.position[1]}",
-                start_tile.center,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                1,
-                cv2.LINE_AA,
-            )
-        except Exception as e:
-            # print('======== jestem w Board __init__ -> coś się wykrzaczyło przy szykaniu indexów start tile=======')
-            raise InsufficientDataError(
-                "Insufficient data!!! Not enough board is recognized"
-            ) from e
-        # STEP 2 - indexing all tiles by second recursive function
+        self._process_start_tile(start_tile)
 
-        Board.set_all_tiles_indexes(start_tile)
+        # STEP 2 - indexing all tiles by second recursive function
         # STEP 3 - assigning Board coordinates using indexes
-        dir_0 = start_tile.get_dir_0_radians()
-        self.set_all_known_board_points(dir_0)
-        # print(f'''
-        # [0][0] = {[v * 2 for v in self.points[0][0]]}
-        # [0][8] = {[v * 2 for v in self.points[0][8]]}
-        # [8][8] = {[v * 2 for v in self.points[8][8]]}
-        # [8][0] = {[v * 2 for v in self.points[8][0]]}
-        #''')
-        # STEP 4 - calculating final board dimensions - vertexes
-        self.calculate_vertexes()
+        self._process_board_points(start_tile)
         cv2.circle(self.frame, self.vertexes[0], 3, (0, 255, 0), -1)
         cv2.circle(self.frame, self.vertexes[1], 3, (0, 255, 0), -1)
         cv2.circle(self.frame, self.vertexes[2], 3, (0, 255, 0), -1)
@@ -149,6 +101,54 @@ class Board:
                             (0, 255, 0),
                             1,
                         )
+
+    def _find_start_tile(self) -> BoardTile:
+        start_tile = next((tile for tile in self.tiles if tile.neighbors_count == 4), 4)
+        if start_tile is None:
+            raise NoStartTileError("Couldn't find starting tile")
+        return start_tile
+
+    def _process_start_tile(self, start_tile: BoardTile) -> None:
+        try:
+            self.set_index_of_start_tile(start_tile)
+            self._draw_tile_coordinates(start_tile)
+        except InsufficientDataError as ide:
+            raise ide
+        except Exception as e:
+            raise BoardDetectionError(
+                "Error occured while trying to process start tile"
+            ) from e
+
+    @classmethod
+    def _draw_tile_coordinates(cls, tile: BoardTile) -> None:
+        cv2.putText(
+            cls.frame,
+            f"{tile.position[0]},{tile.position[1]}",
+            tile.center,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            1,
+            cv2.LINE_AA,
+        )
+
+    def _process_board_points(self, start_tile: BoardTile) -> None:
+        self.set_all_tiles_indexes(start_tile)
+
+        dir_0 = start_tile.get_dir_0_radians()
+        self.set_all_known_board_points(dir_0)
+        self.calculate_vertexes()
+
+    @classmethod
+    def detect_board(cls, img_src):
+        contours = cls.contour_processor.get_contours(img_src)
+        BoardTile.create_tiles(img_src, contours)
+        try:
+            return Board(img_src, BoardTile.tiles)
+        except Exception as e:
+            raise BoardDetectionError(
+                "Error occured while trying to detect board"
+            ) from e
 
     @classmethod
     def set_index_of_start_tile(cls, start_tile: BoardTile):
@@ -254,20 +254,20 @@ class Board:
             if tile.position[0] is None or tile.position[1] is None:
                 continue
             if self.points[tile.position[0]][tile.position[1]] is None:
-                self.points[tile.position[0]][tile.position[1]] = tile.get_vertex_in_rad_range(
-                    dir_3, dir_0
+                self.points[tile.position[0]][tile.position[1]] = (
+                    tile.get_vertex_in_rad_range(dir_3, dir_0)
                 )
             if self.points[tile.position[0] + 1][tile.position[1]] is None:
-                self.points[tile.position[0] + 1][tile.position[1]] = tile.get_vertex_in_rad_range(
-                    dir_0, dir_1
+                self.points[tile.position[0] + 1][tile.position[1]] = (
+                    tile.get_vertex_in_rad_range(dir_0, dir_1)
                 )
             if self.points[tile.position[0] + 1][tile.position[1] + 1] is None:
                 self.points[tile.position[0] + 1][tile.position[1] + 1] = (
                     tile.get_vertex_in_rad_range(dir_1, dir_2)
                 )
             if self.points[tile.position[0]][tile.position[1] + 1] is None:
-                self.points[tile.position[0]][tile.position[1] + 1] = tile.get_vertex_in_rad_range(
-                    dir_2, dir_3
+                self.points[tile.position[0]][tile.position[1] + 1] = (
+                    tile.get_vertex_in_rad_range(dir_2, dir_3)
                 )
 
     @classmethod
@@ -506,29 +506,26 @@ class Board:
         area = float(area) / 2.0
         return area
 
+    @classmethod
+    def get_frame_copy(cls):
+        return cls.frame.copy()
+
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(0)
     processor = ContourProcessor()
     while True:
         _, img = cap.read()
-        draw_image = img.copy()
 
-        contours = processor.get_contours(img)
-        BoardTile.create_tiles(draw_image, contours)
-        cv2.drawContours(draw_image, BoardTile.get_tiles_contours(), -1, (255, 0, 0), 2)
         try:
-            board = Board(draw_image, BoardTile.tiles)
+            board = Board.detect_board(img)
         except Exception as e:
-            print("========= jestem w main() =============")
             print(traceback.format_exc())
 
         print(len(BoardTile.tiles))
-        draw_image = cv2.resize(draw_image, (0, 0), fx=0.8, fy=0.8)
+        draw_image = Board.get_frame_copy()
         cv2.imshow("RESULT", draw_image)
-        # waitKey(0) -> will refresh on button pressed
-        # waitkey(x >0) -> will refresh every x millis
-        if cv2.waitKey(0) == ord("q"):  # & 0xFF == ord('q'):
+        if cv2.waitKey(0) == ord("q"):
             break
 
     cap.release()
