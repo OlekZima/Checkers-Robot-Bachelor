@@ -31,7 +31,6 @@ class BoardTile:
 
         Key "n01" means that the neighbor shares vertexes[0] and vertexes[1] points with this tile.
 
-
         Args:
             points (Optional[List[List[int]]], optional):
                 List of points where each point is represent by list of two int. Defaults to None.
@@ -57,8 +56,11 @@ class BoardTile:
         """Creates tiles from the image and contours and stores them in the class variables.
 
         Args:
-            image (np.ndarray): Image on which the tiles are located.
-            contours (np.ndarray): Contours detected on the image of the tiles.
+            image (np.ndarray):
+                Image on which the tiles are located.
+
+            contours (np.ndarray):
+                Contours detected on the image of the tiles.
         """
         cls._frame = image
         cls.tiles = np.array([])
@@ -77,6 +79,12 @@ class BoardTile:
 
     @classmethod
     def _connect_neighboring_tiles(cls) -> np.ndarray:
+        """Connects all possible neighboring tiles.
+
+        Returns:
+            np.ndarray:
+                Array of bools representing if the tile should be kept.
+        """
         keep_contour = np.zeros(cls.tiles.shape, dtype=bool)
         tile: Self = None
         other_tile: Self = None
@@ -92,7 +100,33 @@ class BoardTile:
         return keep_contour
 
     @classmethod
+    def _draw_circle(
+        cls,
+        coordinates: Tuple[int, int],
+        thickness: int = 3,
+        color: Optional[Tuple[int, int, int]] = (0, 0, 255),
+        shift: Optional[int] = 1,
+    ) -> None:
+        """Draws a circle on the ClassVar frame.
+
+        Args:
+            coordinates (Tuple[int, int]):
+                Coordinates of the center of the circle.
+
+            thickness (int, optional):
+                Thickness of the circle. Defaults to 3.
+
+            color (Optional[Tuple[int, int, int]], optional):
+                Color of the circle. Defaults to (0, 0, 255).
+
+            shift (Optional[int], optional):
+                Shift. Defaults to 1.
+        """
+        cv2.circle(cls._frame, coordinates, thickness, color, shift)
+
+    @classmethod
     def _update_neighbors_connections(cls) -> None:
+        """Fix the connections between tiles."""
         tile: Self = None
         neighbor: Self = None
 
@@ -110,7 +144,8 @@ class BoardTile:
         """Returns the contours of the tiles.
 
         Returns:
-            np.ndarray: Contours of the tiles.
+            np.ndarray:
+                Contours of the tiles.
         """
         contours = np.ndarray((1, 4, 1, 2), dtype=int)
         tile: Self = None
@@ -124,6 +159,12 @@ class BoardTile:
         return contours[1:]
 
     def _connect_with_neigbor(self, poss_neighbor: Self):
+        """Connects the tile with the possible neighbor.
+
+        Args:
+            poss_neighbor (Self):
+                Possible neighbor tile.
+        """
         for i, vertex in enumerate(self.vertexes):
             for j, other_vertex in enumerate(poss_neighbor.vertexes):
                 if self._are_vertices_connected(
@@ -138,6 +179,29 @@ class BoardTile:
         i: int,
         j: int,
         possible_neighbor: Self,
+    ) -> bool:
+        """Checks if the vertexes are connected on the image.
+
+        Args:
+            vertex (List[int]):
+                List of two int representing the vertex of the tile.
+
+            other_vertex (List[int]):
+                List of two int representing the vertex of the neighbor tile.
+
+            i (int):
+                Number of the vertex of the tile.
+
+            j (int):
+                Number of the vertex of the neighbor tile.
+
+            possible_neighbor (Self):
+                Possible neighbor tile.
+
+        Returns:
+            bool:
+                True if the vertexes are connected, False otherwise.
+        """
         jm = (j - 1) % 4
         ip = (i + 1) % 4
 
@@ -146,6 +210,18 @@ class BoardTile:
         ).all()
 
     def _create_neighbor_connection(self, neighbor: Self, i: int, j: int) -> None:
+        """Creates a connection between the tile and the neighbor.
+
+        Args:
+            neighbor (Self):
+                Neighbor tile.
+
+            i (int):
+                Number of the vertex of the tile.
+
+            j (int):
+                Number of the vertex of the neighbor tile.
+        """
         jm = (j - 1) % 4
         for key in self.NEIGHBORS_KEYS:
             index = int(key[1])
@@ -160,8 +236,11 @@ class BoardTile:
         """Sets the indexes of the tile on the board.
 
         Args:
-            x (int): X index.
-            y (int): Y index.
+            x (int):
+                X index.
+
+            y (int):
+                Y index.
         """
         self.position = (x, y)
 
@@ -169,7 +248,8 @@ class BoardTile:
         """Sets the x index of the tile on the board.
 
         Args:
-            x (int): X index.
+            x (int):
+                X index.
         """
         self.position = (x, self.position[1])
 
@@ -177,11 +257,18 @@ class BoardTile:
         """Sets the y index of the tile on the board.
 
         Args:
-            y (int): Y index.
+            y (int):
+                Y index.
         """
         self.position = (self.position[0], y)
 
     def get_dir_0_radians(self) -> Optional[float]:
+        """Returns the direction in radians to the neighbor in direction 0.
+
+        Returns:
+            Optional[float]:
+                Direction in radians.
+        """
         if self.neighbors["n01"] is None:
             return None
 
@@ -193,12 +280,22 @@ class BoardTile:
         Frame is a copy of the original frame and can be used in OpenCV.
 
         Returns:
-            Optional[np.ndarray]: Frame of the board.
+            Optional[np.ndarray]:
+                Frame of the board.
         """
         return cls._frame.copy()
 
     def get_dir_2_point_rad(self, point: Optional[List[int]] = None) -> float:
+        """Returns the direction in radians to the given point.
 
+        Args:
+            point (Optional[List[int]], optional):
+                Point to which the direction is calculated. Defaults to None.
+
+        Returns:
+            float:
+                Direction in radians.
+        """
         point = point if point is not None else [0, 0]
         dx = point[0] - self.center[0]
         dy = point[1] - self.center[1]
@@ -209,6 +306,22 @@ class BoardTile:
         return self._calculate_angle(dx, dy, adjustment[0])
 
     def _get_quadrant_in_rad(self, dx: int, dy: int) -> Tuple[float, bool]:
+        """Returns the quadrant in radians. If `dy < 0 <= dx` or `dx < 0 <= dy`
+        returns the radian value and True.
+
+        Args:
+            dx (int):
+                Difference in x.
+
+            dy (int):
+                Difference in y.
+
+        Returns:
+            Tuple[float, bool]:
+                Radian value and True if `dy < 0 <= dx` or `dx < 0 <= dy`.
+                Otherwise returns 0 and False.
+                Bool represents if the `dx` and `dy` should be swapped.
+        """
         if dy < 0 <= dx:
             return HALF_PI, True
         if dx < 0 and dy < 0:
@@ -220,6 +333,22 @@ class BoardTile:
 
     @staticmethod
     def _adujst_coordinates(dx: int, dy: int, should_swap: bool) -> Tuple[int, int]:
+        """Swaps the `dx` and `dy` if `should_swap` is True and returns the absolute values.
+
+        Args:
+            dx (int):
+                Difference in x.
+
+            dy (int):
+                Difference in y.
+
+            should_swap (bool):
+                Flag to swap the `dx` and `dy`. Calculated by `_get_quadrant_in_rad`.
+
+        Returns:
+            Tuple[int, int]:
+                Absolute values of `dx` and `dy`.
+        """
         if should_swap:
             dx, dy = dy, dx
 
@@ -227,7 +356,22 @@ class BoardTile:
 
     @staticmethod
     def _calculate_angle(dx: int, dy: int, adjustment: float) -> float:
+        """Calculates the angle in radians.
 
+        Args:
+            dx (_type_):
+                Difference in x
+
+            dy (_type_):
+                Difference in y
+
+            adjustment (_type_):
+                Adjustment value
+
+        Returns:
+            float:
+                Angle in radians.
+        """
         angle = math.atan(dx / dy) if dy != 0 else HALF_PI
         return angle + adjustment
 
@@ -248,8 +392,19 @@ class BoardTile:
     def get_neighbor_in_rad_range(
         self, rad_min: float, rad_max: float
     ) -> Optional[Self]:
+        """Returns the neighbor in the given range of radians.
 
+        Args:
+            rad_min (_type_):
+                Range minimum in radians.
 
+            rad_max (_type_):
+                Range maximum in radians.
+
+        Returns:
+            Optional[Self]:
+                Neighbor in the given range of radians.
+        """
         return next(
             (
                 n
@@ -260,14 +415,20 @@ class BoardTile:
             None,
         )
 
+    def get_num_of_steps_in_dir_rad(self, dir_rad: float, dir_idx: int) -> int:
+        """Returns the number of steps in the given direction.
+
         Args:
-            dir_rad (_type_): Radial direction.
-            dir_idx (_type_): Index of the direction.
+            dir_rad (float):
+                Direction in radians.
+
+            dir_idx (int):
+                Index of the direction. Refers to the `was_checked_in_dir_idx`.
 
         Returns:
-            int: Number of steps in given direction.
+            int:
+                Number of steps in the given direction.
         """
-
         # if was checked already - returning 0
         if self.was_checked_in_dir_idx[dir_idx]:
             return 0
@@ -282,6 +443,16 @@ class BoardTile:
         return max(neighbor_steps, default=0)
 
     def _calculate_direction_ranges(self, dir_rad: float) -> Dict[str, float]:
+        """Calculates the ranges of radians in the given direction.
+
+        Args:
+            dir_rad (float):
+                Direction in radians.
+
+        Returns:
+            Dict[str, float]:
+                Dictionary with keys "minus_min", "minus_max", "plus_min", "plus_max".
+        """
         ranges = {
             "minus_min": self._normalize_angle(dir_rad - THREE_QUARTER_PI),
             "minus_max": self._normalize_angle(dir_rad - QUARTER_PI),
@@ -292,6 +463,16 @@ class BoardTile:
 
     @staticmethod
     def _normalize_angle(angle: float) -> float:
+        """Normalizes the angle to be in the range [0, 2 * pi).
+
+        Args:
+            angle (float):
+                Angle in radians.
+
+        Returns:
+            float:
+                Normalized angle in radians.
+        """
         if angle < 0:
             return angle + TWO_PI
         if angle >= TWO_PI:
@@ -302,6 +483,22 @@ class BoardTile:
     def _get_neighbor_steps(
         self, ranges: Dict[str, float], dir_rad: float, dir_idx: int
     ) -> List[int]:
+        """Returns the number of steps in the given direction.
+
+        Args:
+            ranges (Dict[str, float]):
+                Dictionary with keys "minus_min", "minus_max", "plus_min", "plus_max".
+
+            dir_rad (float):
+                Direction in radians.
+
+            dir_idx (int):
+                Index of the direction.
+
+        Returns:
+            List[int]:
+                List of number of steps in the given direction.
+        """
         results = []
         same_dir = self.get_neighbor_in_rad_range(
             ranges["minus_max"], ranges["plus_min"]
@@ -324,7 +521,13 @@ class BoardTile:
         return results
 
     def index_neighbors(self, dir_0: float) -> None:
+        """Indexes the neighbors of the tile.
 
+        Args:
+            dir_0 (float):
+                Direction in radians.
+        """
+        if None in self.position:
             return
 
         dir_01 = self._normalize_angle(dir_0 + QUARTER_PI)
@@ -347,8 +550,27 @@ class BoardTile:
     def get_vertex_in_rad_range(
         self, rad_min: float, rad_max: float
     ) -> Optional[List[int]]:
+        """Returns the vertex in the given range of radians.
 
+        Args:
+            rad_min (float):
+                Minimum range in radians.
 
+            rad_max (float):
+                Maximum range in radians.
+
+        Returns:
+            Optional[List[int]]:
+                Vertex in the given range of radians.
+        """
+        return next(
+            (
+                v
+                for v in self.vertexes
+                if self._is_point_in_rad_range(rad_min, rad_max, v)
+            ),
+            None,
+        )
 
 
 if __name__ == "__main__":
