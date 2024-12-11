@@ -13,7 +13,15 @@ from src.common.exceptions import (
     InsufficientDataError,
     NoStartTileError,
 )
-from src.common.utilities import get_avg_pos, distance_from_color, get_avg_color
+from src.common.utilities import (
+    HALF_PI,
+    QUARTER_PI,
+    TWO_PI,
+    get_avg_pos,
+    distance_from_color,
+    get_avg_color,
+    normalize_angle,
+)
 
 from .board_tile import BoardTile
 from .contours_recognition import ContourProcessor
@@ -145,13 +153,17 @@ class Board:
 
     @classmethod
     def detect_board(cls, img_src):
-        contours = cls.contour_processor.get_contours(img_src)
-        BoardTile.create_tiles(img_src, contours)
         try:
+            contours = cls.contour_processor.get_contours(img_src)
+            BoardTile.create_tiles(img_src, contours)
             return Board(img_src, BoardTile.tiles)
+        except BoardDetectionError as bde:
+            raise bde
+        except InsufficientDataError as ide:
+            raise ide
         except Exception as e:
             raise BoardDetectionError(
-                "Error occured while trying to detect board"
+                "Unknown Error occured while trying to detect board"
             ) from e
 
     @classmethod
@@ -159,41 +171,15 @@ class Board:
 
         # calculating directions
         dir_0 = start_tile.get_dir_0_radians()
-        dir_01 = dir_0 + math.pi / 4.0
-        if dir_01 >= math.pi * 2.0:
-            dir_01 -= math.pi * 2.0
 
-        dir_1 = dir_0 + math.pi / 2.0
-        if dir_1 >= math.pi * 2.0:
-            dir_1 -= math.pi * 2.0
-        dir_12 = dir_1 + math.pi / 4.0
-        if dir_12 >= math.pi * 2.0:
-            dir_12 -= math.pi * 2.0
-        dir_2 = dir_1 + math.pi / 2.0
-        if dir_2 >= math.pi * 2.0:
-            dir_2 -= math.pi * 2.0
-        dir_23 = dir_2 + math.pi / 4.0
-        if dir_23 >= math.pi * 2.0:
-            dir_23 -= math.pi * 2.0
-        dir_3 = dir_2 + math.pi / 2.0
-        if dir_3 >= math.pi * 2.0:
-            dir_3 -= math.pi * 2.0
-        dir_30 = dir_3 + math.pi / 4.0
-        if dir_30 >= math.pi * 2.0:
-            dir_30 -= math.pi * 2.0
-        # print(f'''================================================================================================
-        # \ndir_0 = {dir_0}, dir_1 = {dir_1}, dir_2 = {dir_2}, dir_3 = {dir_3}
-        # \ndir_01 = {dir_01}, dir_12 = {dir_12}, dir_23 = {dir_23}, dir_30 = {dir_30}
-        # \nstart_tile.center = {start_tile.center}
-        # \nn01.center = {start_tile.n01.center}
-        # \ndir_to_n01 = {start_tile.get_dir_2_point_rad(start_tile.n01.center)}
-        # \nn12.center = {start_tile.n12.center}
-        # \ndir_to_n12 = {start_tile.get_dir_2_point_rad(start_tile.n12.center)}
-        # \nn23.center = {start_tile.n23.center}
-        # \ndir_to_n23 = {start_tile.get_dir_2_point_rad(start_tile.n23.center)}
-        # \nn30.center = {start_tile.n30.center}
-        # \ndir_to_n30 = {start_tile.get_dir_2_point_rad(start_tile.n30.center)}''')
-        # getting x index and checking if we have sufficient data to settle it
+        dir_01 = normalize_angle(dir_0 + QUARTER_PI)
+        dir_1 = normalize_angle(dir_0 + HALF_PI)
+        dir_12 = normalize_angle(dir_1 + QUARTER_PI)
+        dir_2 = normalize_angle(dir_1 + HALF_PI)
+        dir_23 = normalize_angle(dir_2 + QUARTER_PI)
+        dir_3 = normalize_angle(dir_2 + HALF_PI)
+        dir_30 = normalize_angle(dir_3 + QUARTER_PI)
+
         dir_1_neighbour = start_tile.get_neighbor_in_rad_range(dir_01, dir_12)
         if dir_1_neighbour is None:
             # print("Nie mam somsiada na dir_1 :(")
@@ -243,16 +229,15 @@ class Board:
         start_tile.index_neighbors(dir_0)
 
     def set_all_known_board_points(self, dir_0):
-
-        dir_1 = dir_0 + math.pi / 2.0
-        if dir_1 >= math.pi * 2.0:
-            dir_1 -= math.pi * 2.0
-        dir_2 = dir_1 + math.pi / 2.0
-        if dir_2 >= math.pi * 2.0:
-            dir_2 -= math.pi * 2.0
-        dir_3 = dir_2 + math.pi / 2.0
-        if dir_3 >= math.pi * 2.0:
-            dir_3 -= math.pi * 2.0
+        dir_1 = dir_0 + HALF_PI
+        if dir_1 >= TWO_PI:
+            dir_1 -= TWO_PI
+        dir_2 = dir_1 + HALF_PI
+        if dir_2 >= TWO_PI:
+            dir_2 -= TWO_PI
+        dir_3 = dir_2 + HALF_PI
+        if dir_3 >= TWO_PI:
+            dir_3 -= TWO_PI
 
         for tile in self.tiles:
             if tile.position[0] is None or tile.position[1] is None:
