@@ -60,47 +60,17 @@ class Board:
         # STEP 2 - indexing all tiles by second recursive function
         # STEP 3 - assigning Board coordinates using indexes
         self._process_board_points(start_tile)
-        cv2.circle(self.frame, self.vertexes[0], 3, (0, 255, 0), -1)
-        cv2.circle(self.frame, self.vertexes[1], 3, (0, 255, 0), -1)
-        cv2.circle(self.frame, self.vertexes[2], 3, (0, 255, 0), -1)
-        cv2.circle(self.frame, self.vertexes[3], 3, (0, 255, 0), -1)
-        # cv2.line(self.frame, self.vertexes[0], self.vertexes[1], (0, 255, 0), 2)
-        # cv2.line(self.frame, self.vertexes[1], self.vertexes[2], (0, 255, 0), 2)
-        # cv2.line(self.frame, self.vertexes[2], self.vertexes[3], (0, 255, 0), 2)
-        # cv2.line(self.frame, self.vertexes[3], self.vertexes[0], (0, 255, 0), 2)
+        self._draw_border_points()
+
         # STEP 5 - interpolating all points on board
         self.interpolate_borders()  # first I need to know all border points
         self.interpolate_inner_points()  # then I interpolate all inner points
+
         # STEP 6 - mirroring self.points for future use
         self.points = self.get_mirrored_2d_matrix_y_axis(self.points)
 
-        # STEP 7 - drawing board for testing purposes
-        for i in range(0, 9):
-            for j in range(0, 9):
-                if i != 8:
-                    if (
-                        self.points[i][j] is not None
-                        and self.points[i + 1][j] is not None
-                    ):
-                        cv2.line(
-                            self.frame,
-                            self.points[i][j],
-                            self.points[i + 1][j],
-                            (0, 255, 0),
-                            1,
-                        )
-                if j != 8:
-                    if (
-                        self.points[i][j] is not None
-                        and self.points[i][j + 1] is not None
-                    ):
-                        cv2.line(
-                            self.frame,
-                            self.points[i][j],
-                            self.points[i][j + 1],
-                            (0, 255, 0),
-                            1,
-                        )
+        # STEP 7 - drawing board
+        self._draw_board()
 
     def _find_start_tile(self) -> BoardTile:
         start_tile = next((tile for tile in self.tiles if tile.neighbors_count == 4), 4)
@@ -138,6 +108,40 @@ class Board:
         dir_0 = start_tile.get_dir_0_radians()
         self.set_all_known_board_points(dir_0)
         self.calculate_vertexes()
+
+    def _draw_board(self):
+        for i in range(0, 9):
+            for j in range(0, 9):
+                if i != 8:
+                    if (
+                        self.points[i][j] is not None
+                        and self.points[i + 1][j] is not None
+                    ):
+                        cv2.line(
+                            self.frame,
+                            self.points[i][j],
+                            self.points[i + 1][j],
+                            (0, 255, 0),
+                            1,
+                        )
+                if j != 8:
+                    if (
+                        self.points[i][j] is not None
+                        and self.points[i][j + 1] is not None
+                    ):
+                        cv2.line(
+                            self.frame,
+                            self.points[i][j],
+                            self.points[i][j + 1],
+                            (0, 255, 0),
+                            1,
+                        )
+
+    def _draw_border_points(self):
+        cv2.circle(self.frame, self.vertexes[0], 3, (0, 255, 0), -1)
+        cv2.circle(self.frame, self.vertexes[1], 3, (0, 255, 0), -1)
+        cv2.circle(self.frame, self.vertexes[2], 3, (0, 255, 0), -1)
+        cv2.circle(self.frame, self.vertexes[3], 3, (0, 255, 0), -1)
 
     @classmethod
     def detect_board(cls, img_src):
