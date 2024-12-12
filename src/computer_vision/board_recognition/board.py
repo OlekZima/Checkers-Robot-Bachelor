@@ -167,61 +167,76 @@ class Board:
             ) from e
 
     @classmethod
-    def set_index_of_start_tile(cls, start_tile: BoardTile):
+    def _calculate_directions(cls, start_tile: BoardTile) -> Dict[str, float]:
+        base_direction = start_tile.get_dir_0_radians()
+        return {
+            "dir_0": base_direction,
+            "dir_01": normalize_angle(base_direction + QUARTER_PI),
+            "dir_1": normalize_angle(base_direction + HALF_PI),
+            "dir_12": normalize_angle(base_direction + HALF_PI + QUARTER_PI),
+            "dir_2": normalize_angle(base_direction + math.pi),
+            "dir_23": normalize_angle(base_direction + math.pi + QUARTER_PI),
+            "dir_3": normalize_angle(base_direction + math.pi + HALF_PI),
+            "dir_30": normalize_angle(base_direction + math.pi + HALF_PI + QUARTER_PI),
+        }
 
-        # calculating directions
-        dir_0 = start_tile.get_dir_0_radians()
+    @classmethod
+    def set_index_of_start_tile(cls, start_tile: BoardTile) -> None:
+        # Calculate base direction and derived directions
+        directions = cls._calculate_directions(start_tile)
 
-        dir_01 = normalize_angle(dir_0 + QUARTER_PI)
-        dir_1 = normalize_angle(dir_0 + HALF_PI)
-        dir_12 = normalize_angle(dir_1 + QUARTER_PI)
-        dir_2 = normalize_angle(dir_1 + HALF_PI)
-        dir_23 = normalize_angle(dir_2 + QUARTER_PI)
-        dir_3 = normalize_angle(dir_2 + HALF_PI)
-        dir_30 = normalize_angle(dir_3 + QUARTER_PI)
+        # Calculate X index
+        dir_1_steps = cls._get_steps_in_direction(
+            start_tile,
+            directions["dir_01"],
+            directions["dir_12"],
+            directions["dir_1"],
+            1,
+        )
+        dir_3_steps = cls._get_steps_in_direction(
+            start_tile,
+            directions["dir_23"],
+            directions["dir_30"],
+            directions["dir_3"],
+            3,
+        )
 
-        dir_1_neighbour = start_tile.get_neighbor_in_rad_range(dir_01, dir_12)
-        if dir_1_neighbour is None:
-            # print("Nie mam somsiada na dir_1 :(")
-            dir_1_steps = 0
-        else:
-            dir_1_steps = start_tile.get_num_of_steps_in_dir_rad(dir_1, 1)
-            # print(f"Mam somsiada na dir_1!!!, dir_1 = {dir_1_steps} kroków")
-
-        dir_3_neighbour = start_tile.get_neighbor_in_rad_range(dir_23, dir_30)
-        if dir_3_neighbour is None:
-            # print("Nie mam somsiada na dir_3 :(")
-            dir_3_steps = 0
-        else:
-            dir_3_steps = start_tile.get_num_of_steps_in_dir_rad(dir_3, 3)
-            # print(f"Mam somsiada na dir_3!!!, dir_3 = {dir_3_steps} kroków")
         if dir_1_steps + dir_3_steps != 7:
             raise InsufficientDataError(
                 "Not enough board is recognized on the `X` axis"
             )
         start_tile.set_x_index(dir_3_steps)
-        # getting y index and checking if we have sufficient data to settle it
-        dir_2_neighbour = start_tile.get_neighbor_in_rad_range(dir_12, dir_23)
-        if dir_2_neighbour is None:
-            # print("Nie mam somsiada na dir_2 :(")
-            dir_2_steps = 0
-        else:
-            dir_2_steps = start_tile.get_num_of_steps_in_dir_rad(dir_2, 2)
-            # print(f"Mam somsiada na dir_2!!!, dir_2 = {dir_2_steps} kroków")
 
-        dir_0_neighbour = start_tile.get_neighbor_in_rad_range(dir_30, dir_01)
-        if dir_0_neighbour is None:
-            # print("Nie mam somsiada na dir_0 :(")
-            dir_0_steps = 0
-        else:
-            dir_0_steps = start_tile.get_num_of_steps_in_dir_rad(dir_0, 0)
-            # print(f"Mam somsiada na dir_0!!!, dir_0 = {dir_0_steps} kroków")
+        # Calculate Y index
+        dir_2_steps = cls._get_steps_in_direction(
+            start_tile,
+            directions["dir_12"],
+            directions["dir_23"],
+            directions["dir_2"],
+            2,
+        )
+        dir_0_steps = cls._get_steps_in_direction(
+            start_tile,
+            directions["dir_30"],
+            directions["dir_01"],
+            directions["dir_0"],
+            0,
+        )
+
         if dir_2_steps + dir_0_steps != 7:
             raise InsufficientDataError(
                 "Not enough board is recognized on the `Y` axis"
             )
         start_tile.set_y_index(dir_0_steps)
-        # print(f'Index start_tile to x = {dir_3_steps} y = {dir_0_steps}')
+
+    @staticmethod
+    def _get_steps_in_direction(
+        tile: BoardTile, start_rad: float, end_rad: float, dir_rad: float, dir_idx: int
+    ) -> int:
+        neighbor = tile.get_neighbor_in_rad_range(start_rad, end_rad)
+        if neighbor is None:
+            return 0
+        return tile.get_num_of_steps_in_dir_rad(dir_rad, dir_idx)
 
     @classmethod
     def set_all_tiles_indexes(cls, start_tile: BoardTile):
