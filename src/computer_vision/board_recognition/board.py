@@ -243,36 +243,42 @@ class Board:
         dir_0 = start_tile.get_dir_0_radians()
         start_tile.index_neighbors(dir_0)
 
-    def set_all_known_board_points(self, dir_0):
-        dir_1 = dir_0 + HALF_PI
-        if dir_1 >= TWO_PI:
-            dir_1 -= TWO_PI
-        dir_2 = dir_1 + HALF_PI
-        if dir_2 >= TWO_PI:
-            dir_2 -= TWO_PI
-        dir_3 = dir_2 + HALF_PI
-        if dir_3 >= TWO_PI:
-            dir_3 -= TWO_PI
+    def set_all_known_board_points(self, dir_0: float) -> None:
+        directions = self._calculate_orthogonal_directions(dir_0)
+        vertex_positions = self._get_vertex_positions()
 
         for tile in self.tiles:
-            if tile.position[0] is None or tile.position[1] is None:
+            if not self._is_valid_tile_position(tile):
                 continue
-            if self.points[tile.position[0]][tile.position[1]] is None:
-                self.points[tile.position[0]][tile.position[1]] = (
-                    tile.get_vertex_in_rad_range(dir_3, dir_0)
-                )
-            if self.points[tile.position[0] + 1][tile.position[1]] is None:
-                self.points[tile.position[0] + 1][tile.position[1]] = (
-                    tile.get_vertex_in_rad_range(dir_0, dir_1)
-                )
-            if self.points[tile.position[0] + 1][tile.position[1] + 1] is None:
-                self.points[tile.position[0] + 1][tile.position[1] + 1] = (
-                    tile.get_vertex_in_rad_range(dir_1, dir_2)
-                )
-            if self.points[tile.position[0]][tile.position[1] + 1] is None:
-                self.points[tile.position[0]][tile.position[1] + 1] = (
-                    tile.get_vertex_in_rad_range(dir_2, dir_3)
-                )
+
+            for pos, dir_range in vertex_positions:
+                x = tile.position[0] + pos[0]
+                y = tile.position[1] + pos[1]
+
+                if self.points[x][y] is None:
+                    start_dir, end_dir = [directions[i] for i in dir_range]
+                    self.points[x][y] = tile.get_vertex_in_rad_range(start_dir, end_dir)
+
+    def _is_valid_tile_position(self, tile: BoardTile) -> bool:
+        return None not in tile.position
+
+    def _calculate_orthogonal_directions(self, dir_0: float) -> List[float]:
+        directions = [dir_0]
+        current_dir = dir_0
+
+        for _ in range(3):
+            current_dir = normalize_angle(current_dir + HALF_PI)
+            directions.append(current_dir)
+
+        return directions
+
+    def _get_vertex_positions(self) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        return [
+            ((0, 0), (3, 0)),  # Top-left vertex
+            ((1, 0), (0, 1)),  # Top-right vertex
+            ((1, 1), (1, 2)),  # Bottom-right vertex
+            ((0, 1), (2, 3)),  # Bottom-left vertex
+        ]
 
     @classmethod
     def extrapolate_last_point(
