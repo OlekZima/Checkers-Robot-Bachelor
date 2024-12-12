@@ -3,7 +3,7 @@
 import math
 from dataclasses import dataclass
 import traceback
-from typing import ClassVar, List, Optional, Tuple
+from typing import ClassVar, Dict, List, Optional, Self, Tuple
 
 import cv2
 import numpy as np
@@ -16,7 +16,6 @@ from src.common.exceptions import (
 from src.common.utilities import (
     HALF_PI,
     QUARTER_PI,
-    TWO_PI,
     get_avg_pos,
     distance_from_color,
     get_avg_color,
@@ -40,16 +39,14 @@ class BoardConfig:
 
 class Board:
     contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
-    frame: Optional[np.ndarray] = None
+    frame: ClassVar[np.ndarray] = np.array([])
 
-    def __init__(self, iamge, board_tiles: Optional[List[BoardTile]] = None):
-        self.frame = iamge
-        Board.frame = iamge
+    def __init__(
+        self, image: np.ndarray, board_tiles: Optional[List[BoardTile]] = None
+    ) -> None:
+        Board.frame: np.ndarray = image
 
-        self.tiles = []
-
-        if board_tiles is not None:
-            self.tiles = board_tiles
+        self.tiles = board_tiles if board_tiles is not None else []
 
         # shape == (9,9,2)
         self.points = [[None for _ in range(9)] for _ in range(9)]
@@ -117,7 +114,7 @@ class Board:
         self.set_all_known_board_points(dir_0)
         self.calculate_vertexes()
 
-    def _draw_board(self):
+    def _draw_board(self) -> None:
         for i in range(0, 9):
             for j in range(0, 9):
                 if i != 8:
@@ -126,7 +123,7 @@ class Board:
                         and self.points[i + 1][j] is not None
                     ):
                         cv2.line(
-                            self.frame,
+                            Board.frame,
                             self.points[i][j],
                             self.points[i + 1][j],
                             (0, 255, 0),
@@ -138,25 +135,25 @@ class Board:
                         and self.points[i][j + 1] is not None
                     ):
                         cv2.line(
-                            self.frame,
+                            Board.frame,
                             self.points[i][j],
                             self.points[i][j + 1],
                             (0, 255, 0),
                             1,
                         )
 
-    def _draw_border_points(self):
-        cv2.circle(self.frame, self.vertexes[0], 3, (0, 255, 0), -1)
-        cv2.circle(self.frame, self.vertexes[1], 3, (0, 255, 0), -1)
-        cv2.circle(self.frame, self.vertexes[2], 3, (0, 255, 0), -1)
-        cv2.circle(self.frame, self.vertexes[3], 3, (0, 255, 0), -1)
+    def _draw_border_points(self) -> None:
+        cv2.circle(Board.frame, self.vertexes[0], 3, (0, 255, 0), -1)
+        cv2.circle(Board.frame, self.vertexes[1], 3, (0, 255, 0), -1)
+        cv2.circle(Board.frame, self.vertexes[2], 3, (0, 255, 0), -1)
+        cv2.circle(Board.frame, self.vertexes[3], 3, (0, 255, 0), -1)
 
     @classmethod
-    def detect_board(cls, img_src):
+    def detect_board(cls, image: np.ndarray) -> Self:
         try:
-            contours = cls.contour_processor.get_contours(img_src)
-            BoardTile.create_tiles(img_src, contours)
-            return Board(img_src, BoardTile.tiles)
+            contours = cls.contour_processor.get_contours(image)
+            BoardTile.create_tiles(image, contours)
+            return Board(image, BoardTile.tiles)
         except BoardDetectionError as bde:
             raise bde
         except InsufficientDataError as ide:
