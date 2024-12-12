@@ -475,7 +475,8 @@ class Board:
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
         )
-        sample = self.frame[
+
+        sample = Board.frame[
             (pt[1] - radius) : (pt[1] + radius), (pt[0] - radius) : (pt[0] + radius)
         ]
         sample_avg_bgr = get_avg_color(sample)
