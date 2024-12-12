@@ -1,9 +1,8 @@
-"""Module for board detection and visualization."""
+"""Class Board for board detection and visualization."""
 
 import math
-from dataclasses import dataclass
 import traceback
-from typing import ClassVar, Dict, List, Optional, Self, Tuple
+from typing import ClassVar, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -13,6 +12,7 @@ from src.common.exceptions import (
     InsufficientDataError,
     NoStartTileError,
 )
+from src.common.dataclasses import BoardConfig
 from src.common.utilities import (
     HALF_PI,
     QUARTER_PI,
@@ -27,14 +27,24 @@ from .contours_recognition import ContourProcessor
 
 
 class Board:
+    """Class for board detection and visualization.
 
+    Raises:
+        BoardDetectionError: General error for board detection
+        NoStartTileError: Error occured while trying to process or find start tile
+        InsufficientDataError: Error occured while trying to process board points
 
+    Returns:
+        _type_: Board: Board object with detected board and tiles
+    """
 
     contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
     frame: ClassVar[np.ndarray] = np.array([])
     _instance: ClassVar[Optional["Board"]] = None
 
     def __init__(self) -> None:
+        """Initialize Board object. Not intended to be called directly.
+        Use `detect_board` class method instead."""
         self.tiles: List[BoardTile] = []
         self.points: List[List[Optional[List[int]]]] = [
             [None for _ in range(9)] for _ in range(9)
@@ -43,9 +53,18 @@ class Board:
 
     @classmethod
     def detect_board(cls, image: np.ndarray) -> "Board":
+        """Main entry point for board detection.
 
+        Args:
+            image (np.ndarray): Image of the board, usually from camera.
 
+        Returns:
+            Board: Board object with detected board and tiles.
 
+        Raises:
+            BoardDetectionError: General board detection error
+            InsufficientDataError: Not enough data to process the board
+        """
         try:
             # Create instance if it doesn't exist
             if cls._instance is None:
@@ -75,43 +94,73 @@ class Board:
             ) from e
 
     def _reset_state(self) -> None:
+        """Reset the board state for new detection."""
         self.tiles = []
         self.points = [[None for _ in range(9)] for _ in range(9)]
         self.vertexes = [None] * 4
 
     @classmethod
-    def get_frame_copy(cls):
+    def get_frame_copy(cls) -> np.ndarray:
+        """Return a copy of the class frame.
+
+        Returns:
+            np.ndarray:
+                Copy of the class frame.
+        """
         return cls.frame.copy()
 
     def _initialize_board(self) -> None:
-        # STEP 0 - choosing a starting tile that has a neighbour in direction0
+        """Initialize the board detection process.
+
+        STEP 0 - choosing a starting tile that has a neighbour in direction0
+        STEP 1 - finding indexes of start_tile by recursive function of BoardTile
+        STEP 2 - indexing all tiles by second recursive function
+        STEP 3 - assigning Board coordinates using indexes
+        STEP 5 - interpolating all points on board
+        STEP 6 - mirroring self.points for future use
+        STEP 7 - drawing board
+        """
         start_tile = self._find_start_tile()
 
-        # STEP 1 - finding indexes of start_tile by recursive function of BoardTile
         self._process_start_tile(start_tile)
 
-        # STEP 2 - indexing all tiles by second recursive function
-        # STEP 3 - assigning Board coordinates using indexes
         self._process_board_points(start_tile)
         self._draw_border_points()
 
-        # STEP 5 - interpolating all points on board
-        self._interpolate_borders()  # first I need to know all border points
-        self._interpolate_inner_points()  # then I interpolate all inner points
+        self._interpolate_borders()  # first all border points
+        self._interpolate_inner_points()  # then all inner points
 
-        # STEP 6 - mirroring self.points for future use
         self.points = self._get_mirrored_2d_matrix_y_axis(self.points)
 
-        # STEP 7 - drawing board
         self._draw_board()
 
     def _find_start_tile(self) -> BoardTile:
+        """Find the starting tile for the board to interpolate whole board.
+
+        Raises:
+            NoStartTileError: if start tile is not found.
+
+        Returns:
+            BoardTile:
+                Starting tile for the board.
+        """
         start_tile = next((tile for tile in self.tiles if tile.neighbors_count == 4), 4)
         if start_tile is None:
             raise NoStartTileError("Couldn't find starting tile")
         return start_tile
 
     def _process_start_tile(self, start_tile: BoardTile) -> None:
+        """Process the starting tile for the board detection.
+        Set index of the start tile and draw coordinates on the tile.
+
+        Args:
+            start_tile (BoardTile):
+                Starting tile for the board. Found by `_find_start_tile`.
+
+        Raises:
+            InsufficientDataError: Not enough data to process the board.
+            BoardDetectionError: General error for board detection.
+        """
         try:
             self._set_index_of_start_tile(start_tile)
             self._draw_tile_coordinates(start_tile)
@@ -124,6 +173,12 @@ class Board:
 
     @classmethod
     def _draw_tile_coordinates(cls, tile: BoardTile) -> None:
+        """Draw coordinates on the given tile.
+
+        Args:
+            tile (BoardTile):
+                Tile to draw coordinates on.
+        """
         cv2.putText(
             cls.frame,
             f"{tile.position[0]},{tile.position[1]}",
@@ -136,6 +191,12 @@ class Board:
         )
 
     def _process_board_points(self, start_tile: BoardTile) -> None:
+        """Process the board points for the board detection.
+
+        Args:
+            start_tile (BoardTile):
+                Starting tile for the board. Found by `_find_start_tile`.
+        """
         self._set_all_tiles_indexes(start_tile)
 
         dir_0 = start_tile.get_dir_0_radians()
@@ -143,6 +204,7 @@ class Board:
         self._calculate_vertexes()
 
     def _draw_board(self) -> None:
+        """Draw the board on the frame. Inner lines."""
         for i in range(0, 9):
             for j in range(0, 9):
                 if i != 8:
@@ -171,6 +233,7 @@ class Board:
                         )
 
     def _draw_border_points(self) -> None:
+        """Draw outer points of the board."""
         cv2.circle(Board.frame, self.vertexes[0], 3, (0, 255, 0), -1)
         cv2.circle(Board.frame, self.vertexes[1], 3, (0, 255, 0), -1)
         cv2.circle(Board.frame, self.vertexes[2], 3, (0, 255, 0), -1)
@@ -178,6 +241,16 @@ class Board:
 
     @classmethod
     def _calculate_directions(cls, start_tile: BoardTile) -> Dict[str, float]:
+        """Calculate directions for the board detection to index tiles.
+
+        Args:
+            start_tile (BoardTile):
+                Starting tile for the board.
+
+        Returns:
+            Dict[str, float]:
+                Dictionary of directions for the board detection.
+        """
         base_direction = start_tile.get_dir_0_radians()
         return {
             "dir_0": base_direction,
@@ -192,7 +265,16 @@ class Board:
 
     @classmethod
     def _set_index_of_start_tile(cls, start_tile: BoardTile) -> None:
-        # Calculate base direction and derived directions
+        """Set index of the starting tile for the board detection.
+
+        Args:
+            start_tile (BoardTile):
+                Starting tile for the board.
+
+        Raises:
+            InsufficientDataError: Not enough data to process the board on `X` axis.
+            InsufficientDataError: Not enough data to process the board on `Y` axis.
+        """
         directions = cls._calculate_directions(start_tile)
 
         # Calculate X index
@@ -243,6 +325,24 @@ class Board:
     def _get_steps_in_direction(
         tile: BoardTile, start_rad: float, end_rad: float, dir_rad: float, dir_idx: int
     ) -> int:
+        """Get number of steps (tiles) in the given direction.
+
+        Args:
+            tile (BoardTile):
+                Tile from which to start.
+            start_rad (float):
+                Start radians for the direction.
+            end_rad (float):
+                End radians for the direction.
+            dir_rad (float):
+                Direction radians.
+            dir_idx (int):
+                Direction index.
+
+        Returns:
+            int:
+                Number of steps in the given direction.
+        """
         neighbor = tile.get_neighbor_in_rad_range(start_rad, end_rad)
         if neighbor is None:
             return 0
@@ -250,10 +350,22 @@ class Board:
 
     @classmethod
     def _set_all_tiles_indexes(cls, start_tile: BoardTile):
+        """Set indexes for all tiles on the board.
+
+        Args:
+            start_tile (BoardTile):
+                Starting tile for the board to calculate indexes.
+        """
         dir_0 = start_tile.get_dir_0_radians()
         start_tile.index_neighbors(dir_0)
 
     def _set_all_known_board_points(self, dir_0: float) -> None:
+        """Set known board points for the board detection.
+
+        Args:
+            dir_0 (float):
+                Start direction for the board detection.
+        """
         directions = self._calculate_orthogonal_directions(dir_0)
         vertex_positions = self._get_vertex_positions()
 
@@ -270,9 +382,27 @@ class Board:
                     self.points[x][y] = tile.get_vertex_in_rad_range(start_dir, end_dir)
 
     def _is_valid_tile_position(self, tile: BoardTile) -> bool:
+        """Check if the tile position is valid.
+
+        Args:
+            tile (BoardTile):
+                Tile to check.
+
+        Returns:
+            bool:
+                True if the tile position is valid, False otherwise.
+        """
         return None not in tile.position
 
     def _calculate_orthogonal_directions(self, dir_0: float) -> List[float]:
+        """Calculate orthogonal directions for the board detection.
+
+        Args:
+            dir_0 (float): Base direction for the board detection.
+
+        Returns:
+            List[float]: List of orthogonal directions.
+        """
         directions = [dir_0]
         current_dir = dir_0
 
@@ -283,6 +413,12 @@ class Board:
         return directions
 
     def _get_vertex_positions(self) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """Get vertex positions to set known board points.
+
+        Returns:
+            List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+                List of vertex positions.
+        """
         return [
             ((0, 0), (3, 0)),  # Top-left vertex
             ((1, 0), (0, 1)),  # Top-right vertex
@@ -292,6 +428,16 @@ class Board:
 
     @classmethod
     def _extrapolate_last_point(cls, points: List[List[int]]) -> List[int]:
+        """Extrapolate the last point in the given list of points.
+
+        Args:
+            points (List[List[int]]):
+                List of points to extrapolate.
+
+        Returns:
+            List[int]:
+                Extrapolated point.
+        """
         min_idx, max_idx = cls._find_point_range(points)
 
         vector = cls._calculate_extrapolation_vector(points, min_idx, max_idx)
@@ -303,6 +449,16 @@ class Board:
     def _calculate_extrapolation_vector(
         cls, points: List[List[int]], min_idx: int, max_idx: int
     ) -> List[int]:
+        """Calculate extrapolation vector for the given points.
+
+        Args:
+            points (List[List[int]]): Points to calculate the vector.
+            min_idx (int): Minimal index to calculate the vector.
+            max_idx (int): Maximal index to calculate the vector.
+
+        Returns:
+            List[int]: Extrapolation vector.
+        """
         vector_init_len = max_idx - min_idx
         vector_final_len = 8 - min_idx
 
@@ -313,6 +469,14 @@ class Board:
 
     @staticmethod
     def _find_point_range(points: List[List[int]]) -> Tuple[int, int]:
+        """Find the range of points in the given list.
+
+        Args:
+            points (List[List[int]]): List of points to find the range.
+
+        Returns:
+            Tuple[int, int]: Minimal and maximal index of the points.
+        """
         min_idx, max_idx = 8, 0
         for i, point in enumerate(points):
             if point is not None:
@@ -321,10 +485,12 @@ class Board:
         return min_idx, max_idx
 
     def _calculate_vertexes(self) -> None:
+        """Set vertexes for the board detection. Calculate missing vertexes."""
         self._set_known_vertexes()
         self._calculate_missing_vertexes()
 
     def _set_known_vertexes(self) -> None:
+        """Set known vertexes for the board detection."""
         vertex_positions = [((0, 0), 0), ((8, 0), 1), ((8, 8), 2), ((0, 8), 3)]
 
         for (x, y), idx in vertex_positions:
@@ -332,6 +498,7 @@ class Board:
                 self.vertexes[idx] = self.points[x][y]
 
     def _calculate_missing_vertexes(self) -> None:
+        """Calculate missing vertexes for the board detection."""
         vertex_data = [
             # vertex_idx, points_pair1, points_pair2, target_position
             (0, self.points[0], 0, (0, 0)),  # top-left vertex
@@ -363,6 +530,7 @@ class Board:
             self.points[target_pos[0]][target_pos[1]] = vertex
 
     def _interpolate_borders(self) -> None:
+        """Interpolate border points of the board."""
         # Extract border points
         border_01 = [v[0] for v in self.points]  # Left border
         border_12 = self.points[8]  # Bottom border
@@ -382,6 +550,16 @@ class Board:
     def _interpolate_border(
         self, border_points: List[List[int]], fixed_idx: int, is_vertical: bool
     ) -> None:
+        """Interpolate border points of the board.
+
+        Args:
+            border_points (List[List[int]]):
+                List of border points to interpolate.
+            fixed_idx (int):
+                Fixed index for the border points.
+            is_vertical (bool):
+                True if the border is vertical, False otherwise.
+        """
         for i in range(1, len(border_points) - 1):
             if border_points[i] is not None:
                 continue
@@ -417,6 +595,18 @@ class Board:
     def _get_averaging_points(
         self, points: List[List[int]], current_idx: int
     ) -> List[List[int]]:
+        """Get averaging points for the given border points.
+
+        Args:
+            points (List[List[int]]):
+                List of border points to get averaging points.
+            current_idx (int):
+                Current index of the border points.
+
+        Returns:
+            List[List[int]]:
+                List of averaging points
+        """
         averaging_points = []
         averaging_points.append(points[current_idx - 1])
 
@@ -428,12 +618,21 @@ class Board:
         return averaging_points
 
     def _interpolate_inner_points(self) -> None:
+        """Interpolate inner points of the board."""
         for i in range(1, len(self.points) - 1):
             for j in range(1, len(self.points[i]) - 1):
                 if self.points[i][j] is None:
                     self._interpolate_point(i, j)
 
     def _interpolate_point(self, i: int, j: int) -> None:
+        """Interpolate the given point on the board.
+
+        Args:
+            i (int):
+                Column index of the point.
+            j (int):
+                Row index of the point.
+        """
         # Get points in same row
         row_points = self._get_next_valid_points(
             self.points[i], j, self.points[i][j - 1]
@@ -451,6 +650,16 @@ class Board:
     def _get_next_valid_points(
         self, points: List[List[int]], current_idx: int, prev_point: List[int]
     ) -> List[List[int]]:
+        """Get next valid points for the given points.
+
+        Args:
+            points (List[List[int]]): List of points to get next valid points.
+            current_idx (int): Current index of the points.
+            prev_point (List[int]): Previous point.
+
+        Returns:
+            List[List[int]]: List of next valid points.
+        """
         result = [prev_point]
 
         for k in range(current_idx + 1, len(points)):
@@ -461,6 +670,14 @@ class Board:
         return result
 
     def is_00_white(self, config: Optional[BoardConfig] = None) -> bool:
+        """Check if the tile 00 is white.
+
+        Args:
+            config (Optional[BoardConfig], optional): Configuration dataclass. Refer to the dataclasses file. Defaults to None.
+
+        Returns:
+            bool: True if the tile 00 is white, False otherwise.
+        """
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
         )
