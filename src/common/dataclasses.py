@@ -1,7 +1,7 @@
 """This module contains dataclasses for the project."""
 
 from dataclasses import dataclass
-from typing import Tuple, List
+from typing import Tuple
 
 
 @dataclass
