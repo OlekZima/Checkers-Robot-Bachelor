@@ -55,11 +55,30 @@ class Board:
 
         self._initialize_board()
 
+    @classmethod
+    def detect_board(cls, image: np.ndarray) -> Self:
+        try:
+            contours = cls.contour_processor.get_contours(image)
+            BoardTile.create_tiles(image, contours)
+            return Board(image, BoardTile.tiles)
+        except BoardDetectionError as bde:
+            raise bde
+        except InsufficientDataError as ide:
+            raise ide
+        except Exception as e:
+            raise BoardDetectionError(
+                "Unknown Error occured while trying to detect board"
+            ) from e
+
+    @classmethod
+    def get_frame_copy(cls):
+        return cls.frame.copy()
+
     def _initialize_board(self) -> None:
         # STEP 0 - choosing a starting tile that has a neighbour in direction0
         start_tile = self._find_start_tile()
 
-        # STEP 1 - finding indexes of start_tile by recursive function of BoardTile (flood_fill like)
+        # STEP 1 - finding indexes of start_tile by recursive function of BoardTile
         self._process_start_tile(start_tile)
 
         # STEP 2 - indexing all tiles by second recursive function
@@ -68,11 +87,11 @@ class Board:
         self._draw_border_points()
 
         # STEP 5 - interpolating all points on board
-        self.interpolate_borders()  # first I need to know all border points
-        self.interpolate_inner_points()  # then I interpolate all inner points
+        self._interpolate_borders()  # first I need to know all border points
+        self._interpolate_inner_points()  # then I interpolate all inner points
 
         # STEP 6 - mirroring self.points for future use
-        self.points = self.get_mirrored_2d_matrix_y_axis(self.points)
+        self.points = self._get_mirrored_2d_matrix_y_axis(self.points)
 
         # STEP 7 - drawing board
         self._draw_board()
@@ -85,7 +104,7 @@ class Board:
 
     def _process_start_tile(self, start_tile: BoardTile) -> None:
         try:
-            self.set_index_of_start_tile(start_tile)
+            self._set_index_of_start_tile(start_tile)
             self._draw_tile_coordinates(start_tile)
         except InsufficientDataError as ide:
             raise ide
@@ -108,11 +127,11 @@ class Board:
         )
 
     def _process_board_points(self, start_tile: BoardTile) -> None:
-        self.set_all_tiles_indexes(start_tile)
+        self._set_all_tiles_indexes(start_tile)
 
         dir_0 = start_tile.get_dir_0_radians()
-        self.set_all_known_board_points(dir_0)
-        self.calculate_vertexes()
+        self._set_all_known_board_points(dir_0)
+        self._calculate_vertexes()
 
     def _draw_board(self) -> None:
         for i in range(0, 9):
@@ -149,21 +168,6 @@ class Board:
         cv2.circle(Board.frame, self.vertexes[3], 3, (0, 255, 0), -1)
 
     @classmethod
-    def detect_board(cls, image: np.ndarray) -> Self:
-        try:
-            contours = cls.contour_processor.get_contours(image)
-            BoardTile.create_tiles(image, contours)
-            return Board(image, BoardTile.tiles)
-        except BoardDetectionError as bde:
-            raise bde
-        except InsufficientDataError as ide:
-            raise ide
-        except Exception as e:
-            raise BoardDetectionError(
-                "Unknown Error occured while trying to detect board"
-            ) from e
-
-    @classmethod
     def _calculate_directions(cls, start_tile: BoardTile) -> Dict[str, float]:
         base_direction = start_tile.get_dir_0_radians()
         return {
@@ -178,7 +182,7 @@ class Board:
         }
 
     @classmethod
-    def set_index_of_start_tile(cls, start_tile: BoardTile) -> None:
+    def _set_index_of_start_tile(cls, start_tile: BoardTile) -> None:
         # Calculate base direction and derived directions
         directions = cls._calculate_directions(start_tile)
 
@@ -236,11 +240,11 @@ class Board:
         return tile.get_num_of_steps_in_dir_rad(dir_rad, dir_idx)
 
     @classmethod
-    def set_all_tiles_indexes(cls, start_tile: BoardTile):
+    def _set_all_tiles_indexes(cls, start_tile: BoardTile):
         dir_0 = start_tile.get_dir_0_radians()
         start_tile.index_neighbors(dir_0)
 
-    def set_all_known_board_points(self, dir_0: float) -> None:
+    def _set_all_known_board_points(self, dir_0: float) -> None:
         directions = self._calculate_orthogonal_directions(dir_0)
         vertex_positions = self._get_vertex_positions()
 
@@ -278,7 +282,7 @@ class Board:
         ]
 
     @classmethod
-    def extrapolate_last_point(cls, points: List[List[int]]) -> List[int]:
+    def _extrapolate_last_point(cls, points: List[List[int]]) -> List[int]:
         min_idx, max_idx = cls._find_point_range(points)
 
         vector = cls._calculate_extrapolation_vector(points, min_idx, max_idx)
@@ -307,7 +311,7 @@ class Board:
                 max_idx = max(max_idx, i)
         return min_idx, max_idx
 
-    def calculate_vertexes(self) -> None:
+    def _calculate_vertexes(self) -> None:
         self._set_known_vertexes()
         self._calculate_missing_vertexes()
 
@@ -341,116 +345,120 @@ class Board:
                 points2 = points2[::-1]
 
             # Calculate vertex position
-            pred1 = self.extrapolate_last_point(points1)
-            pred2 = self.extrapolate_last_point(points2)
+            pred1 = self._extrapolate_last_point(points1)
+            pred2 = self._extrapolate_last_point(points2)
             vertex = get_avg_pos([pred1, pred2])
 
             # Set vertex position
             self.vertexes[vertex_idx] = vertex
             self.points[target_pos[0]][target_pos[1]] = vertex
 
-    def interpolate_borders(self) -> None:
-        P_01 = [v[0] for v in self.points]
-        P_12 = self.points[8]
-        P_32 = [v[8] for v in self.points]
-        P_03 = self.points[0]
-        # Border 01
-        for i in range(1, len(P_01) - 1):
-            if P_01[i] is None:
-                pts_to_avg = []
-                for j in range(i + 1, len(P_01)):
-                    pts_to_avg.append(P_01[i - 1])
-                    if P_01[j] is not None:
-                        pts_to_avg.append(P_01[j])
-                        break
+    def _interpolate_borders(self) -> None:
+        # Extract border points
+        border_01 = [v[0] for v in self.points]  # Left border
+        border_12 = self.points[8]  # Bottom border
+        border_32 = [v[8] for v in self.points]  # Right border
+        border_03 = self.points[0]  # Top border
 
-                extrapolation_pts = self.points[i][::-1]
-                extrapolation_val = Board.extrapolate_last_point(
-                    points=extrapolation_pts
+        border_data = [
+            (border_01, 0, True),  # (points, fixed_index, is_vertical)
+            (border_12, 8, False),
+            (border_32, 8, True),
+            (border_03, 0, False),
+        ]
+
+        for border_points, fixed_idx, is_vertical in border_data:
+            self._interpolate_border(border_points, fixed_idx, is_vertical)
+
+    def _interpolate_border(
+        self, border_points: List[List[int]], fixed_idx: int, is_vertical: bool
+    ) -> None:
+        for i in range(1, len(border_points) - 1):
+            if border_points[i] is not None:
+                continue
+
+            # Get points for averaging
+            averaging_points = self._get_averaging_points(border_points, i)
+
+            # Get extrapolation points
+            if is_vertical:
+                extrapolation_points = (
+                    self.points[i][::-1] if fixed_idx == 0 else self.points[i]
                 )
-                pts_to_avg = [get_avg_pos(pts_to_avg), extrapolation_val]
-                self.points[i][0] = get_avg_pos(pts_to_avg)
-                P_01[i] = self.points[i][0]
-        # Border 12
-        for i in range(1, len(P_12) - 1):
-            if P_12[i] is None:
-                pts_to_avg = []
-                for j in range(i + 1, len(P_12)):
-                    pts_to_avg.append(P_12[i - 1])
-                    if P_12[j] is not None:
-                        pts_to_avg.append(P_12[j])
-                        break
-
-                extrapolation_pts = [l[i] for l in self.points]
-                extrapolation_val = Board.extrapolate_last_point(
-                    points=extrapolation_pts
+            else:
+                extrapolation_points = (
+                    [row[i] for row in self.points][::-1]
+                    if fixed_idx == 0
+                    else [row[i] for row in self.points]
                 )
-                pts_to_avg = [get_avg_pos(pts_to_avg), extrapolation_val]
-                self.points[8][i] = get_avg_pos(pts_to_avg)
-                P_12[i] = self.points[8][i]
-        # Border 23
-        for i in range(1, len(P_32) - 1):
-            if P_32[i] is None:
-                pts_to_avg = []
-                for j in range(i + 1, len(P_32)):
-                    pts_to_avg.append(P_32[i - 1])
-                    if P_32[j] is not None:
-                        pts_to_avg.append(P_32[j])
-                        break
 
-                extrapolation_pts = self.points[i]
-                extrapolation_val = Board.extrapolate_last_point(
-                    points=extrapolation_pts
-                )
-                pts_to_avg = [get_avg_pos(pts_to_avg), extrapolation_val]
-                self.points[i][8] = get_avg_pos(pts_to_avg)
-                P_32[i] = self.points[i][8]
-        # Border 30
-        for i in range(1, len(P_03) - 1):
-            if P_03[i] is None:
-                pts_to_avg = []
-                for j in range(i + 1, len(P_03)):
-                    pts_to_avg.append(P_03[i - 1])
-                    if P_03[j] is not None:
-                        pts_to_avg.append(P_03[j])
-                        break
+            # Calculate final position
+            extrapolation_value = self._extrapolate_last_point(extrapolation_points)
+            final_position = get_avg_pos(
+                [get_avg_pos(averaging_points), extrapolation_value]
+            )
 
-                extrapolation_pts = [l[i] for l in self.points][::-1]
-                extrapolation_val = Board.extrapolate_last_point(
-                    points=extrapolation_pts
-                )
-                pts_to_avg = [get_avg_pos(pts_to_avg), extrapolation_val]
-                self.points[0][i] = get_avg_pos(pts_to_avg)
-                P_03[i] = self.points[0][i]
+            # Update points
+            if is_vertical:
+                self.points[i][fixed_idx] = final_position
+            else:
+                self.points[fixed_idx][i] = final_position
+            border_points[i] = final_position
 
-    def interpolate_inner_points(self) -> None:
+    def _get_averaging_points(
+        self, points: List[List[int]], current_idx: int
+    ) -> List[List[int]]:
+        averaging_points = []
+        averaging_points.append(points[current_idx - 1])
+
+        for j in range(current_idx + 1, len(points)):
+            if points[j] is not None:
+                averaging_points.append(points[j])
+                break
+
+        return averaging_points
+
+    def _interpolate_inner_points(self) -> None:
         for i in range(1, len(self.points) - 1):
             for j in range(1, len(self.points[i]) - 1):
                 if self.points[i][j] is None:
-                    pts_to_avg_same_i = []
-                    pts_to_avg_same_j = []
-                    for k in range(j + 1, len(self.points[i])):
-                        pts_to_avg_same_i.append(self.points[i][j - 1])
-                        if self.points[i][k] is not None:
-                            pts_to_avg_same_i.append(self.points[i][k])
-                            break
-                    for k in range(i + 1, len(self.points)):
-                        pts_to_avg_same_j.append(self.points[i - 1][j])
-                        if self.points[k][j] is not None:
-                            pts_to_avg_same_j.append(self.points[k][j])
-                            break
-                    self.points[i][j] = get_avg_pos(
-                        [get_avg_pos(pts_to_avg_same_i), get_avg_pos(pts_to_avg_same_j)]
-                    )
+                    self._interpolate_point(i, j)
+
+    def _interpolate_point(self, i: int, j: int) -> None:
+        # Get points in same row
+        row_points = self._get_next_valid_points(
+            self.points[i], j, self.points[i][j - 1]
+        )
+
+        # Get points in same column
+        column = [row[j] for row in self.points]
+        col_points = self._get_next_valid_points(column, i, self.points[i - 1][j])
+
+        # Calculate final position
+        self.points[i][j] = get_avg_pos(
+            [get_avg_pos(row_points), get_avg_pos(col_points)]
+        )
+
+    def _get_next_valid_points(
+        self, points: List[List[int]], current_idx: int, prev_point: List[int]
+    ) -> List[List[int]]:
+        result = [prev_point]
+
+        for k in range(current_idx + 1, len(points)):
+            if points[k] is not None:
+                result.append(points[k])
+                break
+
+        return result
 
     def is_00_white(
         self,
-        radius=4,
-        dark_field_bgr=[0, 0, 0],
-        light_field_bgr=[255, 255, 255],
-        red_bgr=[0, 0, 255],
-        green_bgr=[0, 255, 0],
-        color_dist_thresh=60,
+        radius: int = 4,
+        dark_field_bgr: List[int] = [0, 0, 0],
+        light_field_bgr: List[int] = [255, 255, 255],
+        orange_bgr: List[int] = [0, 0, 255],
+        blue_bgr: List[int] = [0, 255, 0],
+        color_dist_thresh: int = 60,
     ) -> bool:
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
@@ -460,36 +468,20 @@ class Board:
             (pt[1] - radius) : (pt[1] + radius), (pt[0] - radius) : (pt[0] + radius)
         ]
         sample_avg_bgr = get_avg_color(sample)
-        if (
+        return not (
             distance_from_color(sample_avg_bgr, dark_field_bgr)
             < distance_from_color(sample_avg_bgr, light_field_bgr)
-            or distance_from_color(sample_avg_bgr, red_bgr) <= color_dist_thresh
-            or distance_from_color(sample_avg_bgr, green_bgr) <= color_dist_thresh
-        ):
-            return False
-        else:
-            return True
+            or distance_from_color(sample_avg_bgr, orange_bgr) <= color_dist_thresh
+            or distance_from_color(sample_avg_bgr, blue_bgr) <= color_dist_thresh
+        )
 
     @staticmethod
-    def get_mirrored_2d_matrix_y_axis(matrix):
+    def _get_mirrored_2d_matrix_y_axis(matrix):
         new_matrix = []
         col_num = len(matrix)
         for c in range(0, col_num):
             new_matrix.append(matrix[col_num - 1 - c])
         return new_matrix
-
-    @staticmethod
-    def get_triangle_area(p1=[0, 0], p2=[0, 0], p3=[0, 0]):
-        # Area = (1/2) |x1(y2 − y3) + x2(y3 − y1) + x3(y1 − y2)|
-        area = abs(
-            p1[0] * (p2[1] - p3[1]) + p2[0] * (p3[1] - p1[1]) + p3[0] * (p1[1] - p2[1])
-        )
-        area = float(area) / 2.0
-        return area
-
-    @classmethod
-    def get_frame_copy(cls):
-        return cls.frame.copy()
 
 
 if __name__ == "__main__":
