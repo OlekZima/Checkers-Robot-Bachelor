@@ -32,35 +32,52 @@ class Board:
 
     contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
     frame: ClassVar[np.ndarray] = np.array([])
+    _instance: ClassVar[Optional["Board"]] = None
 
-    def __init__(
-        self, image: np.ndarray, board_tiles: Optional[List[BoardTile]] = None
-    ) -> None:
-        Board.frame: np.ndarray = image
-
-        self.tiles = board_tiles if board_tiles is not None else []
-
-        # shape == (9,9,2)
-        self.points = [[None for _ in range(9)] for _ in range(9)]
-
-        self.vertexes = [None, None, None, None]
-
-        self._initialize_board()
+    def __init__(self) -> None:
+        self.tiles: List[BoardTile] = []
+        self.points: List[List[Optional[List[int]]]] = [
+            [None for _ in range(9)] for _ in range(9)
+        ]
+        self.vertexes: List[Optional[List[int]]] = [None] * 4
 
     @classmethod
-    def detect_board(cls, image: np.ndarray) -> Self:
+    def detect_board(cls, image: np.ndarray) -> "Board":
+
+
+
         try:
+            # Create instance if it doesn't exist
+            if cls._instance is None:
+                cls._instance = cls()
+
+            # Update frame
+            cls.frame = image
+
+            # Reset board state
+            cls._instance._reset_state()  # pylint: disable=protected-access
+
+            # Process board
             contours = cls.contour_processor.get_contours(image)
             BoardTile.create_tiles(image, contours)
-            return Board(image, BoardTile.tiles)
-        except BoardDetectionError as bde:
-            raise bde
-        except InsufficientDataError as ide:
-            raise ide
+            cls._instance.tiles = BoardTile.tiles
+
+            # Initialize board
+            cls._instance._initialize_board()  # pylint: disable=protected-access
+
+            return cls._instance
+
+        except (BoardDetectionError, InsufficientDataError) as e:
+            raise e
         except Exception as e:
             raise BoardDetectionError(
-                "Unknown Error occured while trying to detect board"
+                "Unknown Error occurred while trying to detect board"
             ) from e
+
+    def _reset_state(self) -> None:
+        self.tiles = []
+        self.points = [[None for _ in range(9)] for _ in range(9)]
+        self.vertexes = [None] * 4
 
     @classmethod
     def get_frame_copy(cls):
