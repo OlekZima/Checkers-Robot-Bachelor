@@ -350,16 +350,15 @@ class Board:
             self.points[target_pos[0]][target_pos[1]] = vertex
 
     def interpolate_borders(self) -> None:
-
         P_01 = [v[0] for v in self.points]
         P_12 = self.points[8]
         P_32 = [v[8] for v in self.points]
         P_03 = self.points[0]
         # Border 01
-        for i in range(1, len(P_01) - 1, 1):
+        for i in range(1, len(P_01) - 1):
             if P_01[i] is None:
                 pts_to_avg = []
-                for j in range(i + 1, len(P_01), 1):
+                for j in range(i + 1, len(P_01)):
                     pts_to_avg.append(P_01[i - 1])
                     if P_01[j] is not None:
                         pts_to_avg.append(P_01[j])
@@ -373,10 +372,10 @@ class Board:
                 self.points[i][0] = get_avg_pos(pts_to_avg)
                 P_01[i] = self.points[i][0]
         # Border 12
-        for i in range(1, len(P_12) - 1, 1):
+        for i in range(1, len(P_12) - 1):
             if P_12[i] is None:
                 pts_to_avg = []
-                for j in range(i + 1, len(P_12), 1):
+                for j in range(i + 1, len(P_12)):
                     pts_to_avg.append(P_12[i - 1])
                     if P_12[j] is not None:
                         pts_to_avg.append(P_12[j])
@@ -390,10 +389,10 @@ class Board:
                 self.points[8][i] = get_avg_pos(pts_to_avg)
                 P_12[i] = self.points[8][i]
         # Border 23
-        for i in range(1, len(P_32) - 1, 1):
+        for i in range(1, len(P_32) - 1):
             if P_32[i] is None:
                 pts_to_avg = []
-                for j in range(i + 1, len(P_32), 1):
+                for j in range(i + 1, len(P_32)):
                     pts_to_avg.append(P_32[i - 1])
                     if P_32[j] is not None:
                         pts_to_avg.append(P_32[j])
@@ -407,10 +406,10 @@ class Board:
                 self.points[i][8] = get_avg_pos(pts_to_avg)
                 P_32[i] = self.points[i][8]
         # Border 30
-        for i in range(1, len(P_03) - 1, 1):
+        for i in range(1, len(P_03) - 1):
             if P_03[i] is None:
                 pts_to_avg = []
-                for j in range(i + 1, len(P_03), 1):
+                for j in range(i + 1, len(P_03)):
                     pts_to_avg.append(P_03[i - 1])
                     if P_03[j] is not None:
                         pts_to_avg.append(P_03[j])
@@ -425,17 +424,17 @@ class Board:
                 P_03[i] = self.points[0][i]
 
     def interpolate_inner_points(self) -> None:
-        for i in range(1, len(self.points) - 1, 1):
-            for j in range(1, len(self.points[i]) - 1, 1):
+        for i in range(1, len(self.points) - 1):
+            for j in range(1, len(self.points[i]) - 1):
                 if self.points[i][j] is None:
                     pts_to_avg_same_i = []
                     pts_to_avg_same_j = []
-                    for k in range(j + 1, len(self.points[i]), 1):
+                    for k in range(j + 1, len(self.points[i])):
                         pts_to_avg_same_i.append(self.points[i][j - 1])
                         if self.points[i][k] is not None:
                             pts_to_avg_same_i.append(self.points[i][k])
                             break
-                    for k in range(i + 1, len(self.points), 1):
+                    for k in range(i + 1, len(self.points)):
                         pts_to_avg_same_j.append(self.points[i - 1][j])
                         if self.points[k][j] is not None:
                             pts_to_avg_same_j.append(self.points[k][j])
@@ -443,25 +442,6 @@ class Board:
                     self.points[i][j] = get_avg_pos(
                         [get_avg_pos(pts_to_avg_same_i), get_avg_pos(pts_to_avg_same_j)]
                     )
-
-    def is_point_in_field(self, x, y, pt=[0, 0]) -> bool:
-        # the idea is to check if field area == area of 4 triangles with pt vertex
-        v1 = self.points[x][y]
-        v2 = self.points[x + 1][y]
-        v3 = self.points[x + 1][y + 1]
-        v4 = self.points[x][y + 1]
-        field_area = self.get_triangle_area(v1, v2, v3) + self.get_triangle_area(
-            v3, v4, v1
-        )
-        calculated_area = (
-            self.get_triangle_area(v1, pt, v2)
-            + self.get_triangle_area(v2, pt, v3)
-            + self.get_triangle_area(v3, pt, v4)
-            + self.get_triangle_area(v4, pt, v1)
-        )
-        if field_area == calculated_area:
-            return True
-        return False
 
     def is_00_white(
         self,
@@ -494,7 +474,7 @@ class Board:
     def get_mirrored_2d_matrix_y_axis(matrix):
         new_matrix = []
         col_num = len(matrix)
-        for c in range(0, col_num, 1):
+        for c in range(0, col_num):
             new_matrix.append(matrix[col_num - 1 - c])
         return new_matrix
 
