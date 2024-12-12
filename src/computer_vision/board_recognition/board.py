@@ -713,7 +713,7 @@ if __name__ == "__main__":
 
         try:
             board = Board.detect_board(img)
-        except Exception as e:
+        except (BoardDetectionError, InsufficientDataError, NoStartTileError):
             print(traceback.format_exc())
 
         print(len(BoardTile.tiles))
