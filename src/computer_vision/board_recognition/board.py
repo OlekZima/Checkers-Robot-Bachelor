@@ -443,28 +443,23 @@ class Board:
 
         return result
 
-    def is_00_white(
-        self,
-        radius: int = 4,
-        dark_field_bgr: List[int] = [0, 0, 0],
-        light_field_bgr: List[int] = [255, 255, 255],
-        orange_bgr: List[int] = [0, 0, 255],
-        blue_bgr: List[int] = [0, 255, 0],
-        color_dist_thresh: int = 60,
-    ) -> bool:
+    def is_00_white(self, config: Optional[BoardConfig] = None) -> bool:
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
         )
 
         sample = Board.frame[
-            (pt[1] - radius) : (pt[1] + radius), (pt[0] - radius) : (pt[0] + radius)
+            (pt[1] - config.radius) : (pt[1] + config.radius),
+            (pt[0] - config.radius) : (pt[0] + config.radius),
         ]
         sample_avg_bgr = get_avg_color(sample)
         return not (
-            distance_from_color(sample_avg_bgr, dark_field_bgr)
-            < distance_from_color(sample_avg_bgr, light_field_bgr)
-            or distance_from_color(sample_avg_bgr, orange_bgr) <= color_dist_thresh
-            or distance_from_color(sample_avg_bgr, blue_bgr) <= color_dist_thresh
+            distance_from_color(sample_avg_bgr, config.dark_field_bgr)
+            < distance_from_color(sample_avg_bgr, config.light_field_bgr)
+            or distance_from_color(sample_avg_bgr, config.orange_bgr)
+            <= config.color_dist_thresh
+            or distance_from_color(sample_avg_bgr, config.blue_bgr)
+            <= config.color_dist_thresh
         )
 
     @staticmethod
