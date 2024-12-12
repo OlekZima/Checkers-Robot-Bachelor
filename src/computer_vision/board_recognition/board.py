@@ -281,83 +281,76 @@ class Board:
         ]
 
     @classmethod
-    def extrapolate_last_point(
-        cls,
-        points=[[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]],
-    ):
-        # This function will take one side of a Board as list of points
-        # Then check what are 2 not None values the most appart from itself
-        # Finally extrapolating the last item on this list accordingly
+    def extrapolate_last_point(cls, points: List[List[int]]) -> List[int]:
+        min_idx, max_idx = cls._find_point_range(points)
 
-        min_idx = 8
-        max_idx = 0
-        for i, p in enumerate(points):
-            if p is not None:
-                if i < min_idx:
-                    min_idx = i
-                if i > max_idx:
-                    max_idx = i
+        vector = cls._calculate_extrapolation_vector(points, min_idx, max_idx)
+        base_point = points[min_idx]
 
+        return [base_point[i] + vector[i] for i in range(2)]
+
+    @classmethod
+    def _calculate_extrapolation_vector(
+        cls, points: List[List[int]], min_idx: int, max_idx: int
+    ) -> List[int]:
         vector_init_len = max_idx - min_idx
         vector_final_len = 8 - min_idx
-        vector = [
-            points[max_idx][0] - points[min_idx][0],
-            points[max_idx][1] - points[min_idx][1],
-        ]
-        vector = [
-            int(float(v) / float(vector_init_len) * vector_final_len) for v in vector
-        ]
-        res = [points[min_idx][0] + vector[0], points[min_idx][1] + vector[1]]
-        return res
+
+        vector = [points[max_idx][i] - points[min_idx][i] for i in range(2)]
+
+        scale_factor = vector_final_len / vector_init_len
+        return [int(v * scale_factor) for v in vector]
+
+    @staticmethod
+    def _find_point_range(points: List[List[int]]) -> Tuple[int, int]:
+        min_idx, max_idx = 8, 0
+        for i, point in enumerate(points):
+            if point is not None:
+                min_idx = min(min_idx, i)
+                max_idx = max(max_idx, i)
+        return min_idx, max_idx
 
     def calculate_vertexes(self) -> None:
-        if self.points[0][0] is not None:
-            self.vertexes[0] = self.points[0][0]
-        if self.points[8][0] is not None:
-            self.vertexes[1] = self.points[8][0]
-        if self.points[8][8] is not None:
-            self.vertexes[2] = self.points[8][8]
-        if self.points[0][8] is not None:
-            self.vertexes[3] = self.points[0][8]
+        self._set_known_vertexes()
+        self._calculate_missing_vertexes()
 
-        if self.vertexes[0] is None:
-            P_01 = [v[0] for v in self.points]
-            P_10 = P_01[::-1]
-            pred1 = Board.extrapolate_last_point(points=P_10)
-            P_03 = self.points[0]
-            P_30 = P_03[::-1]
-            pred2 = Board.extrapolate_last_point(points=P_30)
-            res = get_avg_pos([pred1, pred2])
-            self.vertexes[0] = res
-            self.points[0][0] = res
-        if self.vertexes[1] is None:
-            P_01 = [v[0] for v in self.points]
-            pred1 = Board.extrapolate_last_point(points=P_01)
-            P_12 = self.points[8]
-            P_21 = P_12[::-1]
-            pred2 = Board.extrapolate_last_point(points=P_21)
-            res = get_avg_pos([pred1, pred2])
-            self.vertexes[1] = res
-            self.points[8][0] = res
+    def _set_known_vertexes(self) -> None:
+        vertex_positions = [((0, 0), 0), ((8, 0), 1), ((8, 8), 2), ((0, 8), 3)]
 
-        if self.vertexes[2] is None:
-            P_12 = self.points[8]
-            pred1 = Board.extrapolate_last_point(points=P_12)
-            P_32 = [v[8] for v in self.points]
-            pred2 = Board.extrapolate_last_point(points=P_32)
-            res = get_avg_pos([pred1, pred2])
-            self.vertexes[2] = res
-            self.points[8][8] = res
+        for (x, y), idx in vertex_positions:
+            if self.points[x][y] is not None:
+                self.vertexes[idx] = self.points[x][y]
 
-        if self.vertexes[3] is None:
-            P_32 = [v[8] for v in self.points]
-            P_23 = P_32[::-1]
-            pred1 = Board.extrapolate_last_point(points=P_23)
-            P_03 = self.points[0]
-            pred2 = Board.extrapolate_last_point(points=P_03)
-            res = get_avg_pos([pred1, pred2])
-            self.vertexes[3] = res
-            self.points[0][8] = res
+    def _calculate_missing_vertexes(self) -> None:
+        vertex_data = [
+            # vertex_idx, points_pair1, points_pair2, target_position
+            (0, self.points[0], 0, (0, 0)),  # top-left vertex
+            (1, self.points[8], 0, (8, 0)),  # top-right vertex
+            (2, self.points[8], 8, (8, 8)),  # bottom-right vertex
+            (3, self.points[0], 8, (0, 8)),  # bottom-left vertex
+        ]
+
+        for vertex_idx, row_points, col_idx, target_pos in vertex_data:
+            if self.vertexes[vertex_idx] is not None:
+                continue
+
+            # Get points from rows and columns
+            points1 = [v[col_idx] for v in self.points]
+            points2 = row_points
+
+            if vertex_idx in [0, 3]:
+                points1 = points1[::-1]
+            if vertex_idx in [0, 1]:
+                points2 = points2[::-1]
+
+            # Calculate vertex position
+            pred1 = self.extrapolate_last_point(points1)
+            pred2 = self.extrapolate_last_point(points2)
+            vertex = get_avg_pos([pred1, pred2])
+
+            # Set vertex position
+            self.vertexes[vertex_idx] = vertex
+            self.points[target_pos[0]][target_pos[1]] = vertex
 
     def interpolate_borders(self) -> None:
 
