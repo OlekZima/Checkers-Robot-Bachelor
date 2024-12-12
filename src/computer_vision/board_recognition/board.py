@@ -26,18 +26,10 @@ from .board_tile import BoardTile
 from .contours_recognition import ContourProcessor
 
 
-@dataclass
-class BoardConfig:
-    """Configuration for board visualization and detection."""
-
-    vertex_color: Tuple[int, int, int] = (0, 255, 0)
-    vertex_radius: int = 3
-    line_color: Tuple[int, int, int] = (0, 255, 0)
-    line_thickness: int = 1
-    board_size: int = 9
-
-
 class Board:
+
+
+
     contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
     frame: ClassVar[np.ndarray] = np.array([])
 

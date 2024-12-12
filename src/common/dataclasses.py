@@ -1,7 +1,7 @@
 """This module contains dataclasses for the project."""
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, List
 
 
 @dataclass
@@ -25,3 +25,15 @@ class ContourParams:
     threshold1: int = 140
     threshold2: int = 255
     kernel_size: Tuple[int, int] = (2, 2)
+
+
+@dataclass
+class BoardConfig:
+    """Configuration for checking color o tile 00."""
+
+    radius: int = 4
+    dark_field_bgr: Tuple[int] = (0, 0, 0)
+    light_field_bgr: Tuple[int] = (255, 255, 255)
+    orange_bgr: Tuple[int] = (0, 0, 255)
+    blue_bgr: Tuple[int] = (0, 255, 0)
+    color_dist_thresh: int = 60
