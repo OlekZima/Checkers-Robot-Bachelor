@@ -28,7 +28,7 @@ class ContourParams:
 
 
 @dataclass
-class BoardConfig:
+class RecognitionConfig:
     """Configuration for checking color o tile 00."""
 
     radius: int = 4

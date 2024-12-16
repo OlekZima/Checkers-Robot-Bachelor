@@ -12,7 +12,7 @@ from src.common.exceptions import (
     InsufficientDataError,
     NoStartTileError,
 )
-from src.common.dataclasses import BoardConfig
+from src.common.dataclasses import RecognitionConfig
 from src.common.utilities import (
     HALF_PI,
     QUARTER_PI,
@@ -669,7 +669,7 @@ class Board:
 
         return result
 
-    def is_00_white(self, config: Optional[BoardConfig] = None) -> bool:
+    def is_00_white(self, config: Optional[RecognitionConfig] = None) -> bool:
         """Check if the tile 00 is white.
 
         Args:
