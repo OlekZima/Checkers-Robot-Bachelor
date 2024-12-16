@@ -48,7 +48,7 @@ def flush_input() -> None:
     termios.tcflush(sys.stdin, termios.TCIOFLUSH)
 
 
-def get_avg_color(img):
+def get_avg_color(img: np.ndarray) -> List[int]:
     avg_color = np.mean(img, axis=(0, 1))
     return avg_color.astype(int).tolist()
 
