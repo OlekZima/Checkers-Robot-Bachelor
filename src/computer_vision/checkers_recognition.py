@@ -1,39 +1,40 @@
-from typing import Optional, Self
+from typing import List, Optional, Self, Tuple
 from src.common.utilities import (
     get_avg_color,
     get_avg_pos,
     distance_from_color,
 )
 from src.common.enum_entities import Color
+from src.computer_vision.board_recognition.board import Board
 
 
 class Checkers:
-    checkers: list[Self] = []
-    bgr_blue: list[int] = [205, 110, 60]
-    bgr_orange: list[int] = [50, 80, 220]
+    checkers: List[Self] = []
+    bgr_blue: Tuple[int, int, int] = (0, 0, 0)
+    bgr_orange: Tuple[int, int, int] = (0, 0, 0)
     color_dist_thresh: int = 7
 
     def __init__(self, color: Color, pos=None):
         if pos is None:
-            pos = [0, 0]
+            pos = (0, 0)
 
         self.pos = pos
         self.color = color
 
+    def __repr__(self):
+        return f"Checker({self.color.name}, {self.pos})"
+
     @classmethod
     def detect_checkers(
         cls,
-        board,
+        board: Board,
         frame,
-        orange_bgr: Optional[list[int]] = None,
-        blue_bgr: Optional[list[int]] = None,
+        orange_bgr: Tuple[int],
+        blue_bgr: Tuple[int],
         color_dist_thresh: Optional[int] = None,
     ):
-
-        if orange_bgr is None:
-            orange_bgr = cls.bgr_orange
-        if blue_bgr is None:
-            blue_bgr = cls.bgr_blue
+        cls.bgr_orange = orange_bgr
+        cls.bgr_blue = blue_bgr
         if color_dist_thresh is None:
             color_dist_thresh = cls.color_dist_thresh
 
@@ -50,7 +51,7 @@ class Checkers:
                     cls.checkers.append(Checkers(detected_color, (x, y)))
 
     @staticmethod
-    def _get_board_tile_pts(board, x, y):
+    def _get_board_tile_pts(board: Board, x, y):
         return [
             board.points[x][y],
             board.points[x][y + 1],

@@ -3,18 +3,18 @@
 from typing import Optional, Tuple
 import cv2
 import numpy as np
-from src.common.utilities import get_pts_dist
-from src.common.dataclasses import ContourParams
+from ...common.utilities import get_pts_dist
+from src.common.dataclasses import RecognitionConfig
 
 
 class ContourProcessor:
     """Helper class for contours detection on the board."""
 
-    def __init__(self, config: Optional[ContourParams] = None):
+    def __init__(self, recognition_config: Optional[RecognitionConfig] = None):
         """Constructor for the ContourProcessor class.
 
         Args:
-            config (Optional[ContourParams], optional):
+            config (Optional[RecognitionConfig], optional):
                 dataclass that consists of following attributes:
 
                 min_area: int = 150
@@ -28,18 +28,20 @@ class ContourProcessor:
 
                 Defaults to None.
         """
-        self.config: ContourParams = config or ContourParams()
-        self.kernel = np.ones(self.config.kernel_size)
+        self.recognition_config: RecognitionConfig = (
+            recognition_config or RecognitionConfig()
+        )
+        self.kernel = np.ones(self.recognition_config.kernel_size)
 
-    def get_contours(self, image: np.ndarray) -> np.ndarray:
-        """Public method for detecting contours on the image.
+    def get_contours(
+        self, image: np.ndarray, recognition_config: Optional[RecognitionConfig] = None
+    ) -> np.ndarray:
+        self.recognition_config = (
+            recognition_config
+            if recognition_config is not None
+            else self.recognition_config
+        )
 
-        Args:
-            image (np.ndarray): image to process
-
-        Returns:
-            np.ndarray: contours found on the image
-        """
         preprocessed_img = self._preprocess_image(image)
         contours = self._detect_contours(preprocessed_img)
 
@@ -49,7 +51,11 @@ class ContourProcessor:
         img_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         _, _, img_v = cv2.split(img_hsv)
 
-        img_canny = cv2.Canny(img_v, self.config.threshold1, self.config.threshold2)
+        img_canny = cv2.Canny(
+            img_v,
+            self.recognition_config.threshold1,
+            self.recognition_config.threshold2,
+        )
         img_dil = cv2.dilate(img_canny, self.kernel, iterations=1)
 
         return img_dil
@@ -87,7 +93,7 @@ class ContourProcessor:
         for contour in contours:
             perimeter = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(
-                contour, self.config.approx_peri_fraction * perimeter, True
+                contour, self.recognition_config.approx_peri_fraction * perimeter, True
             )
             if len(approx) == 4:
                 approx = approx.reshape(1, 4, 1, 2)
@@ -103,7 +109,7 @@ class ContourProcessor:
             [cv2.contourArea(contour.reshape(-1, 1, 2)) for contour in contours]
         )
 
-        min_area_mask = areas >= self.config.min_area
+        min_area_mask = areas >= self.recognition_config.min_area
         contours = contours[min_area_mask]
         areas = areas[min_area_mask]
 
@@ -111,7 +117,7 @@ class ContourProcessor:
             return np.array([])
 
         median_area = np.median(areas)
-        margin = self.config.area_margin_percent / 100
+        margin = self.recognition_config.area_margin_percent / 100
         area_min = median_area / (1 + margin)
         area_max = median_area * (1 + margin)
 
@@ -131,7 +137,7 @@ class ContourProcessor:
             for j, point2 in enumerate(flattened_points[i + 1 :], i + 1):
                 if (
                     get_pts_dist(point1[0][0], point2[0][0])
-                    <= self.config.px_dist_to_join
+                    <= self.recognition_config.px_dist_to_join
                 ):
                     points_to_join.append(point2[0][0])
                     indices_to_update.append(j)
@@ -157,7 +163,7 @@ class ContourProcessor:
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(0)
-    configuration = ContourParams()
+    configuration = RecognitionConfig()
     image_processor = ContourProcessor(configuration)
     while True:
         ret, frame = cap.read()

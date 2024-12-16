@@ -2,7 +2,7 @@ from src.checkers_game_and_decisions.pvrobot_game_controller import (
     PVRobotController,
     GameStateResult,
 )
-from src.checkers_game_and_decisions.enum_entities import RobotGameReportItem
+from src.common.enum_entities import RobotGameReportItem
 from src.checkers_game_and_decisions.checkers_game import Status
 from src.computer_vision.gameplay_recognition import Game
 from src.robot_manipulation.DobotController import DobotController

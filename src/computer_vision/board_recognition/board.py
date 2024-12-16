@@ -1,8 +1,8 @@
 """Class Board for board detection and visualization."""
 
+from logging import config
 import math
-import traceback
-from typing import ClassVar, Dict, List, Optional, Tuple
+from typing import ClassVar, Dict, List, Optional, Tuple, Self
 
 import cv2
 import numpy as np
@@ -12,7 +12,7 @@ from src.common.exceptions import (
     InsufficientDataError,
     NoStartTileError,
 )
-from src.common.dataclasses import RecognitionConfig
+from src.common.dataclasses import ColorConfig, RecognitionConfig
 from src.common.utilities import (
     HALF_PI,
     QUARTER_PI,
@@ -40,7 +40,7 @@ class Board:
 
     contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
     frame: ClassVar[np.ndarray] = np.array([])
-    _instance: ClassVar[Optional["Board"]] = None
+    _instance: ClassVar[Optional[Self]] = None
 
     def __init__(self) -> None:
         """Initialize Board object. Not intended to be called directly.
@@ -52,7 +52,9 @@ class Board:
         self.vertexes: List[Optional[List[int]]] = [None] * 4
 
     @classmethod
-    def detect_board(cls, image: np.ndarray) -> "Board":
+    def detect_board(
+        cls, image: np.ndarray, recognition_config: Optional[RecognitionConfig] = None
+    ) -> Self:
         """Main entry point for board detection.
 
         Args:
@@ -65,6 +67,10 @@ class Board:
             BoardDetectionError: General board detection error
             InsufficientDataError: Not enough data to process the board
         """
+
+        recognition_config = (
+            recognition_config if recognition_config else RecognitionConfig()
+        )
         try:
             # Create instance if it doesn't exist
             if cls._instance is None:
@@ -77,7 +83,7 @@ class Board:
             cls._instance._reset_state()  # pylint: disable=protected-access
 
             # Process board
-            contours = cls.contour_processor.get_contours(image)
+            contours = cls.contour_processor.get_contours(image, recognition_config)
             BoardTile.create_tiles(image, contours)
             cls._instance.tiles = BoardTile.tiles
 
@@ -669,31 +675,22 @@ class Board:
 
         return result
 
-    def is_00_white(self, config: Optional[RecognitionConfig] = None) -> bool:
-        """Check if the tile 00 is white.
+    def is_00_white(self, color_config: ColorConfig) -> bool:
 
-        Args:
-            config (Optional[BoardConfig], optional): Configuration dataclass. Refer to the dataclasses file. Defaults to None.
-
-        Returns:
-            bool: True if the tile 00 is white, False otherwise.
-        """
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
         )
 
         sample = Board.frame[
-            (pt[1] - config.radius) : (pt[1] + config.radius),
-            (pt[0] - config.radius) : (pt[0] + config.radius),
+            (pt[1] - 4) : (pt[1] + 4),
+            (pt[0] - 4) : (pt[0] + 4),
         ]
         sample_avg_bgr = get_avg_color(sample)
         return not (
-            distance_from_color(sample_avg_bgr, config.dark_field_bgr)
-            < distance_from_color(sample_avg_bgr, config.light_field_bgr)
-            or distance_from_color(sample_avg_bgr, config.orange_bgr)
-            <= config.color_dist_thresh
-            or distance_from_color(sample_avg_bgr, config.blue_bgr)
-            <= config.color_dist_thresh
+            distance_from_color(sample_avg_bgr, color_config.black)
+            < distance_from_color(sample_avg_bgr, color_config.light)
+            or distance_from_color(sample_avg_bgr, color_config.orange) <= 60
+            or distance_from_color(sample_avg_bgr, color_config.blue) <= 60
         )
 
     @staticmethod
@@ -713,8 +710,8 @@ if __name__ == "__main__":
 
         try:
             board = Board.detect_board(img)
-        except (BoardDetectionError, InsufficientDataError, NoStartTileError):
-            print(traceback.format_exc())
+        except (BoardDetectionError, InsufficientDataError, NoStartTileError) as e:
+            print(e)
 
         print(len(BoardTile.tiles))
         draw_image = Board.get_frame_copy()
