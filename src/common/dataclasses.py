@@ -14,8 +14,6 @@ class ColorConfig:
 
 @dataclass
 class RecognitionConfig:
-    """Configuration for checking color o tile 00."""
-
     min_area: int = 150
     area_margin_percent: int = 20
     approx_peri_fraction: float = 0.03

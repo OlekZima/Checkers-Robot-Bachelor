@@ -1,6 +1,5 @@
 """Class Board for board detection and visualization."""
 
-from logging import config
 import math
 from typing import ClassVar, Dict, List, Optional, Tuple, Self
 
@@ -675,15 +674,15 @@ class Board:
 
         return result
 
-    def is_00_white(self, color_config: ColorConfig) -> bool:
+    def is_00_white(self, color_config: ColorConfig, radius: int = 4) -> bool:
 
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
         )
 
         sample = Board.frame[
-            (pt[1] - 4) : (pt[1] + 4),
-            (pt[0] - 4) : (pt[0] + 4),
+            (pt[1] - radius) : (pt[1] + radius),
+            (pt[0] - radius) : (pt[0] + radius),
         ]
         sample_avg_bgr = get_avg_color(sample)
         return not (
