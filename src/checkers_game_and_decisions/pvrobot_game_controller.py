@@ -1,3 +1,4 @@
+import numpy as np
 from src.checkers_game_and_decisions.checkers_game import CheckersGame, Color, Status
 from src.checkers_game_and_decisions.negamax_decission_engine import (
     NegamaxDecisionEngine,
@@ -10,33 +11,19 @@ from src.common.utilities import get_coord_from_tile_id
 
 
 class PVRobotController:
-    def __init__(self):
+    def __init__(self, robot_color: Color, engine_depth: int = 3):
         self.game = CheckersGame()
 
-        print("==== Game Decission Engine Init ====")
-        color_chosen = False
-        choice = None
-        while not color_chosen:
-            print("Please input the color of the Robot Player: [b]lue/[o]range")
-
-            choice = input()
-            if choice == "b" or choice == "o":
-                color_chosen = True
-
-        print("====================================")
-
-        if choice == "b":
-            self.human_color = Color.ORANGE
-            self.computer_color = Color.BLUE
-        else:
-            self.human_color = Color.BLUE
-            self.computer_color = Color.ORANGE
+        self.computer_color: Color = robot_color
+        self.human_color: Color = (
+            Color.ORANGE if robot_color == Color.BLUE else Color.BLUE
+        )
 
         self.robot_move = None
         self.is_crowned = None
 
         self.decision_engine = NegamaxDecisionEngine(
-            computer_color=self.computer_color, depth_to_use=3
+            computer_color=self.computer_color, depth_to_use=engine_depth
         )
 
     def report_state(self):
@@ -54,9 +41,10 @@ class PVRobotController:
 
         return report
 
-    def update_game_state(self, board_state, allow_different_robot_moves=False):
-        # bool
-        is_robot_turn = self.game.get_turn_of() == self.computer_color
+    def update_game_state(
+        self, board_state: np.ndarray, allow_different_robot_moves=False
+    ):
+        is_robot_turn: bool = self.game.get_turn_of() == self.computer_color
 
         # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
         self_game_state = self.game.get_game_state()
@@ -70,11 +58,16 @@ class PVRobotController:
         rotated_board_state = self.rotate_2d_matrix_180_deg(board_state)
 
         # 1 - checking if game state hasn't changed
-        is_same_state = False
-        if board_state == self_game_state:
-            is_same_state = True
-        if rotated_board_state == self_game_state:
-            is_same_state = True
+        # is_same_state = False
+        # if np.array_equal(board_state, self_game_state) or np.array_equal(
+        #     rotated_board_state, self_game_state
+        # ):
+        is_same_state = (
+            True
+            if np.array_equal(board_state, self_game_state)
+            or np.array_equal(rotated_board_state, self_game_state)
+            else False
+        )
         if is_same_state:
             if is_robot_turn:
                 if self.robot_move is None or self.is_crowned is None:
@@ -104,18 +97,16 @@ class PVRobotController:
 
         for move_outcome in moves_allowed:
             # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
-            for i in range(0, len(move_outcome[1]), 1):
-                for j in range(0, len(move_outcome[1][i]), 1):
+            for i in range(len(move_outcome[1])):
+                for j in range(len(move_outcome[1][i])):
                     if move_outcome[1][i][j] == -2:
                         move_outcome[1][i][j] = -1
                     if move_outcome[1][i][j] == 2:
                         move_outcome[1][i][j] = 1
 
-            if board_state == move_outcome[1]:
-                is_permitted = True
-                move_performed = move_outcome[0]
-                break
-            if rotated_board_state == move_outcome[1]:
+            if np.array_equal(board_state, move_outcome[1]) or np.array_equal(
+                rotated_board_state, move_outcome[1]
+            ):
                 is_permitted = True
                 move_performed = move_outcome[0]
                 break
@@ -130,52 +121,43 @@ class PVRobotController:
                     self.robot_move = None
                     self.is_crowned = None
                     return GameStateResult.VALID_RIGHT_ROBOT_MOVE
-                else:
-                    if allow_different_robot_moves:
-                        self.game.perform_move(move_performed)
-                        self.robot_move = None
-                        self.is_crowned = None
-                    return GameStateResult.VALID_WRONG_ROBOT_MOVE
-
-            else:
-                self.game.perform_move(move_performed)
-
-                if self.game.get_status() == Status.IN_PROGRESS:
-                    self.robot_move = self.decision_engine.decide_move(self.game)
-                    x_tmp, y_tmp = get_coord_from_tile_id(self.robot_move[0])
-                    piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
-                    if (
-                        self.computer_color == Color.BLUE
-                        and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
-                        and piece_moved == -1
-                    ) or (
-                        self.computer_color == Color.ORANGE
-                        and self.robot_move[len(self.robot_move) - 1]
-                        in [29, 30, 31, 32]
-                        and piece_moved == 1
-                    ):
-                        self.is_crowned = True
-                    else:
-                        self.is_crowned = False
-                else:
+                if allow_different_robot_moves:
+                    self.game.perform_move(move_performed)
                     self.robot_move = None
                     self.is_crowned = None
+                return GameStateResult.VALID_WRONG_ROBOT_MOVE
 
-                return GameStateResult.VALID_OPPONENT_MOVE
+            self.game.perform_move(move_performed)
+
+            if self.game.get_status() == Status.IN_PROGRESS:
+                self.robot_move = self.decision_engine.decide_move(self.game)
+                x_tmp, y_tmp = get_coord_from_tile_id(self.robot_move[0])
+                piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
+                if (
+                    self.computer_color == Color.BLUE
+                    and self.robot_move[-1] in [1, 2, 3, 4]
+                    and piece_moved == -1
+                ) or (
+                    self.computer_color == Color.ORANGE
+                    and self.robot_move[-1] in [29, 30, 31, 32]
+                    and piece_moved == 1
+                ):
+                    self.is_crowned = True
+                else:
+                    self.is_crowned = False
+            else:
+                self.robot_move = None
+                self.is_crowned = None
+
+            return GameStateResult.VALID_OPPONENT_MOVE
 
         # 3 - informing about invalid move
-        if is_robot_turn:
-            return GameStateResult.INVALID_ROBOT_MOVE
-
-        return GameStateResult.INVALID_OPPONENT_MOVE
+        return (
+            GameStateResult.INVALID_ROBOT_MOVE
+            if is_robot_turn
+            else GameStateResult.INVALID_OPPONENT_MOVE
+        )
 
     @staticmethod
-    def rotate_2d_matrix_180_deg(matrix):
-        new_matrix = []
-        for c in range(len(matrix) - 1, -1, -1):
-            tmp_col = []
-            for i in range(len(matrix[c]) - 1, -1, -1):
-                tmp_col.append(matrix[c][i])
-            new_matrix.append(tmp_col)
-
-        return new_matrix
+    def rotate_2d_matrix_180_deg(matrix: np.ndarray) -> np.ndarray:
+        return np.rot90(matrix, 2)
