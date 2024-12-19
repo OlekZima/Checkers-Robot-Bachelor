@@ -1,8 +1,8 @@
 from typing import List, Optional, Self, Tuple
-from ..common.enum_entities import Color
-from ..common.utilities import distance_from_color, get_avg_color, get_avg_pos
-from .board_recognition.board import Board
-from ..common.dataclasses import RecognitionConfig
+from src.common.enum_entities import Color
+from src.common.utilities import distance_from_color, get_avg_color, get_avg_pos
+from src.computer_vision.board_recognition.board import Board
+from src.common.dataclasses import RecognitionConfig
 
 
 class Checkers:
