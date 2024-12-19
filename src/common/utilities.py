@@ -1,7 +1,8 @@
 import math
+from pathlib import Path
 import sys
 import termios
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import cv2
@@ -12,10 +13,12 @@ QUARTER_PI: float = math.pi / 4.0
 HALF_PI: float = math.pi / 2.0
 THREE_QUARTER_PI: float = 3.0 * math.pi / 4.0
 
+CONFIG_PATH: Path = Path("configs")
+
 
 def get_coord_from_tile_id(
     tile_id: int, color: Optional[Color] = None
-) -> tuple[int, int]:
+) -> Tuple[int, int]:
     y, x = divmod((tile_id - 1), 4)
     x *= 2
 

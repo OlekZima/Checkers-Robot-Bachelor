@@ -7,7 +7,7 @@ import PySimpleGUI as sg
 from serial.tools import list_ports
 
 from src.common.enum_entities import Color, CalibrationMethod
-from src.common.utilities import list_camera_ports
+from src.common.utilities import CONFIG_PATH, list_camera_ports
 
 from src.robot_manipulation.CalibrationController import CalibrationController
 
@@ -17,7 +17,7 @@ class ConfigurationWindow:
 
     def __init__(self) -> None:
         self._selected_color: Color = None
-        self._difficulty_level: int = None
+        self._difficulty_level: int = 3
 
         self._robot_port = None
         self._camera_port = None
@@ -631,7 +631,7 @@ class ConfigurationWindow:
 
                 self._controller.save_all_tiles_config(filename)
 
-                config_path = self._controller.get_config_path() / f"{filename}.txt"
+                config_path = CONFIG_PATH / f"{filename}.txt"
                 sg.popup(
                     f"Calibration configuration saved to {config_path}",
                     title="Configuration Saved",
@@ -702,7 +702,7 @@ class ConfigurationWindow:
 
             if event == "-Difficulty_Level-":
                 self._difficulty_level = int(values["-Difficulty_Level-"])
-                print(f"difficulty is: {self._difficulty_level}")
+                # print(f"difficulty is: {self._difficulty_level}")
 
             if (
                 event == "-TABGROUP-"

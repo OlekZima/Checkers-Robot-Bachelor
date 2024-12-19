@@ -6,7 +6,7 @@ import numpy as np
 from pydobotplus import Dobot
 
 from src.common.utilities import (
-    # flush_input,
+    CONFIG_PATH,
     get_coord_from_tile_id,
     linear_interpolate,
 )
@@ -18,15 +18,15 @@ class CalibrationController:
 
     _HEIGHT_OFFSET: float = 10.0
     _INCREMENT: float = 1.0
-    _CONFIG_PATH: Path = Path("configs")
+    device: Dobot = None
 
     def __init__(self, dobot_port) -> None:
-        self._CONFIG_PATH.mkdir(exist_ok=True)
+        CONFIG_PATH.mkdir(exist_ok=True)
 
         self.base_config = None
 
         # Connecting to DOBOT
-        self.device = Dobot(dobot_port)
+        CalibrationController.device = Dobot(dobot_port)
 
         # Corner calibration
         # Board field numerating convention:
@@ -56,6 +56,10 @@ class CalibrationController:
         self._current_corner_calibration_index = 0
         self._current_all_tiles_calibration_index = 0
 
+    @classmethod
+    def get_robot_device(cls):
+        return cls.device
+
     def get_board_pos(self):
         return self._board
 
@@ -70,7 +74,7 @@ class CalibrationController:
 
     @staticmethod
     def get_config_path() -> Path:
-        return CalibrationController._CONFIG_PATH
+        return CONFIG_PATH
 
     def move_forward(self) -> None:
         """Move the arm forward from robots perspective by a specified increment."""
@@ -162,7 +166,7 @@ class CalibrationController:
 
     def save_all_tiles_config(self, filename: str):
         """Save the all tiles calibration configuration."""
-        config_path = self._CONFIG_PATH / f"{filename}.txt"
+        config_path = CONFIG_PATH / f"{filename}.txt"
 
         with open(config_path, mode="w", encoding="UTF-8") as config_file:
             for i in range(0, 42):
@@ -249,8 +253,6 @@ class CalibrationController:
         self._interpolate_board_tiles()
         self._interpolate_side_pockets()
 
-    # endregion
-
     def _move_arm(self, x, y, z, wait: Optional[bool] = True) -> None:
         try:
             self.device.clear_alarms()
@@ -311,7 +313,7 @@ class CalibrationController:
             ) / 3.0
 
     def read_file_config(self, path: str) -> None:
-        configs = os.listdir(self._CONFIG_PATH)
+        configs = os.listdir(CONFIG_PATH)
 
         if len(configs) == 0:
             print("No configuration files found.")
@@ -321,7 +323,7 @@ class CalibrationController:
             self.base_config = config
             return
 
-        base_config_path = self._CONFIG_PATH / path
+        base_config_path = CONFIG_PATH / path
         config: np.ndarray = np.zeros((42, 3), dtype=float)
         with open(base_config_path, "r", encoding="UTF-8") as config_file:
             file_lines = config_file.readlines()
@@ -339,7 +341,7 @@ class CalibrationController:
 
     def save_corners_config(self, file_name: str) -> None:
         """Save the interpolated calibration points for the corners to a file."""
-        config_path = self._CONFIG_PATH / f"{file_name}.txt"
+        config_path = CONFIG_PATH / f"{file_name}.txt"
         config_path.touch(exist_ok=True)
 
         with open(config_path, mode="w", encoding="UTF-8") as f:
