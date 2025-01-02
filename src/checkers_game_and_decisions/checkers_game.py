@@ -202,7 +202,8 @@ class CheckersGame:
                 or (x_curr + 2 == x and y_curr + 2 == y)
             )
         ):
-            jump = [  # table which items represents begging of all subsequences
+            # table which items represents begging of all subsequences
+            jump = [
                 get_tile_id_from_coord(x_curr, y_curr),
                 ((-1) * get_tile_id_from_coord(x_curr + 1, y_curr + 1)),
                 get_tile_id_from_coord(x_curr + 2, y_curr + 2),
@@ -610,12 +611,12 @@ class CheckersGame:
                         ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp - 1)),
                         get_tile_id_from_coord(x_after_jump, y_after_jump),
                     ]
-                    tmp_prev_seq = (
-                        prev_seq + jump[1:]
-                    )  # represents prev_seq to propagate to recursive call of method
+                    # represents prev_seq to propagate to recursive call of method
+                    tmp_prev_seq = prev_seq + jump[1:]
+                    # returns all poss sequences from next tile as table of tables
                     sub_seq = CheckersGame._get_king_poss_jumps(
                         tile_id, game_state, prev_seq=tmp_prev_seq
-                    )  # returns all poss sequences from next tile as table of tables
+                    )
 
                     if len(sub_seq) == 0:
                         poss_jumps.append(jump)
@@ -728,7 +729,8 @@ class CheckersGame:
     def get_possible_opts(self):
         return deepcopy(self.turn_player_opts)
 
-    def get_possible_outcomes(self):  # Returns a dict of pairs move: outcome
+    def get_possible_outcomes(self):
+        # Returns a dict of pairs move: outcome
         possible_outcomes = []
 
         for i in self.get_possible_opts():
@@ -755,7 +757,8 @@ class CheckersGame:
         self.game_state[x_tmp][y_tmp] = 0  # Remove moving piece from start position
 
         has_jumped = False
-        for i in sequence:  # Remove all jumped over pieces
+        # Remove all jumped over pieces
+        for i in sequence:
             if i < 0:
                 x_tmp, y_tmp = get_coord_from_tile_id(-i)
                 self.game_state[x_tmp][y_tmp] = 0
