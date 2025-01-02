@@ -63,6 +63,7 @@ class Game:
         self.game_state = self._create_initial_game_state()
         self.game_state_log: List[np.ndarray] = [self.game_state]
         self.game_state_image: np.ndarray = np.array([])
+        self._board: Board = None
 
     @staticmethod
     def _create_initial_game_state() -> np.ndarray:
@@ -138,12 +139,12 @@ class Game:
         Returns:
             bool: True if game state changed, False otherwise
         """
-        board = Board.detect_board(image.copy())
+        self._board = Board.detect_board(image.copy())
         checkers = Checkers.detect_checkers(
-            board, image, self.colors.orange, self.colors.blue
+            self._board, image, self.colors.orange, self.colors.blue
         )
         new_game_state = self._build_game_state(
-            checkers, board.is_00_white(self.colors)
+            checkers, self._board.is_00_white(self.colors)
         )
         self.game_state = new_game_state
         return self._update_game_log(new_game_state)
@@ -154,6 +155,10 @@ class Game:
         self._draw_board_grid(img)
         self._draw_checkers(img)
         return img
+
+    def get_board_image(self) -> np.ndarray:
+        """Get the board image from the last update."""
+        return self._board.get_frame()
 
     def _create_board_background(self) -> np.ndarray:
         """Create the checkered board background."""
