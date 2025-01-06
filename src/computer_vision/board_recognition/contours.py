@@ -3,7 +3,7 @@
 from typing import Optional, Tuple
 import cv2
 import numpy as np
-from ...common.utilities import get_pts_dist
+from ...common.utils import get_pts_dist
 from src.common.dataclasses import RecognitionConfig
 
 

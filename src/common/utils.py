@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import cv2
-from src.common.enum_entities import Color
+from src.common.enums import Color
 
 TWO_PI: float = 2.0 * math.pi
 QUARTER_PI: float = math.pi / 4.0
@@ -16,9 +16,7 @@ THREE_QUARTER_PI: float = 3.0 * math.pi / 4.0
 CONFIG_PATH: Path = Path("configs")
 
 
-def get_coord_from_tile_id(
-    tile_id: int, color: Optional[Color] = None
-) -> Tuple[int, int]:
+def get_coord_from_tile_id(tile_id: int, color: Optional[Color] = None) -> Tuple[int, int]:
     y, x = divmod((tile_id - 1), 4)
     x *= 2
 

@@ -1,13 +1,13 @@
 import numpy as np
-from src.checkers_game_and_decisions.checkers_game import CheckersGame, Color, Status
-from src.checkers_game_and_decisions.negamax_decission_engine import (
+from src.checkers_game.checkers_game import CheckersGame, Color, Status
+from src.checkers_game.negamax import (
     NegamaxDecisionEngine,
 )
-from src.common.enum_entities import (
+from src.common.enums import (
     RobotGameReportItem,
     GameStateResult,
 )
-from src.common.utilities import get_coord_from_tile_id
+from src.common.utils import get_coord_from_tile_id
 
 
 class PVRobotController:
@@ -15,9 +15,7 @@ class PVRobotController:
         self.game = CheckersGame()
 
         self.computer_color: Color = robot_color
-        self.human_color: Color = (
-            Color.ORANGE if robot_color == Color.BLUE else Color.BLUE
-        )
+        self.human_color: Color = Color.ORANGE if robot_color == Color.BLUE else Color.BLUE
 
         self.robot_move = None
         self.is_crowned = None
@@ -41,9 +39,7 @@ class PVRobotController:
 
         return report
 
-    def update_game_state(
-        self, board_state: np.ndarray, allow_different_robot_moves=False
-    ):
+    def update_game_state(self, board_state: np.ndarray, allow_different_robot_moves=False):
         is_robot_turn: bool = self.game.get_turn_of() == self.computer_color
 
         # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
@@ -80,8 +76,7 @@ class PVRobotController:
                         and piece_moved == -1
                     ) or (
                         self.computer_color == Color.ORANGE
-                        and self.robot_move[len(self.robot_move) - 1]
-                        in [29, 30, 31, 32]
+                        and self.robot_move[len(self.robot_move) - 1] in [29, 30, 31, 32]
                         and piece_moved == 1
                     ):
                         self.is_crowned = True

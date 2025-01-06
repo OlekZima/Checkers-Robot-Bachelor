@@ -3,12 +3,12 @@ from typing import List, Optional
 
 import numpy as np
 
-from src.common.enum_entities import Color, Status
+from src.common.enums import Color, Status
 from src.common.exceptions import (
     CheckersGameEndError,
     CheckersGameNotPermittedMoveError,
 )
-from src.common.utilities import (
+from src.common.utils import (
     get_coord_from_tile_id,
     get_tile_id_from_coord,
 )
@@ -57,9 +57,7 @@ class CheckersGame:
         # First move always goes to BLUE (in normal gameplay - white)
         self.turn_of: Color = Color.BLUE
 
-        self.turn_player_opts = CheckersGame.get_color_poss_opts(
-            self.turn_of, self.game_state
-        )
+        self.turn_player_opts = CheckersGame.get_color_poss_opts(self.turn_of, self.game_state)
 
         # log of gameplay is saved as list of lists (each 'smaller' list is of integers - each represents id of tile - see rules_desc)
         # each one round movement is a list of integers:
@@ -197,10 +195,7 @@ class CheckersGame:
             # so that we have opposing side pieces
             and game_state[x][y] * game_state[x_curr + 1][y_curr + 1] < 0
             # we have empty tile after opponent (or the tile was initial jumping piece tile)
-            and (
-                game_state[x_curr + 2][y_curr + 2] == 0
-                or (x_curr + 2 == x and y_curr + 2 == y)
-            )
+            and (game_state[x_curr + 2][y_curr + 2] == 0 or (x_curr + 2 == x and y_curr + 2 == y))
         ):
             # table which items represents begging of all subsequences
             jump = [
@@ -232,8 +227,7 @@ class CheckersGame:
             and game_state[x][y] * game_state[x_curr - 1][y_curr + 1]
             < 0  # so that we have opposing side pieces
             and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                game_state[x_curr - 2][y_curr + 2] == 0
-                or (x_curr - 2 == x and y_curr + 2 == y)
+                game_state[x_curr - 2][y_curr + 2] == 0 or (x_curr - 2 == x and y_curr + 2 == y)
             )
         ):
             jump = [  # table which items represents begging of all subsequences
@@ -265,8 +259,7 @@ class CheckersGame:
             and game_state[x][y] * game_state[x_curr - 1][y_curr - 1]
             < 0  # so that we have opposing side pieces
             and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                game_state[x_curr - 2][y_curr - 2] == 0
-                or (x_curr - 2 == x and y_curr - 2 == y)
+                game_state[x_curr - 2][y_curr - 2] == 0 or (x_curr - 2 == x and y_curr - 2 == y)
             )
         ):
             jump = [  # table which items represents begging of all subsequences
@@ -298,8 +291,7 @@ class CheckersGame:
             and game_state[x][y] * game_state[x_curr + 1][y_curr - 1]
             < 0  # so that we have opposing side pieces
             and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                game_state[x_curr + 2][y_curr - 2] == 0
-                or (x_curr + 2 == x and y_curr - 2 == y)
+                game_state[x_curr + 2][y_curr - 2] == 0 or (x_curr + 2 == x and y_curr - 2 == y)
             )
         ):
             jump = [  # table which items represents begging of all subsequences
@@ -332,9 +324,7 @@ class CheckersGame:
         return poss_jumps
 
     @classmethod
-    def _get_king_poss_jumps(
-        cls, tile_id: int, game_state: np.ndarray, prev_seq: List = None
-    ):
+    def _get_king_poss_jumps(cls, tile_id: int, game_state: np.ndarray, prev_seq: List = None):
         if prev_seq is None:
             prev_seq = []
         poss_jumps = []
@@ -368,8 +358,7 @@ class CheckersGame:
                 and game_state[x][y] * game_state[x_tmp + 1][y_tmp + 1]
                 < 0  # so that we have opposing side pieces
                 and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                    game_state[x_tmp + 2][y_tmp + 2] == 0
-                    or (x_tmp + 2 == x and y_tmp + 2 == y)
+                    game_state[x_tmp + 2][y_tmp + 2] == 0 or (x_tmp + 2 == x and y_tmp + 2 == y)
                 )
             ):
                 x_after_jump = x_tmp + 2
@@ -440,15 +429,11 @@ class CheckersGame:
                 # we need to move two tiles for jump
                 and y_tmp + 2 < 8
                 # we cannot jump two times over same opponent piece
-                and ((-1) * get_tile_id_from_coord(x_tmp - 1, y_tmp + 1))
-                not in prev_seq
+                and ((-1) * get_tile_id_from_coord(x_tmp - 1, y_tmp + 1)) not in prev_seq
                 # so that we have opposing side pieces
                 and game_state[x][y] * game_state[x_tmp - 1][y_tmp + 1] < 0
                 # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                and (
-                    game_state[x_tmp - 2][y_tmp + 2] == 0
-                    or (x_tmp - 2 == x and y_tmp + 2 == y)
-                )
+                and (game_state[x_tmp - 2][y_tmp + 2] == 0 or (x_tmp - 2 == x and y_tmp + 2 == y))
             ):
                 x_after_jump = x_tmp - 2
                 y_after_jump = y_tmp + 2
@@ -515,8 +500,7 @@ class CheckersGame:
                 and game_state[x][y] * game_state[x_tmp - 1][y_tmp - 1]
                 < 0  # so that we have opposing side pieces
                 and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                    game_state[x_tmp - 2][y_tmp - 2] == 0
-                    or (x_tmp - 2 == x and y_tmp - 2 == y)
+                    game_state[x_tmp - 2][y_tmp - 2] == 0 or (x_tmp - 2 == x and y_tmp - 2 == y)
                 )
             ):
                 x_after_jump = x_tmp - 2
@@ -584,15 +568,11 @@ class CheckersGame:
                 # we need to move two tiles for jump
                 and y_tmp - 2 >= 0
                 # we cannot jump two times over same opponent piece
-                and ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp - 1))
-                not in prev_seq
+                and ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp - 1)) not in prev_seq
                 # so that we have opposing side pieces
                 and game_state[x][y] * game_state[x_tmp + 1][y_tmp - 1] < 0
                 # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                and (
-                    game_state[x_tmp + 2][y_tmp - 2] == 0
-                    or (x_tmp + 2 == x and y_tmp - 2 == y)
-                )
+                and (game_state[x_tmp + 2][y_tmp - 2] == 0 or (x_tmp + 2 == x and y_tmp - 2 == y))
             ):
                 x_after_jump = x_tmp + 2
                 y_after_jump = y_tmp - 2
@@ -798,9 +778,7 @@ class CheckersGame:
 
         # Check for winning criteria, if game still in progress
         if self.status == Status.IN_PROGRESS:
-            self.turn_player_opts = CheckersGame.get_color_poss_opts(
-                opponent, self.game_state
-            )
+            self.turn_player_opts = CheckersGame.get_color_poss_opts(opponent, self.game_state)
             if len(self.turn_player_opts) == 0:
                 self.status = Status.WON
                 self.winning_player = self.turn_of

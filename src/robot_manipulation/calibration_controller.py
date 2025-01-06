@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 from pydobotplus import Dobot
 
-from src.common.utilities import (
+from src.common.utils import (
     CONFIG_PATH,
     get_coord_from_tile_id,
     linear_interpolate,

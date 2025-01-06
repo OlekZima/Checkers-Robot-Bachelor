@@ -3,9 +3,9 @@ from pathlib import Path
 import numpy as np
 from pydobotplus import Dobot
 
-from src.checkers_game_and_decisions.checkers_game import Color
+from src.checkers_game.checkers_game import Color
 from src.common.exceptions import DobotError
-from src.common.utilities import get_coord_from_tile_id
+from src.common.utils import get_coord_from_tile_id
 
 
 class DobotController:
