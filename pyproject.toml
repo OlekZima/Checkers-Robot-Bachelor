@@ -1,25 +1,13 @@
-[tool.poetry]
+[project]
 name = "checkers-robot-s24982"
-description = ""
-authors = ["OlekZima <s24982@pjwstk.edu.pl>"]
+version = "0.1.0"
+description = "Add your description here"
 readme = "README.md"
-package-mode = false
-
-[tool.poetry.dependencies]
-python = "^3.13"
-pandas = "^2.2.3"
-numpy = "^1.21.3"
-pydobotplus = "^0.1.2"
-customtkinter = "^5.2.2"
-opencv-python = "^4.10.0.84"
-pillow = "^11.0.0"
-pysimplegui = "^5.0.7"
-pylint = "^3.3.1"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.pylint.typecheck]
-generated-members = ["cv2.*"]
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.2.1",
+    "opencv-python>=4.10.0.84",
+    "pillow>=11.1.0",
+    "pydobotplus>=0.1.2",
+    "pysimplegui>=5.0.7",
+]
