@@ -7,11 +7,11 @@ from ..common.dataclasses import ColorConfig
 
 from ..computer_vision.game_state_recognition import Game
 
-from ..robot_manipulation.DobotController import DobotController
+from ..robot_manipulation.dobot_controller import DobotController
 
-from ..checkers_game_and_decisions.pvrobot_game_controller import PVRobotController
+from ..checkers_game.game_controller import PVRobotController
 
-from ..common.enum_entities import Color, GameStateResult, RobotGameReportItem, Status
+from ..common.enums import Color, GameStateResult, RobotGameReportItem, Status
 
 
 class GameWindow:

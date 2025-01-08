@@ -6,10 +6,10 @@ import cv2
 import PySimpleGUI as sg
 from serial.tools import list_ports
 
-from src.common.enum_entities import Color, CalibrationMethod
-from src.common.utilities import CONFIG_PATH, list_camera_ports
+from src.common.enums import Color, CalibrationMethod
+from src.common.utils import CONFIG_PATH, list_camera_ports
 
-from src.robot_manipulation.CalibrationController import CalibrationController
+from src.robot_manipulation.calibration_controller import CalibrationController
 
 
 class ConfigurationWindow:

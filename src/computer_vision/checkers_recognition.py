@@ -1,6 +1,6 @@
 from typing import List, Optional, Self, Tuple
-from src.common.enum_entities import Color
-from src.common.utilities import distance_from_color, get_avg_color, get_avg_pos
+from src.common.enums import Color
+from src.common.utils import distance_from_color, get_avg_color, get_avg_pos
 from src.computer_vision.board_recognition.board import Board
 from src.common.dataclasses import RecognitionConfig
 
@@ -74,9 +74,7 @@ class Checkers:
         radius: int = 2,
     ) -> Optional[Color]:
         """Detect checker color at given point if present."""
-        test_sample = img[
-            (pt[1] - radius) : (pt[1] + radius), (pt[0] - radius) : (pt[0] + radius)
-        ]
+        test_sample = img[(pt[1] - radius) : (pt[1] + radius), (pt[0] - radius) : (pt[0] + radius)]
         bgr_sample = get_avg_color(test_sample)
         return cls._get_color_if_within_threshold(
             bgr_sample, bgr_orange, bgr_blue, color_dist_thresh

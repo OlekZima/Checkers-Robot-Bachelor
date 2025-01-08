@@ -12,7 +12,7 @@ from src.common.exceptions import (
     NoStartTileError,
 )
 from src.common.dataclasses import ColorConfig, RecognitionConfig
-from src.common.utilities import (
+from src.common.utils import (
     HALF_PI,
     QUARTER_PI,
     get_avg_pos,
@@ -22,7 +22,7 @@ from src.common.utilities import (
 )
 
 from .board_tile import BoardTile
-from .contours_recognition import ContourProcessor
+from .contours import ContourProcessor
 
 
 class Board:

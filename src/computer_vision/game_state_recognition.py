@@ -6,10 +6,12 @@ including board visualization, game state updates, and state tracking.
 """
 
 from typing import List, Optional, Tuple
+
 import cv2
 import numpy as np
+
 from src.common.dataclasses import ColorConfig, RecognitionConfig
-from src.common.enum_entities import Color
+from src.common.enums import Color
 from src.computer_vision.board_recognition.board import Board
 from src.computer_vision.checkers_recognition import Checkers
 
@@ -87,9 +89,7 @@ class Game:
         return np.zeros((8, 8), dtype=int)
 
     @classmethod
-    def _build_game_state(
-        cls, checkers: List[Checkers], is_00_white: bool
-    ) -> np.ndarray:
+    def _build_game_state(cls, checkers: List[Checkers], is_00_white: bool) -> np.ndarray:
         """
         Build game state from detected checkers.
 
@@ -102,9 +102,7 @@ class Game:
         """
         state = cls._create_empty_game_state()
         for checker in checkers:
-            state[checker.pos[0]][checker.pos[1]] = (
-                1 if checker.color == Color.ORANGE else -1
-            )
+            state[checker.pos[0]][checker.pos[1]] = 1 if checker.color == Color.ORANGE else -1
         return cls._rotate_matrix_clockwise(state) if not is_00_white else state
 
     def _update_game_log(self, new_game_state: np.ndarray) -> bool:
@@ -143,9 +141,7 @@ class Game:
         checkers = Checkers.detect_checkers(
             self._board, image, self.colors.orange, self.colors.blue
         )
-        new_game_state = self._build_game_state(
-            checkers, self._board.is_00_white(self.colors)
-        )
+        new_game_state = self._build_game_state(checkers, self._board.is_00_white(self.colors))
         self.game_state = new_game_state
         return self._update_game_log(new_game_state)
 
@@ -195,11 +191,7 @@ class Game:
         for x, row in enumerate(self.game_state):
             for y, value in enumerate(row):
                 if value != 0:
-                    color = (
-                        self.ORANGE_CHECKER_COLOR
-                        if value == 1
-                        else self.BLUE_CHECKER_COLOR
-                    )
+                    color = self.ORANGE_CHECKER_COLOR if value == 1 else self.BLUE_CHECKER_COLOR
                     center = (
                         x * self.CELL_SIZE + self.BOARD_OFFSET + self.CELL_SIZE // 2,
                         y * self.CELL_SIZE + self.BOARD_OFFSET + self.CELL_SIZE // 2,
@@ -215,9 +207,7 @@ class Game:
 if __name__ == "__main__":
     camera_port = 0
     cap = cv2.VideoCapture(camera_port)
-    game = Game(
-        ColorConfig((250, 90, 20), (30, 85, 150), (60, 50, 39), (200, 200, 200))
-    )
+    game = Game(ColorConfig((250, 90, 20), (30, 85, 150), (60, 50, 39), (200, 200, 200)))
 
     while True:
         ret, frame = cap.read()

@@ -5,7 +5,7 @@ from typing import ClassVar, List, Optional, Self, Tuple, Dict
 
 import cv2
 import numpy as np
-from src.common.utilities import (
+from src.common.utils import (
     get_avg_pos,
     HALF_PI,
     THREE_QUARTER_PI,
@@ -13,7 +13,7 @@ from src.common.utilities import (
     QUARTER_PI,
 )
 
-from .contours_recognition import ContourProcessor
+from .contours import ContourProcessor
 
 
 class BoardTile:
@@ -359,13 +359,13 @@ class BoardTile:
         """Calculates the angle in radians.
 
         Args:
-            dx (_type_):
+            dx (int):
                 Difference in x
 
-            dy (_type_):
+            dy (int):
                 Difference in y
 
-            adjustment (_type_):
+            adjustment (float):
                 Adjustment value
 
         Returns:
@@ -395,10 +395,10 @@ class BoardTile:
         """Returns the neighbor in the given range of radians.
 
         Args:
-            rad_min (_type_):
+            rad_min (float):
                 Range minimum in radians.
 
-            rad_max (_type_):
+            rad_max (float):
                 Range maximum in radians.
 
         Returns:
