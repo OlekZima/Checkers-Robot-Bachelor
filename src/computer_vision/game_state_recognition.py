@@ -12,8 +12,8 @@ import numpy as np
 
 from src.common.configs import ColorConfig, RecognitionConfig
 from src.common.enums import Color
-from src.computer_vision.board_recognition.board import Board
-from src.computer_vision.checkers_recognition import Checkers
+from .board_recognition.board import Board
+from .checkers_recognition import Checkers
 
 
 class Game:

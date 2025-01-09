@@ -8,10 +8,10 @@ import numpy as np
 import cv2
 from src.common.enums import Color
 
-TWO_PI: float = 2.0 * math.pi
-QUARTER_PI: float = math.pi / 4.0
-HALF_PI: float = math.pi / 2.0
-THREE_QUARTER_PI: float = 3.0 * math.pi / 4.0
+TWO_PI: float = 2.0 * np.pi
+QUARTER_PI: float = np.pi / 4.0
+HALF_PI: float = np.pi / 2.0
+THREE_QUARTER_PI: float = 3.0 * np.pi / 4.0
 
 CONFIG_PATH: Path = Path("configs")
 
