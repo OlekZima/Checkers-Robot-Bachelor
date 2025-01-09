@@ -11,7 +11,7 @@ from src.common.exceptions import (
     InsufficientDataError,
     NoStartTileError,
 )
-from src.common.dataclasses import ColorConfig, RecognitionConfig
+from src.common.configs import ColorConfig, RecognitionConfig
 from src.common.utils import (
     HALF_PI,
     QUARTER_PI,
@@ -686,10 +686,10 @@ class Board:
         ]
         sample_avg_bgr = get_avg_color(sample)
         return not (
-            distance_from_color(sample_avg_bgr, color_config.black)
-            < distance_from_color(sample_avg_bgr, color_config.light)
-            or distance_from_color(sample_avg_bgr, color_config.orange) <= 60
-            or distance_from_color(sample_avg_bgr, color_config.blue) <= 60
+            distance_from_color(sample_avg_bgr, color_config["black"])
+            < distance_from_color(sample_avg_bgr, color_config["white"])
+            or distance_from_color(sample_avg_bgr, color_config["orange"]) <= 60
+            or distance_from_color(sample_avg_bgr, color_config["blue"]) <= 60
         )
 
     @staticmethod

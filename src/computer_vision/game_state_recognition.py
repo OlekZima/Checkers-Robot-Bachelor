@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
-from src.common.dataclasses import ColorConfig, RecognitionConfig
+from src.common.configs import ColorConfig, RecognitionConfig
 from src.common.enums import Color
 from src.computer_vision.board_recognition.board import Board
 from src.computer_vision.checkers_recognition import Checkers
@@ -89,7 +89,9 @@ class Game:
         return np.zeros((8, 8), dtype=int)
 
     @classmethod
-    def _build_game_state(cls, checkers: List[Checkers], is_00_white: bool) -> np.ndarray:
+    def _build_game_state(
+        cls, checkers: List[Checkers], is_00_white: bool
+    ) -> np.ndarray:
         """
         Build game state from detected checkers.
 
@@ -102,8 +104,10 @@ class Game:
         """
         state = cls._create_empty_game_state()
         for checker in checkers:
-            state[checker.pos[0]][checker.pos[1]] = 1 if checker.color == Color.ORANGE else -1
-        return cls._rotate_matrix_clockwise(state) if not is_00_white else state
+            state[checker.pos[0]][checker.pos[1]] = (
+                1 if checker.color == Color.ORANGE else -1
+            )
+        return np.rot90(state, 1) if not is_00_white else state
 
     def _update_game_log(self, new_game_state: np.ndarray) -> bool:
         """
@@ -127,23 +131,24 @@ class Game:
         self.game_state_log.append(new_game_state)
         return False
 
-    def update_game_state(self, image: np.ndarray) -> bool:
+    def update_game_state(self, image: np.ndarray) -> Tuple[bool, np.ndarray]:
         """
-        Update game state from camera image.
-
+        Updates the game state based on the input image.
         Args:
-            image: Current camera frame
+            image (np.ndarray): source image from camera
 
         Returns:
-            bool: True if game state changed, False otherwise
+            Tuple[bool, np.np.ndarray]: Tuple containing whether the game state changed and the game state itself
         """
         self._board = Board.detect_board(image.copy())
         checkers = Checkers.detect_checkers(
-            self._board, image, self.colors.orange, self.colors.blue
+            self._board, image, self.colors["orange"], self.colors["blue"]
         )
-        new_game_state = self._build_game_state(checkers, self._board.is_00_white(self.colors))
+        new_game_state = self._build_game_state(
+            checkers, self._board.is_00_white(self.colors)
+        )
         self.game_state = new_game_state
-        return self._update_game_log(new_game_state)
+        return self._update_game_log(new_game_state), self.game_state
 
     def get_game_state_image(self) -> np.ndarray:
         """Generate visualization of current game state."""
@@ -154,7 +159,7 @@ class Game:
 
     def get_board_image(self) -> np.ndarray:
         """Get the board image from the last update."""
-        return self._board.get_frame()
+        return self._board.get_frame_copy()
 
     def _create_board_background(self) -> np.ndarray:
         """Create the checkered board background."""
@@ -191,23 +196,30 @@ class Game:
         for x, row in enumerate(self.game_state):
             for y, value in enumerate(row):
                 if value != 0:
-                    color = self.ORANGE_CHECKER_COLOR if value == 1 else self.BLUE_CHECKER_COLOR
+                    color = (
+                        self.ORANGE_CHECKER_COLOR
+                        if value == 1
+                        else self.BLUE_CHECKER_COLOR
+                    )
                     center = (
                         x * self.CELL_SIZE + self.BOARD_OFFSET + self.CELL_SIZE // 2,
                         y * self.CELL_SIZE + self.BOARD_OFFSET + self.CELL_SIZE // 2,
                     )
                     cv2.circle(img, center, self.CHECKER_RADIUS, color, -1)
 
-    @staticmethod
-    def _rotate_matrix_clockwise(matrix: np.ndarray) -> np.ndarray:
-        """Rotate matrix 90 degrees clockwise."""
-        return np.rot90(matrix, 1)
-
-
 if __name__ == "__main__":
-    camera_port = 0
+    camera_port = 2
     cap = cv2.VideoCapture(camera_port)
-    game = Game(ColorConfig((250, 90, 20), (30, 85, 150), (60, 50, 39), (200, 200, 200)))
+    game = Game(
+        ColorConfig(
+            {
+                "orange": (250, 90, 20),
+                "blue": (30, 85, 150),
+                "black": (60, 50, 39),
+                "white": (200, 200, 200),
+            }
+        )
+    )
 
     while True:
         ret, frame = cap.read()

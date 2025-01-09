@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 from ...common.utils import get_pts_dist
-from src.common.dataclasses import RecognitionConfig
+from src.common.configs import RecognitionConfig
 
 
 class ContourProcessor:

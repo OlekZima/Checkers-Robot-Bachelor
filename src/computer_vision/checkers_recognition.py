@@ -2,7 +2,7 @@ from typing import List, Optional, Self, Tuple
 from src.common.enums import Color
 from src.common.utils import distance_from_color, get_avg_color, get_avg_pos
 from src.computer_vision.board_recognition.board import Board
-from src.common.dataclasses import RecognitionConfig
+from src.common.configs import RecognitionConfig
 
 
 class Checkers:
