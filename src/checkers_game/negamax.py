@@ -39,7 +39,7 @@ class NegamaxDecisionEngine:
         time_elapsed = time.time() - start_time
         print(
             f"""
-Finished in {time_elapsed} s
+Finished in {time_elapsed:.2f} s
 
 {move_chosen=}
 {value=}

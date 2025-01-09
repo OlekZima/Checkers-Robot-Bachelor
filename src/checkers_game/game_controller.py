@@ -50,7 +50,6 @@ class GameController:
                 if self_game_state[i][j] == 2:
                     self_game_state[i][j] = 1
 
-        print(f"{board_state=}")
         rotated_board_state = np.rot90(board_state, 2)
 
         # 1 - checking if game state hasn't changed
