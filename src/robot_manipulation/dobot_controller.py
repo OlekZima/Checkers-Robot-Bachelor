@@ -1,35 +1,21 @@
-import os
-from src.checkers_game_and_decisions.checkers_game import Color
-from src.checkers_game_and_decisions.utilities import get_coord_from_field_id
-import numpy as np
-from serial.tools import list_ports
+from pathlib import Path
 
-from src.robot_manipulation.CalibrationController import CalibrationController
+import numpy as np
+from pydobotplus import Dobot
+
+from src.checkers_game.checkers_game import Color
+from src.common.exceptions import DobotError
+from src.common.utils import get_coord_from_tile_id
 
 
 class DobotController:
+    def __init__(self, robot_color: Color, config_path: Path, robot_port: str):
+        self.color: Color = robot_color
+        self.config_path: Path = config_path
 
-    def __init__(self, color):
+        self.device: Dobot = Dobot(robot_port)
 
-        self.color = color
-
-        # Connecting to DOBOT
-        available_ports = list_ports.comports()
-        self.device = CalibrationController.connect_to_dobot(available_ports)
-
-        print("Do you want to calibrate dobot (Y/N)?")
-        user_input = None
-        while user_input not in ['Y', 'N']:
-            user_input = input().upper()
-
-        if user_input == 'Y':
-            calibration_controller = CalibrationController(self.device)
-            calibration_controller.calibrate()
-
-        (x, y, z, _) = self.device.get_pose().position
-        print(f"\nx:{x} y:{y} z:{z}")
-
-        # Calibrating for board
+        x, y, z, _ = self.device.get_pose().position
 
         # Board field numerating convention:
         #  upper_left = [0][0]
@@ -43,7 +29,11 @@ class DobotController:
         self.kings_available = 8
 
         self.read_calibration_file()
-
+        # print(self.home_pos)
+        
+        self.move_arm(
+            self.home_pos[0], self.home_pos[1], self.home_pos[2] + 10, wait=True
+        )
         self.move_arm(*self.home_pos, wait=True)
 
         print("\nController created\n")
@@ -58,26 +48,8 @@ class DobotController:
             except ValueError:
                 print("Invalid input. Please enter a valid number.")
 
-    @staticmethod
-    def _display_options(configs: list[str]) -> None:
-        print("\nPlease choose a robot position configuration file by id\n")
-        for id, c in enumerate(configs):
-            print(f"[{id}]: {c}")
-
     def read_calibration_file(self):
-        config_dir = "src/robot_manipulation/configuration_files"
-
-        if not os.path.exists(config_dir):
-            print("Configuration directory does not exist.")
-            return
-
-        configs: list[str] = os.listdir(config_dir)
-        self._display_options(configs)
-
-        user_input: int = self._get_user_input(len(configs))
-        base_file: str = configs[user_input]
-
-        with open(config_dir + "/" + base_file, "r") as f:
+        with open(self.config_path, "r", encoding="UTF-8") as f:
             lines: list[str] = f.readlines()
 
         if len(lines) < 42:
@@ -85,11 +57,11 @@ class DobotController:
 
         self._set_config_positions(lines)
 
-        print("\nDobot calibrated from file: " + base_file + "\n")
+        print(f"\nDobot calibrated from file: {self.config_path.absolute()}\n")
 
     def _set_config_positions(self, lines):
         for i in range(0, 32):
-            x, y = get_coord_from_field_id(i + 1, Color.BLUE)
+            x, y = get_coord_from_tile_id(i + 1, Color.BLUE)
             self.board[x][y] = self._parse_calibration_line(lines[i])
 
         for i in range(32, 36):
@@ -108,7 +80,7 @@ class DobotController:
     def move_arm(self, x, y, z, wait=True, retry=True, retry_limit=5):
         try:
             self.device.move_to(x, y, z, wait=wait)
-        except Exception as e:
+        except Exception:
             print("\n==========\nAn error occured while performing move\n")
             if retry:
                 retry_cnt = 0
@@ -120,19 +92,18 @@ class DobotController:
                         self.device.move_to(x, y, z - 1, wait=wait)
                         print("\nRetry Successful\n")
                         break
-                    except:
+                    except DobotError:
                         print("\nRetry Failed\n")
                     retry_cnt += 1
             print("\n==========\n")
 
     def perform_move(
-            self, move: list[int] = None, is_crown: bool = False, height: float = 10
+        self, move: list[int] = None, is_crown: bool = False, height: float = 10
     ):
-
         # Grabbing the first piece
         if move is None:
             move = [1, 1]
-        x, y = get_coord_from_field_id(move[0], self.color)
+        x, y = get_coord_from_tile_id(move[0], self.color)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
@@ -153,7 +124,7 @@ class DobotController:
         # Mid-move movements
         for i in range(1, len(move) - 1, 1):
             if move[i] > 0:
-                x, y = get_coord_from_field_id(move[i], self.color)
+                x, y = get_coord_from_tile_id(move[i], self.color)
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
@@ -174,7 +145,7 @@ class DobotController:
                 )
 
         # Finishing movement of my piece
-        x, y = get_coord_from_field_id(move[len(move) - 1], self.color)
+        x, y = get_coord_from_tile_id(move[len(move) - 1], self.color)
         self.move_arm(
             self.board[x][y][0],
             self.board[x][y][1],
@@ -195,7 +166,7 @@ class DobotController:
         # Removing opponent taken out pieces
         for i in range(1, len(move) - 1, 1):
             if move[i] < 0:
-                x, y = get_coord_from_field_id(-move[i], self.color)
+                x, y = get_coord_from_tile_id(-move[i], self.color)
                 self.move_arm(
                     self.board[x][y][0],
                     self.board[x][y][1],
@@ -226,7 +197,7 @@ class DobotController:
         # Changing simple piece for king
         # TODO Restorin kings for rematch and situation where all kings are already used - error
         if is_crown:
-            x, y = get_coord_from_field_id(move[len(move) - 1], self.color)
+            x, y = get_coord_from_tile_id(move[len(move) - 1], self.color)
 
             self.move_arm(
                 self.board[x][y][0],

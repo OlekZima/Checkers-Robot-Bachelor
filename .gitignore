@@ -8,8 +8,6 @@ __pycache__/
 # C extensions
 *.so
 
-src/robot_manipulation/configuration_files/*
-
 # Distribution / packaging
 .Python
 env/
@@ -72,9 +70,6 @@ target/
 
 # IPython Notebook
 .ipynb_checkpoints
-
-# pyenv
-.python-version
 
 # celery beat schedule file
 celerybeat-schedule

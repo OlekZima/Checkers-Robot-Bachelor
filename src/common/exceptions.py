@@ -35,3 +35,16 @@ class DecisionEngineError(Exception):
 
 class DobotError(Exception):
     """General exception for Dobot errors."""
+
+
+class CheckersError(Exception):
+    """General exception for checkers errors."""
+
+
+class CheckersGameEndError(CheckersError):
+    """Exception raised when the checkers game ended,
+    but program is trying to calculate next move."""
+
+
+class CheckersGameNotPermittedMoveError(CheckersError):
+    """Exception raised when selected move is not permitted."""

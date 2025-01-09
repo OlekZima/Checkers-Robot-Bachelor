@@ -1,12 +1,12 @@
 import time
+from copy import deepcopy
 import numpy as np
-from src.exceptions import DecisionEngineError
-from src.checkers_game_and_decisions.checkers_game import CheckersGame
-from src.checkers_game_and_decisions.enum_entities import Color
+from src.common.exceptions import DecisionEngineError
+from src.checkers_game.checkers_game import CheckersGame
+from src.common.enums import Color
 
 
 class NegamaxDecisionEngine:
-
     ASSESSMENT_VALUE_MAX_AMPLITUDE = 24
 
     def __init__(self, computer_color=Color.ORANGE, depth_to_use=10):
@@ -24,9 +24,7 @@ class NegamaxDecisionEngine:
             )
             return move_chosen
 
-        print(
-            "\n=================================\nNegamax has started\n\nProcessing .....\n"
-        )
+        print("\n=================================\nNegamax has started\n\nProcessing .....\n")
         start_time = time.time()
 
         move_chosen, value, max_depth_reached = self.negamax(
@@ -41,11 +39,11 @@ class NegamaxDecisionEngine:
         time_elapsed = time.time() - start_time
         print(
             f"""
-Finished in {time_elapsed} s
+Finished in {time_elapsed:.2f} s
 
-{move_chosen =}
-{value = }
-{max_depth_reached = }
+{move_chosen=}
+{value=}
+{max_depth_reached=}
 
 =================================
         """
@@ -53,10 +51,7 @@ Finished in {time_elapsed} s
 
         return move_chosen
 
-    def negamax(
-        self, game_state, draw_criteria_log, depth_to_use, alpha, beta, turn_of
-    ):
-
+    def negamax(self, game_state, draw_criteria_log, depth_to_use, alpha, beta, turn_of):
         turn_of_color = (
             self.computer_color
             if turn_of == 1
@@ -66,15 +61,13 @@ Finished in {time_elapsed} s
         # check for draw criteria
         draw_criteria_count = 0
         for i in draw_criteria_log:
-            if i[0] == turn_of_color and i[1] == game_state:
+            if np.array_equal(i[0], turn_of_color) and np.array_equal(i[1], game_state):
                 draw_criteria_count += 1
         if draw_criteria_count >= 3:
             return None, 0, 0
 
         # check for win/lose criteria
-        possible_next_moves = CheckersGame.get_color_poss_opts(
-            turn_of_color, game_state
-        )
+        possible_next_moves = CheckersGame.get_color_poss_opts(turn_of_color, game_state)
 
         if len(possible_next_moves) == 0:
             return None, -NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE, 0
@@ -88,12 +81,10 @@ Finished in {time_elapsed} s
         move_chosen = None
         max_depth = 1
         for move in possible_next_moves:
-            child_game_state = CheckersGame.get_outcome_of_move(
-                [i.copy() for i in game_state], move
-            )
+            child_game_state = CheckersGame.get_outcome_of_move(deepcopy(game_state), move)
             child_draw_criteria_log = []
             for i in draw_criteria_log:
-                child_draw_criteria_log.append((i[0], [j.copy() for j in i[1]]))
+                child_draw_criteria_log.append((i[0], deepcopy(i[1])))
             child_draw_criteria_log.append((turn_of_color, child_game_state))
 
             candidate_move_chosen, candidate_value, candidate_max_depth = self.negamax(
@@ -105,15 +96,13 @@ Finished in {time_elapsed} s
                 -turn_of,
             )
 
-            if candidate_max_depth + 1 > max_depth:
-                max_depth = candidate_max_depth + 1
+            max_depth = max(max_depth, candidate_max_depth + 1)
 
             if -candidate_value > value:
                 value = -candidate_value
                 move_chosen = move
 
-            if value > alpha:
-                alpha = value
+            alpha = max(alpha, value)
 
             if alpha >= beta:
                 break
@@ -125,7 +114,6 @@ Finished in {time_elapsed} s
     #   minus number of opponent pieces (kings counts as two)
     # values in range <-ASSESSMENT_VALUE_MAX_AMPLITUDE, ASSESSMENT_VALUE_MAX_AMPLITUDE>
     def _assign_value(self, game_state):
-
         if self.computer_color == Color.ORANGE:
             return np.sum(game_state)
 
