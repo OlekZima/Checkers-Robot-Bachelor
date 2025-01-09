@@ -6,6 +6,7 @@ import cv2
 import PySimpleGUI as sg
 from serial.tools import list_ports
 
+from src.common.configs import ColorConfig
 from src.common.enums import Color, CalibrationMethod
 from src.common.utils import CONFIG_PATH, list_camera_ports
 
@@ -31,11 +32,11 @@ class ConfigurationWindow:
 
         self._config_method: CalibrationMethod = None
 
-        self._configuration_colors: dict[str, tuple[int, int, int]] = {
-            "Orange": (0, 0, 0),
-            "Blue": (0, 0, 0),
-            "Black": (0, 0, 0),
-            "White": (0, 0, 0),
+        self._color_config: ColorConfig = {
+            "orange": (0, 0, 0),
+            "blue": (0, 0, 0),
+            "black": (0, 0, 0),
+            "white": (0, 0, 0),
         }
 
         self._controller = None
@@ -49,19 +50,19 @@ class ConfigurationWindow:
         )
 
     def _get_property_if_exist(self, property_name: str) -> bool:
-        if getattr(self, f"_{property_name}") is None:
+        if getattr(self, property_name) is None:
             raise AttributeError(
-                f"No {property_name} property!\nLooks like you didn't start the `run` method."
+                f"No {property_name} property!\nLooks like you didn't run the `run` method."
             )
-        return getattr(self, f"_{property_name}")
+        return getattr(self, property_name)
 
     def get_robot_port(self) -> str:
         """Returns the selected port for the robot."""
-        return self._get_property_if_exist("robot_port")
+        return self._get_property_if_exist("_robot_port")
 
     def get_camera_port(self) -> int:
         """Returns the selected port for the camera."""
-        return self._get_property_if_exist("camera_port")
+        return self._get_property_if_exist("_camera_port")
 
     def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
         """
@@ -69,26 +70,26 @@ class ConfigurationWindow:
 
         ```python
         {
-            "Orange": (r, g, b),
-            "Blue": (r, g, b),
-            "Black": (r, g, b),
-            "White": (r, g, b),
+            "orange": (r, g, b),
+            "blue": (r, g, b),
+            "black": (r, g, b),
+            "white": (r, g, b),
         }
         ```
         """
-        return self._get_property_if_exist("configuration_colors")
+        return self._get_property_if_exist("_color_config")
 
     def get_robot_color(self) -> Color:
         """Returns the selected color as enum (Color.ORANGE or Color.BLUE) for the robot."""
-        return self._get_property_if_exist("selected_color")
+        return self._get_property_if_exist("_selected_color")
 
     def get_configuration_file_path(self) -> Path:
         """Returns the selected configuration file path."""
-        return self._get_property_if_exist("configuration_file_path")
+        return self._get_property_if_exist("_configuration_file_path")
 
     def get_difficulty_level(self) -> int:
         """Returns selected difficulty level (original range is [1 ... 10])"""
-        return self._get_property_if_exist("difficulty_level")
+        return self._get_property_if_exist("_difficulty_level")
 
     @staticmethod
     def _setup_main_layout() -> list[sg.Element]:
@@ -388,7 +389,7 @@ class ConfigurationWindow:
             [
                 sg.Button(
                     "Load config file and finish",
-                    visible=False,
+                    visible=True,
                     key="-Load_Config-",
                 ),
                 sg.Button(
@@ -453,7 +454,7 @@ class ConfigurationWindow:
                 self._selected_config_color = "White"
 
             if self._selected_config_color is not None:
-                self._configuration_colors[self._selected_config_color] = (r, g, b)
+                self._color_config[self._selected_config_color] = (r, g, b)
                 sg.popup(
                     f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
                 )
@@ -479,22 +480,23 @@ class ConfigurationWindow:
                 sg.popup(
                     f"Configuration file {self._configuration_file_path.name} loaded successfully!"
                 )
+                # self._controller.m
 
     def _handle_end_color_configuration_event(self) -> None:
-        self._configuration_colors = {
-            key: tuple(map(int, self._configuration_colors[key]))
-            for key in self._configuration_colors
+        self._color_config = {
+            key: tuple(map(int, self._color_config[key]))
+            for key in self._color_config
         }
 
         sg.popup(
             "Selected colors for the game [R, G, B]",
-            f"""Orange: {self._configuration_colors["Orange"]}
-            Blue: {self._configuration_colors["Blue"]}
-            Black: {self._configuration_colors["Black"]}
-            White: {self._configuration_colors["White"]}""",
+            f"""Orange: {self._color_config["Orange"]}
+            Blue: {self._color_config["Blue"]}
+            Black: {self._color_config["Black"]}
+            White: {self._color_config["White"]}""",
         )
 
-        print(self._configuration_colors)
+        print(self._color_config)
 
         self._show_calibration_tab()
 
