@@ -16,7 +16,9 @@ THREE_QUARTER_PI: float = 3.0 * math.pi / 4.0
 CONFIG_PATH: Path = Path("configs")
 
 
-def get_coord_from_tile_id(tile_id: int, color: Optional[Color] = None) -> Tuple[int, int]:
+def get_coord_from_tile_id(
+    tile_id: int, color: Optional[Color] = None
+) -> Tuple[int, int]:
     y, x = divmod((tile_id - 1), 4)
     x *= 2
 
@@ -92,7 +94,9 @@ def get_avg_pos(points: List[List[int]] = None) -> List[int]:
     return [x_avg, y_avg]
 
 
-def distance_from_color(bgr_sample, bgr_target) -> float:
+def distance_from_color(
+    bgr_sample: tuple[int, int, int], bgr_target: tuple[int, int, int]
+) -> float:
     distance = sum((bgr_sample[i] - bgr_target[i]) ** 2 for i in range(3))
     return math.sqrt(distance)
 
