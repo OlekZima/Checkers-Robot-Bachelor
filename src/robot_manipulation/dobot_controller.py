@@ -16,7 +16,6 @@ class DobotController:
         self.device: Dobot = Dobot(robot_port)
 
         x, y, z, _ = self.device.get_pose().position
-        print(f"\nx:{x} y:{y} z:{z}")
 
         # Board field numerating convention:
         #  upper_left = [0][0]
@@ -30,7 +29,7 @@ class DobotController:
         self.kings_available = 8
 
         self.read_calibration_file()
-        print(self.home_pos)
+        # print(self.home_pos)
         
         self.move_arm(
             self.home_pos[0], self.home_pos[1], self.home_pos[2] + 10, wait=True
@@ -48,12 +47,6 @@ class DobotController:
                     return user_input
             except ValueError:
                 print("Invalid input. Please enter a valid number.")
-
-    @staticmethod
-    def _display_options(configs: list[str]) -> None:
-        print("\nPlease choose a robot position configuration file by id\n")
-        for i, c in enumerate(configs):
-            print(f"[{i}]: {c}")
 
     def read_calibration_file(self):
         with open(self.config_path, "r", encoding="UTF-8") as f:
