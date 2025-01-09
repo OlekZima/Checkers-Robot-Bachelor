@@ -496,8 +496,6 @@ class ConfigurationWindow:
             White: {self._color_config["White"]}""",
         )
 
-        print(self._color_config)
-
         self._show_calibration_tab()
 
     def _handle_next_frame_event(self) -> None:
@@ -704,7 +702,6 @@ class ConfigurationWindow:
 
             if event == "-Difficulty_Level-":
                 self._difficulty_level = int(values["-Difficulty_Level-"])
-                # print(f"difficulty is: {self._difficulty_level}")
 
             if (
                 event == "-TABGROUP-"
