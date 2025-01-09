@@ -1,17 +1,20 @@
+from memory_profiler import profile
 import PySimpleGUI as sg
 import cv2
 import numpy as np
-from pathlib import Path
 
-from ..common.dataclasses import ColorConfig
+from src.common.utils import CONFIG_PATH
 
-from ..computer_vision.game_state_recognition import Game
+from src.common.configs import ColorConfig
 
-from ..robot_manipulation.dobot_controller import DobotController
+from src.computer_vision.board_recognition.contours import ContourProcessor
+from src.computer_vision.game_state_recognition import Game
 
-from ..checkers_game.game_controller import PVRobotController
+from src.robot_manipulation.dobot_controller import DobotController
 
-from ..common.enums import Color, GameStateResult, RobotGameReportItem, Status
+from src.checkers_game.game_controller import GameController
+
+from src.common.enums import Color, GameStateResult, RobotGameReportItem, Status
 
 
 class GameWindow:
@@ -19,30 +22,24 @@ class GameWindow:
         self,
         robot_color: Color,
         robot_port: str,
-        camera_port=0,
-        color_config: ColorConfig = None,
+        camera_port: int,
+        color_config: ColorConfig,
+        config_name: str,
+        depth_of_engine: int = 3,
     ) -> None:
-        self._robot_color = robot_color
-        self._robot_port = robot_port
         self._camera_port = camera_port
-        self._config_colors = color_config
 
-        self._cap = None
+        self._cap = cv2.VideoCapture(self._camera_port)
 
-        self._recording = False
-
-        # Initialize game components
-        self._color_config = ColorConfig(
-            (238, 96, 35),
-            (45, 117, 168),
-            (103, 109, 100),
-            (209, 214, 208),
+        self._game = GameController(robot_color, depth_of_engine)
+        self._dobot = DobotController(
+            robot_color, CONFIG_PATH / config_name, robot_port
         )
-        self._game = PVRobotController(Color.BLUE, 3)
-        self._dobot = DobotController(Color.BLUE, Path("configs/guit_test_2.txt"), None)
-        self._board_recognition = Game(self._color_config)
-        self._board_image = None
-        self._game_state_image = None
+        self._device = self._dobot.device
+        self._board_recognition = Game(color_config)
+
+        # self._board_image = None
+        # self._game_state_image = None
 
         self._layout = self._setup_main_layout()
         self._window = sg.Window(
@@ -74,15 +71,13 @@ class GameWindow:
     def _setup_main_game_layout() -> list[sg.Element]:
         layout = [
             [
-                sg.Graph(
-                    canvas_size=(640, 480),
-                    graph_bottom_left=(0, 0),
-                    graph_top_right=(640, 480),
+                sg.Image(
                     enable_events=True,
+                    size=(640, 480),
                     background_color="orange",
                     key="-Main_Camera_View-",
                 ),
-                sg.Output(size=(40, 20), key="-OUTPUT-"),
+                sg.Output(size=(80, 50), key="-OUTPUT-"),
             ],
             [
                 sg.Image(size=(200, 200), background_color="blue", key="-MOVE_IMAGE-"),
@@ -95,28 +90,22 @@ class GameWindow:
     def _setup_additional_views_layout() -> list[sg.Element]:
         layout = [
             [
-                sg.Graph(
-                    canvas_size=(640, 480),
-                    graph_bottom_left=(0, 0),
-                    graph_top_right=(640, 480),
+                sg.Image(
                     background_color="red",
-                    key="-Game_State_View-",
+                    size=(640, 480),
+                    key="-Dilate_View-",
                 ),
-                sg.Graph(
-                    canvas_size=(640, 480),
-                    graph_bottom_left=(0, 0),
-                    graph_top_right=(640, 480),
+                sg.Image(
                     background_color="black",
+                    size=(640, 480),
                     key="-Board_View-",
                 ),
             ],
             [
-                sg.Graph(
-                    canvas_size=(640, 480),
-                    graph_bottom_left=(0, 0),
-                    graph_top_right=(640, 480),
+                sg.Image(
                     background_color="white",
-                    key="-Camera_View-",
+                    size=(500, 500),
+                    key="-Game_State_View-",
                 ),
                 sg.Column(
                     [
@@ -141,16 +130,13 @@ class GameWindow:
         if frame is None or frame.size == 0:
             return
         imgbytes = cv2.imencode(".png", frame)[1].tobytes()
-        self._window[graph_key].delete_figure(graph_key)
-        self._window[graph_key].draw_image(data=imgbytes, location=(0, 480))
+        self._window[graph_key].update(imgbytes)
+        del imgbytes
+        del frame
 
+    @profile
     def run(self):
-        self._recording = True
-        self._cap = cv2.VideoCapture(self._camera_port)
-        # tmp = 0
-
-        # Get initial board image
-        self._board_image = self._board_recognition.get_board_image()
+        frame_skip = 20
 
         while True:
             event, values = self._window.read(20)
@@ -162,16 +148,16 @@ class GameWindow:
             if not ret:
                 continue
 
-            # if tmp > 0:
-            #     tmp -= 1
-            #     continue
+            if frame_skip > 0:
+                frame_skip -= 1
+                continue
 
             # Update main camera view
             self._update_graph(image, "-Main_Camera_View-")
 
             try:
                 # Process game state
-                game_state = self._board_recognition.update_game_state(image)
+                _, game_state = self._board_recognition.update_game_state(image)
                 update_game_state_result = self._game.update_game_state(game_state)
 
                 # Update game state view
@@ -179,7 +165,11 @@ class GameWindow:
                 self._update_graph(self._game_state_image, "-Game_State_View-")
 
                 # Update board view
+                self._board_image = self._board_recognition.get_board_image()
                 self._update_graph(self._board_image, "-Board_View-")
+
+                dilate_image = ContourProcessor.image_dil
+                self._update_graph(dilate_image, "-Dilate_View-")
 
                 # Handle game state results
                 if update_game_state_result in (
@@ -221,7 +211,7 @@ class GameWindow:
                         game_state_report[RobotGameReportItem.ROBOT_MOVE],
                         is_crown=game_state_report[RobotGameReportItem.IS_CROWNED],
                     )
-                    # tmp = 20
+                    frame_skip = 20
                 else:
                     self._window["-MOVE_STATUS-"].update("Player's turn...")
 
@@ -229,16 +219,22 @@ class GameWindow:
                 print(f"Error: {e}")
                 continue
 
-        if self._cap:
-            self._cap.release()
+        cv2.destroyAllWindows()
+        self._cap.release()
         self._window.close()
 
 
 if __name__ == "__main__":
-    # Initialize and run the game window
+    color_config = ColorConfig(
+        {
+            "orange": (220, 70, 0),
+            "blue": (42, 113, 157),
+            "black": (107, 108, 101),
+            "white": (198, 205, 203),
+        }
+    )
+
     game_window = GameWindow(
-        robot_color="blue",
-        robot_port="COM3",
-        camera_port=2,
+        Color.ORANGE, "/dev/ttyUSB0", 2, color_config, "guit_test_2.txt"
     )
     game_window.run()
