@@ -9,7 +9,7 @@ from src.common.configs import RecognitionConfig
 
 class ContourProcessor:
     """Helper class for contours detection on the board."""
-
+    image_dil: np.ndarray
     def __init__(self, recognition_config: Optional[RecognitionConfig] = None):
         """Constructor for the ContourProcessor class.
 
@@ -57,7 +57,8 @@ class ContourProcessor:
             self.recognition_config.threshold2,
         )
         img_dil = cv2.dilate(img_canny, self.kernel, iterations=1)
-
+        ContourProcessor.image_dil = img_dil
+        
         return img_dil
 
     def _detect_contours(self, image: np.ndarray) -> np.ndarray:
