@@ -1,15 +1,14 @@
 """This module contains dataclasses for the project."""
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, TypedDict
 
 
-@dataclass
-class ColorConfig:
+class ColorConfig(TypedDict):
     orange: Tuple[int, int, int]
     blue: Tuple[int, int, int]
     black: Tuple[int, int, int]
-    light: Tuple[int, int, int]
+    white: Tuple[int, int, int]
 
 
 @dataclass
