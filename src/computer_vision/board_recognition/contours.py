@@ -7,9 +7,11 @@ from src.common.utils import get_pts_dist
 from src.common.configs import RecognitionConfig
 
 
-class ContourProcessor:
+class ContourDetector:
     """Helper class for contours detection on the board."""
+
     image_dil: np.ndarray
+
     def __init__(self, recognition_config: Optional[RecognitionConfig] = None):
         """Constructor for the ContourProcessor class.
 
@@ -28,22 +30,18 @@ class ContourProcessor:
 
                 Defaults to None.
         """
-        self.recognition_config: RecognitionConfig = (
-            recognition_config or RecognitionConfig()
-        )
+        self.recognition_config: RecognitionConfig = recognition_config or RecognitionConfig()
         self.kernel = np.ones(self.recognition_config.kernel_size)
 
     def get_contours(
         self, image: np.ndarray, recognition_config: Optional[RecognitionConfig] = None
     ) -> np.ndarray:
         self.recognition_config = (
-            recognition_config
-            if recognition_config is not None
-            else self.recognition_config
+            recognition_config if recognition_config is not None else self.recognition_config
         )
 
         preprocessed_img = self._preprocess_image(image)
-        contours = self._detect_contours(preprocessed_img)
+        contours = self.__detect_contours(preprocessed_img)
 
         return contours
 
@@ -57,11 +55,11 @@ class ContourProcessor:
             self.recognition_config.threshold2,
         )
         img_dil = cv2.dilate(img_canny, self.kernel, iterations=1)
-        ContourProcessor.image_dil = img_dil
-        
+        ContourDetector.image_dil = img_dil
+
         return img_dil
 
-    def _detect_contours(self, image: np.ndarray) -> np.ndarray:
+    def __detect_contours(self, image: np.ndarray) -> np.ndarray:
         """Detect and process contours on the image.
 
         Args:
@@ -73,9 +71,7 @@ class ContourProcessor:
         initial_contours = self._find_quadrilateral_contours(image)
         filtered_contours = self._filter_contours_by_area(initial_contours)
         joined_contours = self._join_nearby_points(filtered_contours)
-        synthetic_contours = self._reprocess_synthetic_image(
-            joined_contours, image.shape
-        )
+        synthetic_contours = self._reprocess_synthetic_image(joined_contours, image.shape)
         return synthetic_contours
 
     def _find_quadrilateral_contours(self, image: np.ndarray) -> np.ndarray:
@@ -106,9 +102,7 @@ class ContourProcessor:
         if len(contours) == 0:
             return np.array([])
 
-        areas = np.array(
-            [cv2.contourArea(contour.reshape(-1, 1, 2)) for contour in contours]
-        )
+        areas = np.array([cv2.contourArea(contour.reshape(-1, 1, 2)) for contour in contours])
 
         min_area_mask = areas >= self.recognition_config.min_area
         contours = contours[min_area_mask]
@@ -165,7 +159,7 @@ class ContourProcessor:
 if __name__ == "__main__":
     cap = cv2.VideoCapture(0)
     configuration = RecognitionConfig()
-    image_processor = ContourProcessor(configuration)
+    image_processor = ContourDetector(configuration)
     while True:
         ret, frame = cap.read()
         if not ret:
