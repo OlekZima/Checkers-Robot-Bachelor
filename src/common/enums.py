@@ -18,7 +18,7 @@ class RobotGameReportItem(Enum):
 
 
 class Color(Enum):
-    """Enum representing the color of the player and robot."""
+    """Enum representing the color of the piece."""
 
     ORANGE = 1
     BLUE = -1
