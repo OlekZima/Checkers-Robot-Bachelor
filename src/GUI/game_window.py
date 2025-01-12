@@ -8,7 +8,7 @@ from src.common.utils import CONFIG_PATH
 from src.common.configs import ColorConfig
 
 from src.computer_vision.board_recognition.contours import ContourProcessor
-from src.computer_vision.game_state_recognition import Game
+from src.computer_vision.game_state_recognition import GameState
 
 from src.robot_manipulation.dobot_controller import DobotController
 
@@ -32,19 +32,15 @@ class GameWindow:
         self._cap = cv2.VideoCapture(self._camera_port)
 
         self._game = GameController(robot_color, depth_of_engine)
-        self._dobot = DobotController(
-            robot_color, CONFIG_PATH / config_name, robot_port
-        )
+        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
         self._device = self._dobot.device
-        self._board_recognition = Game(color_config)
+        self._board_recognition = GameState(color_config)
 
         # self._board_image = None
         # self._game_state_image = None
 
         self._layout = self._setup_main_layout()
-        self._window = sg.Window(
-            "Checkers Game", self._layout, resizable=False
-        ).Finalize()
+        self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
 
     @staticmethod
     def _setup_main_layout() -> list[sg.Element]:
@@ -176,15 +172,11 @@ class GameWindow:
                     GameStateResult.INVALID_OPPONENT_MOVE,
                     GameStateResult.INVALID_ROBOT_MOVE,
                 ):
-                    self._window["-MOVE_STATUS-"].update(
-                        "Invalid move! Please correct it."
-                    )
+                    self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
                     continue
 
                 if update_game_state_result == GameStateResult.VALID_WRONG_ROBOT_MOVE:
-                    self._window["-MOVE_STATUS-"].update(
-                        "Wrong robot move! Please correct it."
-                    )
+                    self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
                     continue
 
                 game_state_report = self._game.report_state()
@@ -196,9 +188,7 @@ class GameWindow:
                     elif game_state_report[RobotGameReportItem.WINNER] == Color.BLUE:
                         self._window["-MOVE_STATUS-"].update("Game Over - ROBOT WON!")
                     else:
-                        self._window["-MOVE_STATUS-"].update(
-                            "Game Over - OPPONENT WON!"
-                        )
+                        self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
                     break
 
                 # Handle turns
@@ -234,7 +224,5 @@ if __name__ == "__main__":
         }
     )
 
-    game_window = GameWindow(
-        Color.ORANGE, "/dev/ttyUSB0", 2, color_config, "guit_test_2.txt"
-    )
+    game_window = GameWindow(Color.ORANGE, "/dev/ttyUSB0", 2, color_config, "guit_test_2.txt")
     game_window.run()
