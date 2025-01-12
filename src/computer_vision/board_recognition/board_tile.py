@@ -13,7 +13,7 @@ from src.common.utils import (
     QUARTER_PI,
 )
 
-from .contours import ContourProcessor
+from .contours import ContourDetector
 
 
 class BoardTile:
@@ -39,9 +39,7 @@ class BoardTile:
 
         self.center = get_avg_pos(points)
 
-        self.neighbors: Dict[str, Optional[Self]] = {
-            key: None for key in self.NEIGHBORS_KEYS
-        }
+        self.neighbors: Dict[str, Optional[Self]] = {key: None for key in self.NEIGHBORS_KEYS}
         self.neighbors_count = 0
 
         self.position: Tuple[Optional[int], Optional[int]] = (
@@ -167,9 +165,7 @@ class BoardTile:
         """
         for i, vertex in enumerate(self.vertexes):
             for j, other_vertex in enumerate(poss_neighbor.vertexes):
-                if self._are_vertices_connected(
-                    vertex, other_vertex, i, j, poss_neighbor
-                ):
+                if self._are_vertices_connected(vertex, other_vertex, i, j, poss_neighbor):
                     self._create_neighbor_connection(poss_neighbor, i, j)
 
     def _are_vertices_connected(
@@ -389,9 +385,7 @@ class BoardTile:
             or (rad_max < rad_min <= dir_tmp)
         )
 
-    def get_neighbor_in_rad_range(
-        self, rad_min: float, rad_max: float
-    ) -> Optional[Self]:
+    def get_neighbor_in_rad_range(self, rad_min: float, rad_max: float) -> Optional[Self]:
         """Returns the neighbor in the given range of radians.
 
         Args:
@@ -409,8 +403,7 @@ class BoardTile:
             (
                 n
                 for n in self.neighbors.values()
-                if n is not None
-                and self._is_point_in_rad_range(rad_min, rad_max, n.center)
+                if n is not None and self._is_point_in_rad_range(rad_min, rad_max, n.center)
             ),
             None,
         )
@@ -500,23 +493,22 @@ class BoardTile:
                 List of number of steps in the given direction.
         """
         results = []
-        same_dir = self.get_neighbor_in_rad_range(
-            ranges["minus_max"], ranges["plus_min"]
-        )
+        same_dir = self.get_neighbor_in_rad_range(ranges["minus_max"], ranges["plus_min"])
 
         if same_dir is not None:
             # one more because it is in checked direction
             results.append(same_dir.get_num_of_steps_in_dir_rad(dir_rad, dir_idx) + 1)
 
-        for min_range, max_range in (ranges["minus_min"], ranges["minus_max"]), (
-            ranges["plus_min"],
-            ranges["plus_max"],
+        for min_range, max_range in (
+            (ranges["minus_min"], ranges["minus_max"]),
+            (
+                ranges["plus_min"],
+                ranges["plus_max"],
+            ),
         ):
             side_neighbor = self.get_neighbor_in_rad_range(min_range, max_range)
             if side_neighbor is not None:
-                results.append(
-                    side_neighbor.get_num_of_steps_in_dir_rad(dir_rad, dir_idx)
-                )
+                results.append(side_neighbor.get_num_of_steps_in_dir_rad(dir_rad, dir_idx))
 
         return results
 
@@ -547,9 +539,7 @@ class BoardTile:
                 neighbor.set_indexes(self.position[0] + dx, self.position[1] + dy)
                 neighbor.index_neighbors(dir_0)
 
-    def get_vertex_in_rad_range(
-        self, rad_min: float, rad_max: float
-    ) -> Optional[List[int]]:
+    def get_vertex_in_rad_range(self, rad_min: float, rad_max: float) -> Optional[List[int]]:
         """Returns the vertex in the given range of radians.
 
         Args:
@@ -564,18 +554,14 @@ class BoardTile:
                 Vertex in the given range of radians.
         """
         return next(
-            (
-                v
-                for v in self.vertexes
-                if self._is_point_in_rad_range(rad_min, rad_max, v)
-            ),
+            (v for v in self.vertexes if self._is_point_in_rad_range(rad_min, rad_max, v)),
             None,
         )
 
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(0)
-    processor = ContourProcessor()
+    processor = ContourDetector()
 
     while True:
         ret, frame = cap.read()

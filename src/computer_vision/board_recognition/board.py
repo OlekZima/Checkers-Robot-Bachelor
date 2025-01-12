@@ -22,7 +22,7 @@ from src.common.utils import (
 )
 
 from .board_tile import BoardTile
-from .contours import ContourProcessor
+from .contours import ContourDetector
 
 
 class Board:
@@ -37,7 +37,7 @@ class Board:
         _type_: Board: Board object with detected board and tiles
     """
 
-    contour_processor: ClassVar[ContourProcessor] = ContourProcessor()
+    contour_processor: ClassVar[ContourDetector] = ContourDetector()
     frame: ClassVar[np.ndarray] = np.array([])
     _instance: ClassVar[Optional[Self]] = None
 
@@ -45,9 +45,7 @@ class Board:
         """Initialize Board object. Not intended to be called directly.
         Use `detect_board` class method instead."""
         self.tiles: List[BoardTile] = []
-        self.points: List[List[Optional[List[int]]]] = [
-            [None for _ in range(9)] for _ in range(9)
-        ]
+        self.points: List[List[Optional[List[int]]]] = [[None for _ in range(9)] for _ in range(9)]
         self.vertexes: List[Optional[List[int]]] = [None] * 4
 
     @classmethod
@@ -67,9 +65,7 @@ class Board:
             InsufficientDataError: Not enough data to process the board
         """
 
-        recognition_config = (
-            recognition_config if recognition_config else RecognitionConfig()
-        )
+        recognition_config = recognition_config if recognition_config else RecognitionConfig()
         try:
             # Create instance if it doesn't exist
             if cls._instance is None:
@@ -94,9 +90,7 @@ class Board:
         except (BoardDetectionError, InsufficientDataError) as e:
             raise e
         except Exception as e:
-            raise BoardDetectionError(
-                "Unknown Error occurred while trying to detect board"
-            ) from e
+            raise BoardDetectionError("Unknown Error occurred while trying to detect board") from e
 
     def _reset_state(self) -> None:
         """Reset the board state for new detection."""
@@ -172,9 +166,7 @@ class Board:
         except InsufficientDataError as ide:
             raise ide
         except Exception as e:
-            raise BoardDetectionError(
-                "Error occured while trying to process start tile"
-            ) from e
+            raise BoardDetectionError("Error occured while trying to process start tile") from e
 
     @classmethod
     def _draw_tile_coordinates(cls, tile: BoardTile) -> None:
@@ -213,10 +205,7 @@ class Board:
         for i in range(0, 9):
             for j in range(0, 9):
                 if i != 8:
-                    if (
-                        self.points[i][j] is not None
-                        and self.points[i + 1][j] is not None
-                    ):
+                    if self.points[i][j] is not None and self.points[i + 1][j] is not None:
                         cv2.line(
                             Board.frame,
                             self.points[i][j],
@@ -225,10 +214,7 @@ class Board:
                             1,
                         )
                 if j != 8:
-                    if (
-                        self.points[i][j] is not None
-                        and self.points[i][j + 1] is not None
-                    ):
+                    if self.points[i][j] is not None and self.points[i][j + 1] is not None:
                         cv2.line(
                             Board.frame,
                             self.points[i][j],
@@ -299,9 +285,7 @@ class Board:
         )
 
         if dir_1_steps + dir_3_steps != 7:
-            raise InsufficientDataError(
-                "Not enough board is recognized on the `X` axis"
-            )
+            raise InsufficientDataError("Not enough board is recognized on the `X` axis")
         start_tile.set_x_index(dir_3_steps)
 
         # Calculate Y index
@@ -321,9 +305,7 @@ class Board:
         )
 
         if dir_2_steps + dir_0_steps != 7:
-            raise InsufficientDataError(
-                "Not enough board is recognized on the `Y` axis"
-            )
+            raise InsufficientDataError("Not enough board is recognized on the `Y` axis")
         start_tile.set_y_index(dir_0_steps)
 
     @staticmethod
@@ -574,9 +556,7 @@ class Board:
 
             # Get extrapolation points
             if is_vertical:
-                extrapolation_points = (
-                    self.points[i][::-1] if fixed_idx == 0 else self.points[i]
-                )
+                extrapolation_points = self.points[i][::-1] if fixed_idx == 0 else self.points[i]
             else:
                 extrapolation_points = (
                     [row[i] for row in self.points][::-1]
@@ -586,9 +566,7 @@ class Board:
 
             # Calculate final position
             extrapolation_value = self._extrapolate_last_point(extrapolation_points)
-            final_position = get_avg_pos(
-                [get_avg_pos(averaging_points), extrapolation_value]
-            )
+            final_position = get_avg_pos([get_avg_pos(averaging_points), extrapolation_value])
 
             # Update points
             if is_vertical:
@@ -597,9 +575,7 @@ class Board:
                 self.points[fixed_idx][i] = final_position
             border_points[i] = final_position
 
-    def _get_averaging_points(
-        self, points: List[List[int]], current_idx: int
-    ) -> List[List[int]]:
+    def _get_averaging_points(self, points: List[List[int]], current_idx: int) -> List[List[int]]:
         """Get averaging points for the given border points.
 
         Args:
@@ -639,18 +615,14 @@ class Board:
                 Row index of the point.
         """
         # Get points in same row
-        row_points = self._get_next_valid_points(
-            self.points[i], j, self.points[i][j - 1]
-        )
+        row_points = self._get_next_valid_points(self.points[i], j, self.points[i][j - 1])
 
         # Get points in same column
         column = [row[j] for row in self.points]
         col_points = self._get_next_valid_points(column, i, self.points[i - 1][j])
 
         # Calculate final position
-        self.points[i][j] = get_avg_pos(
-            [get_avg_pos(row_points), get_avg_pos(col_points)]
-        )
+        self.points[i][j] = get_avg_pos([get_avg_pos(row_points), get_avg_pos(col_points)])
 
     def _get_next_valid_points(
         self, points: List[List[int]], current_idx: int, prev_point: List[int]
@@ -675,7 +647,6 @@ class Board:
         return result
 
     def is_00_white(self, color_config: ColorConfig, radius: int = 4) -> bool:
-
         pt = get_avg_pos(
             [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
         )
@@ -703,7 +674,7 @@ class Board:
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(0)
-    processor = ContourProcessor()
+    processor = ContourDetector()
     while True:
         _, img = cap.read()
 

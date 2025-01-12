@@ -9,6 +9,8 @@ from src.common.configs import ColorConfig
 
 from src.computer_vision.board_recognition.contours import ContourProcessor
 from src.computer_vision.game_state_recognition import GameState
+from src.computer_vision.board_recognition.contours import ContourDetector
+from src.computer_vision.game_state_recognition import Game
 
 from src.robot_manipulation.dobot_controller import DobotController
 
@@ -33,6 +35,7 @@ class GameWindow:
 
         self._game = GameController(robot_color, depth_of_engine)
         self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
+        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
         self._device = self._dobot.device
         self._board_recognition = GameState(color_config)
 
@@ -40,6 +43,7 @@ class GameWindow:
         # self._game_state_image = None
 
         self._layout = self._setup_main_layout()
+        self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
         self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
 
     @staticmethod
@@ -164,7 +168,7 @@ class GameWindow:
                 self._board_image = self._board_recognition.get_board_image()
                 self._update_graph(self._board_image, "-Board_View-")
 
-                dilate_image = ContourProcessor.image_dil
+                dilate_image = ContourDetector.image_dil
                 self._update_graph(dilate_image, "-Dilate_View-")
 
                 # Handle game state results
@@ -173,9 +177,11 @@ class GameWindow:
                     GameStateResult.INVALID_ROBOT_MOVE,
                 ):
                     self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
+                    self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
                     continue
 
                 if update_game_state_result == GameStateResult.VALID_WRONG_ROBOT_MOVE:
+                    self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
                     self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
                     continue
 
@@ -188,6 +194,7 @@ class GameWindow:
                     elif game_state_report[RobotGameReportItem.WINNER] == Color.BLUE:
                         self._window["-MOVE_STATUS-"].update("Game Over - ROBOT WON!")
                     else:
+                        self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
                         self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
                     break
 
