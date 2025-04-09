@@ -158,8 +158,7 @@ class ContourDetector:
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(0)
-    configuration = RecognitionConfig()
-    image_processor = ContourDetector(configuration)
+    image_processor = ContourDetector()
     while True:
         ret, frame = cap.read()
         if not ret:

@@ -5,12 +5,12 @@ This module provides functionality for managing a checkers game state,
 including board visualization, game state updates, and state tracking.
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import cv2
 import numpy as np
 
-from src.common.configs import ColorConfig, RecognitionConfig
+from src.common.configs import ColorConfig
 from src.common.enums import Color
 from .board_recognition.board import Board
 from .checkers_recognition import Checkers
@@ -49,7 +49,6 @@ class GameState:
         self,
         colors: ColorConfig,
         lack_of_trust_level: int = 5,
-        recognition_config: Optional[RecognitionConfig] = None,
     ) -> None:
         """
         Initialize a new Game instance.
@@ -61,7 +60,6 @@ class GameState:
         """
         self.colors = colors
         self.lack_of_trust_level = lack_of_trust_level
-        self.recognition_config = recognition_config or RecognitionConfig()
         self.game_state = self._create_initial_game_state()
         self.game_state_log: List[np.ndarray] = [self.game_state]
         self.game_state_image: np.ndarray = np.array([])
@@ -127,7 +125,7 @@ class GameState:
         self.game_state_log.append(new_game_state)
         return False
 
-    def update_game_state(self, image: np.ndarray) -> Tuple[bool, np.ndarray]:
+    def update_game_state(self, image: np.ndarray) -> np.ndarray:
         """
         Updates the game state based on the input image.
         Args:
@@ -215,8 +213,7 @@ if __name__ == "__main__":
     while True:
         ret, frame = cap.read()
         try:
-            if game.update_game_state(frame):
-                print("Game state changed")
+            state = game.update_game_state(frame)
 
             cv2.imshow("Game state", game.get_game_state_image())
             cv2.imshow("Frame", Board.detect_board(frame).frame)
