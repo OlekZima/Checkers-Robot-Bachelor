@@ -1,9 +1,11 @@
 import time
 from copy import deepcopy
+
 import numpy as np
-from src.common.exceptions import DecisionEngineError
+
 from src.checkers_game.checkers_game import CheckersGame
 from src.common.enums import Color
+from src.common.exceptions import DecisionEngineError
 
 
 class NegamaxDecisionEngine:
@@ -13,7 +15,10 @@ class NegamaxDecisionEngine:
         self.computer_color = computer_color
         self.depth_to_use = depth_to_use
 
-    def decide_move(self, game=CheckersGame()):
+    def decide_move(self, game=None):
+        if game is None:
+            game = CheckersGame()
+
         if game.get_turn_of() is None or game.get_turn_of() != self.computer_color:
             raise DecisionEngineError("Decision engine criteria not met")
 
@@ -24,7 +29,9 @@ class NegamaxDecisionEngine:
             )
             return move_chosen
 
-        print("\n=================================\nNegamax has started\n\nProcessing .....\n")
+        print(
+            "\n=================================\nNegamax has started\n\nProcessing .....\n"
+        )
         start_time = time.time()
 
         move_chosen, value, max_depth_reached = self.negamax(
@@ -51,7 +58,9 @@ Finished in {time_elapsed:.2f} s
 
         return move_chosen
 
-    def negamax(self, game_state, draw_criteria_log, depth_to_use, alpha, beta, turn_of):
+    def negamax(
+        self, game_state, draw_criteria_log, depth_to_use, alpha, beta, turn_of
+    ):
         turn_of_color = (
             self.computer_color
             if turn_of == 1
@@ -67,7 +76,9 @@ Finished in {time_elapsed:.2f} s
             return None, 0, 0
 
         # check for win/lose criteria
-        possible_next_moves = CheckersGame.get_color_poss_opts(turn_of_color, game_state)
+        possible_next_moves = CheckersGame.get_color_poss_opts(
+            turn_of_color, game_state
+        )
 
         if len(possible_next_moves) == 0:
             return None, -NegamaxDecisionEngine.ASSESSMENT_VALUE_MAX_AMPLITUDE, 0
@@ -81,7 +92,9 @@ Finished in {time_elapsed:.2f} s
         move_chosen = None
         max_depth = 1
         for move in possible_next_moves:
-            child_game_state = CheckersGame.get_outcome_of_move(deepcopy(game_state), move)
+            child_game_state = CheckersGame.get_outcome_of_move(
+                deepcopy(game_state), move
+            )
             child_draw_criteria_log = []
             for i in draw_criteria_log:
                 child_draw_criteria_log.append((i[0], deepcopy(i[1])))
