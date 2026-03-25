@@ -1,10 +1,12 @@
 """Module for detecting contours on the board. Contains ContourProcessor class."""
 
-from typing import Optional, Tuple
-import cv2
+from typing import Optional, Tuple, cast
+
+import cv2 as cv
 import numpy as np
-from src.common.utils import get_pts_dist
+
 from src.common.configs import RecognitionConfig
+from src.common.utils import get_pts_dist
 
 
 class ContourDetector:
@@ -30,14 +32,18 @@ class ContourDetector:
 
                 Defaults to None.
         """
-        self.recognition_config: RecognitionConfig = recognition_config or RecognitionConfig()
+        self.recognition_config: RecognitionConfig = (
+            recognition_config or RecognitionConfig()
+        )
         self.kernel = np.ones(self.recognition_config.kernel_size)
 
     def get_contours(
         self, image: np.ndarray, recognition_config: Optional[RecognitionConfig] = None
     ) -> np.ndarray:
         self.recognition_config = (
-            recognition_config if recognition_config is not None else self.recognition_config
+            recognition_config
+            if recognition_config is not None
+            else self.recognition_config
         )
 
         preprocessed_img = self._preprocess_image(image)
@@ -46,15 +52,15 @@ class ContourDetector:
         return contours
 
     def _preprocess_image(self, image: np.ndarray) -> np.ndarray:
-        img_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        _, _, img_v = cv2.split(img_hsv)
+        img_hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+        _, _, img_v = cv.split(img_hsv)
 
-        img_canny = cv2.Canny(
+        img_canny = cv.Canny(
             img_v,
             self.recognition_config.threshold1,
             self.recognition_config.threshold2,
         )
-        img_dil = cv2.dilate(img_canny, self.kernel, iterations=1)
+        img_dil = cv.dilate(img_canny, self.kernel, iterations=1)
         ContourDetector.image_dil = img_dil
 
         return img_dil
@@ -71,7 +77,9 @@ class ContourDetector:
         initial_contours = self._find_quadrilateral_contours(image)
         filtered_contours = self._filter_contours_by_area(initial_contours)
         joined_contours = self._join_nearby_points(filtered_contours)
-        synthetic_contours = self._reprocess_synthetic_image(joined_contours, image.shape)
+        synthetic_contours = self._reprocess_synthetic_image(
+            joined_contours, image.shape
+        )
         return synthetic_contours
 
     def _find_quadrilateral_contours(self, image: np.ndarray) -> np.ndarray:
@@ -84,12 +92,12 @@ class ContourDetector:
             np.ndarray: quadrilateral contours found on the image
         """
 
-        contours, _ = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        contours, _ = cv.findContours(image, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
 
         quad_contours = np.ndarray((1, 4, 1, 2), dtype=int)
         for contour in contours:
-            perimeter = cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(
+            perimeter = cv.arcLength(contour, True)
+            approx = cv.approxPolyDP(
                 contour, self.recognition_config.approx_peri_fraction * perimeter, True
             )
             if len(approx) == 4:
@@ -102,7 +110,9 @@ class ContourDetector:
         if len(contours) == 0:
             return np.array([])
 
-        areas = np.array([cv2.contourArea(contour.reshape(-1, 1, 2)) for contour in contours])
+        areas = np.array(
+            [cv.contourArea(contour.reshape(-1, 1, 2)) for contour in contours]
+        )
 
         min_area_mask = areas >= self.recognition_config.min_area
         contours = contours[min_area_mask]
@@ -150,14 +160,20 @@ class ContourDetector:
         self, contours: np.ndarray, image_shape: Tuple[int, int]
     ) -> np.ndarray:
         syntetic_image = np.zeros(image_shape, dtype=np.uint8)
-        cv2.drawContours(syntetic_image, contours, -1, (255), 2)
+        cv.drawContours(
+            syntetic_image,
+            cast(list[np.ndarray], contours.tolist()),
+            -1,
+            (255, 255, 255),
+            2,
+        )
 
         reprocessed_contours = self._find_quadrilateral_contours(syntetic_image)
         return self._join_nearby_points(reprocessed_contours)
 
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(0)
+    cap = cv.VideoCapture(0)
     image_processor = ContourDetector()
     while True:
         ret, frame = cap.read()
@@ -165,10 +181,16 @@ if __name__ == "__main__":
             break
 
         contours_frame = image_processor.get_contours(frame)
-        cv2.drawContours(frame, contours_frame, -1, (0, 255, 0), 2)
-        cv2.imshow("CONTOURS", frame)
+        cv.drawContours(
+            frame,
+            cast(list[np.ndarray], contours_frame.tolist()),
+            -1,
+            (0, 255, 0),
+            2,
+        )
+        cv.imshow("CONTOURS", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        if cv.waitKey(1) & 0xFF == ord("q"):
             break
     cap.release()
-    cv2.destroyAllWindows()
+    cv.destroyAllWindows()
