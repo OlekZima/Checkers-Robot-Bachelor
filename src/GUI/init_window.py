@@ -1,806 +1,285 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import Optional
 
-import cv2
-import PySimpleGUI as sg
+import gradio as gr
 from serial.tools import list_ports
 
 from src.common.configs import ColorConfig
-from src.common.enums import Color, CalibrationMethod
-from src.common.utils import CONFIG_PATH, list_camera_ports
+from src.common.enums import Color
 
-from src.robot_manipulation.calibration_controller import CalibrationController
+
+@dataclass
+class _ConfigState:
+    robot_color: Optional[Color] = None
+    difficulty_level: int = 3
+    robot_port: Optional[str] = None
+    camera_port: Optional[int] = None
+    configuration_file_path: Optional[Path] = None
+    color_config: ColorConfig | None = None
+    completed: bool = False
+
+
+def _default_color_config() -> ColorConfig:
+    return {
+        "orange": (220, 70, 0),
+        "blue": (42, 113, 157),
+        "black": (107, 108, 101),
+        "white": (198, 205, 203),
+    }
 
 
 class ConfigurationWindow:
-    """Configuration window for the checkers robot."""
+    """Compatibility adapter with Gradio backend.
+
+    Public API matches the old class:
+    - run()
+    - get_robot_port()
+    - get_camera_port()
+    - get_config_colors_dict()
+    - get_robot_color()
+    - get_configuration_file_path()
+    - get_difficulty_level()
+    """
 
     def __init__(self) -> None:
-        self._selected_color: Color = None
-        self._difficulty_level: int = 3
+        self._state = _ConfigState(color_config=_default_color_config())
+        self._app: Optional[gr.Blocks] = None
 
-        self._robot_port = None
-        self._camera_port = None
-        self._configuration_file_path: Path = None
-
-        self._cap = None
-        self._frame = None
-        self._image_id = None
-
-        self._selected_config_color = None
-
-        self._config_method: CalibrationMethod = None
-
-        self._color_config: ColorConfig = {
-            "orange": (0, 0, 0),
-            "blue": (0, 0, 0),
-            "black": (0, 0, 0),
-            "white": (0, 0, 0),
-        }
-
-        self._controller = None
-
-        self._window = sg.Window(
-            "Configuration",
-            self._setup_main_layout(),
-            resizable=False,
-            return_keyboard_events=True,
-            use_default_focus=False,
-        )
-
-    def _get_property_if_exist(self, property_name: str) -> bool:
-        if getattr(self, property_name) is None:
+    def _get_property_if_exist(self, name: str):
+        value = getattr(self._state, name)
+        if value is None:
             raise AttributeError(
-                f"No {property_name} property!\nLooks like you didn't run the `run` method."
+                f"No {name} property!\nLooks like you didn't complete the `run` flow."
             )
-        return getattr(self, property_name)
+        return value
 
     def get_robot_port(self) -> str:
-        """Returns the selected port for the robot."""
-        return self._get_property_if_exist("_robot_port")
+        return self._get_property_if_exist("robot_port")
 
     def get_camera_port(self) -> int:
-        """Returns the selected port for the camera."""
-        return self._get_property_if_exist("_camera_port")
+        return self._get_property_if_exist("camera_port")
 
     def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
-        """
-        Returns the selected colors dictionary for the game.
-
-        ```python
-        {
-            "orange": (r, g, b),
-            "blue": (r, g, b),
-            "black": (r, g, b),
-            "white": (r, g, b),
-        }
-        ```
-        """
-        return self._get_property_if_exist("_color_config")
+        return self._get_property_if_exist("color_config")
 
     def get_robot_color(self) -> Color:
-        """Returns the selected color as enum (Color.ORANGE or Color.BLUE) for the robot."""
-        return self._get_property_if_exist("_selected_color")
+        return self._get_property_if_exist("robot_color")
 
     def get_configuration_file_path(self) -> Path:
-        """Returns the selected configuration file path."""
-        return self._get_property_if_exist("_configuration_file_path")
+        return self._get_property_if_exist("configuration_file_path")
 
     def get_difficulty_level(self) -> int:
-        """Returns selected difficulty level (original range is [1 ... 10])"""
-        return self._get_property_if_exist("_difficulty_level")
+        return self._get_property_if_exist("difficulty_level")
 
     @staticmethod
-    def _setup_main_layout() -> list[sg.Element]:
-        layout: list[sg.Element] = [
-            [
-                sg.Text(
-                    "Checkers Robot Configuration",
-                    justification="center",
-                    expand_x=True,
-                )
-            ],
-            [
-                sg.TabGroup(
-                    [
-                        [
-                            sg.Tab(
-                                "Color Selection",
-                                layout=ConfigurationWindow._setup_color_selection_layout(),
-                                key="-Color_Selection-",
-                            ),
-                            sg.Tab(
-                                "Port Selection",
-                                layout=ConfigurationWindow._setup_port_selection_layout(),
-                                key="-Port_Selection-",
-                                visible=False,
-                            ),
-                            sg.Tab(
-                                "Color Configuration",
-                                layout=ConfigurationWindow._setup_color_configuration_layout(),
-                                key="-Color_Configuration-",
-                                visible=False,
-                            ),
-                            sg.Tab(
-                                title="Calibration",
-                                layout=ConfigurationWindow._setup_calibration_layout(),
-                                key="-Calibration-",
-                                visible=False,
-                            ),
-                        ]
-                    ],
-                    expand_x=True,
-                    enable_events=True,
-                    key="-TABGROUP-",
-                )
-            ],
-        ]
-        return layout
+    def _list_robot_ports() -> list[str]:
+        ports = []
+        for p in list_ports.comports():
+            # keep compact "device - description" format
+            desc = p.description if p.description else "Unknown"
+            ports.append(f"{p.device} - {desc}")
+        return ports if ports else ["(no serial ports detected)"]
 
     @staticmethod
-    def _setup_color_selection_layout() -> list[sg.Element]:
-        layout = [
-            [sg.VPush()],
-            [sg.Text("Select Robot's color", justification="center", expand_x=True)],
-            [
-                sg.Push(),
-                sg.Button(
-                    image_filename="assets/checkers_img/orange.png",
-                    key="-Select_Orange-",
-                ),
-                sg.Button(
-                    image_filename="assets/checkers_img/blue.png", key="-Select_Blue-"
-                ),
-                sg.Push(),
-            ],
-            [
-                sg.Text(
-                    "Selected Color for robot is: None",
-                    key="-Selected_Color-",
-                    justification="center",
-                    expand_x=True,
-                )
-            ],
-            [sg.VPush()],
-            [
-                sg.Text(
-                    "Select difficulty level",
-                    justification="center",
-                    expand_x=True,
-                ),
-            ],
-            [
-                sg.Push(),
-                sg.Slider(
-                    (1, 10),
-                    3,
-                    orientation="horizontal",
-                    enable_events=True,
-                    key="-Difficulty_Level-",
-                ),
-                sg.Push(),
-            ],
-            [sg.VPush()],
-        ]
-
-        return layout
+    def _normalize_robot_port(port_choice: str) -> Optional[str]:
+        if not port_choice or port_choice.startswith("(no serial ports"):
+            return None
+        # stored value is only device path
+        return port_choice.split(" - ", 1)[0]
 
     @staticmethod
-    def _setup_port_selection_layout() -> list[sg.Element]:
-        layout = [
-            [sg.VPush()],
-            [
-                sg.Text(
-                    text="Select port for the robot:",
-                    expand_x=True,
-                    justification="center",
-                ),
-                sg.Text(
-                    text="Select port for the camera:",
-                    expand_x=True,
-                    justification="center",
-                ),
-            ],
-            [
-                sg.OptionMenu(
-                    values=list_ports.comports(),
-                    key="-Robot_Port-",
-                    expand_x=True,
-                    enable_events=True,
-                ),
-                sg.OptionMenu(
-                    values=list_camera_ports(),
-                    key="-Camera_Port-",
-                    expand_x=True,
-                    enable_events=True,
-                ),
-            ],
-            [sg.VPush()],
-        ]
-        return layout
-
-    @staticmethod
-    def _setup_color_configuration_layout() -> list[sg.Element]:
-        layout: list = [
-            [
-                sg.Text(
-                    text="Configure the colors for the game",
-                    expand_x=True,
-                    justification="center",
-                )
-            ],
-            [
-                sg.Text(
-                    text="Orange color selection",
-                    expand_x=True,
-                    justification="center",
-                    key="-Info_Color_Selection-",
-                )
-            ],
-            [
-                sg.Graph(
-                    canvas_size=(640, 480),
-                    graph_bottom_left=(0, 0),
-                    graph_top_right=(640, 480),
-                    enable_events=True,
-                    background_color="white",
-                    key="-Graph-",
-                ),
-                sg.Column(
-                    layout=[
-                        [
-                            sg.Radio(
-                                "Orange color",
-                                key="-Step_Orange-",
-                                group_id=1,
-                                default=True,
-                            )
-                        ],
-                        [
-                            sg.Radio(
-                                text="Blue color",
-                                key="-Step_Blue-",
-                                group_id=1,
-                                enable_events=True,
-                            )
-                        ],
-                        [
-                            sg.Radio(
-                                text="Black color",
-                                key="-Step_Black-",
-                                group_id=1,
-                                enable_events=True,
-                            )
-                        ],
-                        [
-                            sg.Radio(
-                                text="White color",
-                                key="-Step_White-",
-                                group_id=1,
-                                enable_events=True,
-                            )
-                        ],
-                    ]
-                ),
-            ],
-            [sg.Button("Next", key="-End_Color_Configuration-")],
-        ]
-        return layout
-
-    @staticmethod
-    def _setup_calibration_layout() -> list[list[sg.Element]]:
-        layout = [
-            [
-                sg.Text("Select calibration method"),
-                sg.Radio(
-                    text="Corner tiles",
-                    group_id=2,
-                    key="-Corner_Tiles_Method-",
-                    enable_events=True,
-                ),
-                sg.Radio(
-                    text="All tiles",
-                    group_id=2,
-                    key="-All_Tiles_Method-",
-                    enable_events=True,
-                ),
-            ],
-            [
-                sg.VPush(),
-                sg.Column(
-                    [
-                        [
-                            sg.Button(
-                                "Forward",
-                                size=(8, 2),
-                                pad=((60, 0), (5, 5)),
-                                key="-Robot_Move_Forward-",
-                            ),
-                        ],
-                        [
-                            sg.Button(
-                                "Left",
-                                size=(8, 2),
-                                pad=((10, 10), (5, 5)),
-                                key="-Robot_Move_Left-",
-                            ),
-                            sg.Button("Right", size=(8, 2), key="-Robot_Move_Right-"),
-                        ],
-                        [
-                            sg.Button(
-                                "Backward",
-                                size=(8, 2),
-                                pad=((60, 0), (5, 5)),
-                                key="-Robot_Move_Backward-",
-                            ),
-                        ],
-                    ],
-                    justification="center",
-                    key="-Robot_XY_Movement_Controller-",
-                    visible=False,
-                ),
-                sg.Column(
-                    [
-                        [
-                            sg.Button(
-                                "Up",
-                                size=(8, 2),
-                                pad=((60, 0), (5, 5)),
-                                key="-Robot_Move_Up-",
-                            ),
-                        ],
-                        [
-                            sg.Button(
-                                "Down",
-                                size=(8, 2),
-                                pad=((60, 0), (5, 5)),
-                                key="-Robot_Move_Down-",
-                            ),
-                        ],
-                    ],
-                    justification="center",
-                    key="-Robot_Z_Movement_Controller-",
-                    visible=False,
-                ),
-                sg.VPush(),
-            ],
-            [
-                sg.Push(),
-                sg.Text(
-                    "",
-                    expand_x=True,
-                    justification="center",
-                    key="-Robot_Next_Position-",
-                    visible=False,
-                ),
-                sg.Text(
-                    "Current robot position: ",
-                    expand_x=True,
-                    justification="center",
-                    key="-Robot_Position-",
-                    visible=False,
-                ),
-                sg.Push(),
-            ],
-            [
-                sg.VPush(),
-            ],
-            [
-                sg.Button(
-                    "Load config file and finish",
-                    visible=True,
-                    key="-Load_Config-",
-                ),
-                sg.Button(
-                    "Next Calibration Step",
-                    visible=False,
-                    key="-Next_Calibration_Step-",
-                ),
-                sg.Button(
-                    "Save Calibration Config",
-                    visible=False,
-                    key="-Save_Calibration_Config-",
-                ),
-            ],
-        ]
-
-        return layout
-
-    def _show_port_selection_tab(self) -> None:
-        port_selection_tab: sg.Tab = self._window["-Port_Selection-"]
-        port_selection_tab.update(visible=True)
-
-    def _show_color_configuration_tab(self) -> None:
-        color_configuration_tab: sg.Tab = self._window["-Color_Configuration-"]
-        color_configuration_tab.update(visible=True)
-
-    def _show_calibration_tab(self) -> None:
-        calibration_tab: sg.Tab = self._window["-Calibration-"]
-        calibration_tab.update(visible=True)
-        self._controller = CalibrationController(self.get_robot_port())
-
-    def _show_calibration_controller(self) -> None:
-        self._controller = CalibrationController(self.get_robot_port())
-        self._window["-Robot_XY_Movement_Controller-"].update(visible=True)
-        self._window["-Robot_Z_Movement_Controller-"].update(visible=True)
-        self._window["-Robot_Position-"].update(visible=True)
-        self._window["-Robot_Next_Position-"].update(visible=True)
-        self._window["-Next_Calibration_Step-"].update(visible=False)
-        self._window["-Load_Config-"].update(visible=True)
-
-    def _update_selected_color_label(self) -> None:
-        text_label: sg.Text = self._window["-Selected_Color-"]
-        text_label.update(f"Selected Color for robot is: {self._selected_color}")
-
-    def _handle_graph_mouse_click_event(self, values) -> None:
-        mouse = values["-Graph-"]
-        mouse_x, mouse_y = mouse
-        mouse_y = 480 - mouse_y
-        if self._frame is None:
-            return
-
-        frame_y, frame_x, _ = self._frame.shape
-
-        if 0 <= mouse_x <= frame_x and 0 <= mouse_y <= frame_y:
-            b, g, r = self._frame[mouse_y, mouse_x]
-            if values["-Step_Orange-"]:
-                self._selected_config_color = "Orange"
-            elif values["-Step_Blue-"]:
-                self._selected_config_color = "Blue"
-            elif values["-Step_Black-"]:
-                self._selected_config_color = "Black"
-            elif values["-Step_White-"]:
-                self._selected_config_color = "White"
-
-            if self._selected_config_color is not None:
-                self._color_config[self._selected_config_color] = (r, g, b)
-                sg.popup(
-                    f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
-                )
-
-    def _handle_load_config_event(self) -> None:
-        self._configuration_file_path = Path(
-            sg.popup_get_file(
-                message="Select a configuration file.",
-                initial_folder="configs",
-                file_types=(("Configuration file", "*.txt"),),
-                keep_on_top=True,
-                no_window=True,
-            )
-        )
-
-        with open(self._configuration_file_path, "r", encoding="UTF-8") as f:
-            lines = f.readlines()
-            if len(lines) != 42:
-                sg.popup(
-                    f"Invalid configuration faile named {self._configuration_file_path}"
-                )
-            else:
-                sg.popup(
-                    f"Configuration file {self._configuration_file_path.name} loaded successfully!"
-                )
-                # self._controller.m
-
-    def _handle_end_color_configuration_event(self) -> None:
-        self._color_config = {
-            key: tuple(map(int, self._color_config[key]))
-            for key in self._color_config
-        }
-
-        sg.popup(
-            "Selected colors for the game [R, G, B]",
-            f"""Orange: {self._color_config["Orange"]}
-            Blue: {self._color_config["Blue"]}
-            Black: {self._color_config["Black"]}
-            White: {self._color_config["White"]}""",
-        )
-
-        self._show_calibration_tab()
-
-    def _handle_next_frame_event(self) -> None:
-        ret, frame = self._cap.read()
-        if ret:
-            self._frame = frame
-            imgbytes = cv2.imencode(".png", frame)[1].tobytes()
-            if self._image_id:
-                self._window["-Graph-"].delete_figure(self._image_id)
-            self._image_id = self._window["-Graph-"].draw_image(
-                data=imgbytes, location=(0, 480)
-            )
-
-    def _handle_robot_movement_event(self, event) -> None:
-        if event in ("-Robot_Move_Forward-", "w:25"):
-            self._controller.move_forward()
-        elif event in ("-Robot_Move_Backward-", "s:39"):
-            self._controller.move_backward()
-        elif event in ("-Robot_Move_Left-", "a:38"):
-            self._controller.move_left()
-        elif event in ("-Robot_Move_Right-", "d:40"):
-            self._controller.move_right()
-        elif event in ("-Robot_Move_Up-", "e:26"):
-            self._controller.move_up()
-        elif event in ("-Robot_Move_Down-", "q:24"):
-            self._controller.move_down()
-
-    def _start_all_tiles_calibration(self):
-        """Start the all tiles calibration process."""
-        self._handle_load_config_event()
-
-        if self._configuration_file_path is None:
-            sg.popup_error("No configuration file selected. Calibration aborted.")
-            return
-
+    def _parse_camera_port(raw: str) -> Optional[int]:
+        raw = (raw or "").strip()
+        if raw == "":
+            return None
         try:
-            self._controller.read_file_config(self._configuration_file_path)
+            return int(raw)
+        except ValueError:
+            return None
 
-            self._update_calibration_instruction(CalibrationMethod.ALL)
-            self._controller.move_to_current_all_tiles_calibration_position()
+    @staticmethod
+    def _map_color(label: str) -> Optional[Color]:
+        if not label:
+            return None
+        if label.lower() == "orange":
+            return Color.ORANGE
+        if label.lower() == "blue":
+            return Color.BLUE
+        return None
 
-            self._window["-Next_Calibration_Step-"].update(visible=True)
-
-        except Exception as e:
-            sg.popup_error(f"Error preparing all tiles calibration: {str(e)}")
-
-    def _handle_calibration_step_completion(self):
-        """Handle the completion of the current calibration step."""
-        # Check which calibration method is active
-        if self._window["-Corner_Tiles_Method-"].get():
-            # Existing corner calibration logic
-            self._controller.save_current_all_tiles_calibration_position()
-            if not self._controller.is_all_tiles_calibration_complete():
-                self._update_calibration_instruction(CalibrationMethod.ALL)
-                self._controller.move_to_current_all_tiles_calibration_position()
-            else:
-                self._window["-Robot_Next_Position-"].update(
-                    "Corner Calibration complete."
-                )
-                self._window["-Next_Calibration_Step-"].update(visible=False)
-
-    def _start_corner_calibration(self):
-        """Start the calibration process when entering the Calibration tab."""
-        self._controller.start_corner_calibration()
-        self._update_calibration_instruction()
-        self._controller.move_to_current_corner_calibration_position()
-
-        # Show the Next Calibration Step button
-        self._window["-Next_Calibration_Step-"].update(visible=True)
-
-    def _update_calibration_instruction(
-        self, calibration_method: Optional[CalibrationMethod] = CalibrationMethod.CORNER
-    ):
-        """Update the instruction displayed in the '-Robot_Next_Position-' Text element."""
-        if calibration_method == CalibrationMethod.ALL:
-            instruction = self._controller.get_current_all_tiles_calibration_step()
-        else:
-            instruction = self._controller.get_current_corner_calibration_step()
-        if instruction:
-            self._window["-Robot_Next_Position-"].update(instruction)
-
-            self._window["-Next_Calibration_Step-"].update(disabled=False)
-        else:
-            self._window["-Robot_Next_Position-"].update("Calibration complete.")
-
-            self._window["-Next_Calibration_Step-"].update(disabled=True)
-
-    def _handle_calibration_step_completion(self):
-        """Handle the completion of the current calibration step."""
-        if self._config_method == CalibrationMethod.CORNER:
-            self._controller.save_current_corner_calibration_position()
-            if not self._controller.is_corner_calibration_complete():
-                self._update_calibration_instruction()
-                self._controller.move_to_current_corner_calibration_position()
-            else:
-                self._window["-Robot_Next_Position-"].update("Calibration complete.")
-                self._window["-Next_Calibration_Step-"].update(visible=False)
-                self._window["-Save_Calibration_Config-"].update(visible=True)
-                self._controller.finalize_corner_calibration()
-                sg.popup(
-                    "Calibration completed successfully!\nSave the configuration file",
-                    keep_on_top=True,
-                )
-        else:
-            # Check which calibration method is active
-            # if self._window["-Corner_Tiles_Method-"].get():
-            # Existing corner calibration logic
-            self._controller.save_current_all_tiles_calibration_position()
-            if not self._controller.is_all_tiles_calibration_complete():
-                self._update_calibration_instruction(CalibrationMethod.ALL)
-                self._controller.move_to_current_all_tiles_calibration_position()
-            else:
-                self._window["-Robot_Next_Position-"].update("Calibration complete.")
-                self._window["-Next_Calibration_Step-"].update(visible=False)
-                sg.popup(
-                    "Calibration completed successfully!\nSave the configuration file",
-                    keep_on_top=True,
-                )
-                filename = sg.popup_get_text(
-                    "Enter configuration filename (without extension):",
-                    title="Save Calibration Configuration",
-                    default_text="calibration_config",
-                    keep_on_top=True,
-                )
-                if filename is None:
-                    sg.popup_error("No filename provided. Configuration not saved.")
-                    return
-
-                filename = re.sub(r"[^\w\-_\.]", "", filename)
-                if not filename:
-                    sg.popup_error("Invalid filename. Configuration not saved.")
-                    return
-
-                self._controller.save_all_tiles_config(filename)
-
-                config_path = CONFIG_PATH / f"{filename}.txt"
-                sg.popup(
-                    f"Calibration configuration saved to {config_path}",
-                    title="Configuration Saved",
-                    keep_on_top=True,
-                )
-
-                sg.popup(
-                    "End of calibration. Starting the game.",
-                    title="Configuration complete",
-                    keep_on_top=True,
-                )
-
-    def _save_calibration_config(self) -> None:
-        """
-        Save the calibration configuration to a file.
-        Uses the existing CalibrationController methods.
-        """
+    @staticmethod
+    def _validate_config_file(file_obj) -> tuple[Optional[Path], Optional[str]]:
+        if file_obj is None:
+            return None, "Please upload/select a calibration config file."
+        path = Path(file_obj.name)
         try:
-            filename = sg.popup_get_text(
-                "Enter configuration filename (without extension):",
-                title="Save Calibration Configuration",
-                default_text="calibration_config",
-                keep_on_top=True,
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError as exc:
+            return None, f"Failed to read config file: {exc}"
+
+        if len(lines) != 42:
+            return None, f"Invalid config file: expected 42 lines, got {len(lines)}"
+        return path, None
+
+    def _build_app(self) -> gr.Blocks:
+        with gr.Blocks(title="Checkers Robot Configuration (Gradio)") as app:
+            gr.Markdown(
+                "## Checkers Robot Configuration\n"
+                "This replaces the legacy desktop configuration window."
             )
 
-            if filename is None:
-                sg.popup_error("No filename provided. Configuration not saved.")
-                return
+            state = gr.State(value=self._state)
 
-            filename = re.sub(r"[^\w\-_\.]", "", filename)
-            if not filename:
-                sg.popup_error("Invalid filename. Configuration not saved.")
-                return
+            with gr.Row():
+                robot_color = gr.Radio(
+                    choices=["Orange", "Blue"], label="Robot Color", value="Orange"
+                )
+                difficulty = gr.Slider(
+                    minimum=1, maximum=10, value=3, step=1, label="Difficulty"
+                )
 
-            self._controller.save_corners_config(filename)
+            with gr.Row():
+                robot_port = gr.Dropdown(
+                    choices=self._list_robot_ports(),
+                    value=None,
+                    label="Robot Port",
+                    allow_custom_value=False,
+                )
+                camera_port = gr.Textbox(
+                    label="Camera Port (integer)", value="0", placeholder="e.g. 0"
+                )
 
-            config_path = self._controller.get_config_path() / f"{filename}.txt"
-            sg.popup(
-                f"Calibration configuration saved to {config_path}",
-                title="Configuration Saved",
-                keep_on_top=True,
+            config_file = gr.File(
+                label="Calibration Config File (.txt)",
+                file_types=[".txt"],
+                type="filepath",
             )
 
-            sg.popup(
-                "End of calibration. Starting the game.",
-                title="Configuration complete",
-                keep_on_top=True,
+            # Optional manual color setup (RGB tuples as text)
+            with gr.Accordion("Advanced: Color config (RGB tuples)", open=False):
+                orange_rgb = gr.Textbox(label="Orange", value="220,70,0")
+                blue_rgb = gr.Textbox(label="Blue", value="42,113,157")
+                black_rgb = gr.Textbox(label="Black", value="107,108,101")
+                white_rgb = gr.Textbox(label="White", value="198,205,203")
+
+            output = gr.Textbox(label="Status", lines=5, interactive=False)
+            complete = gr.Button("Save configuration")
+
+            def _parse_rgb(
+                raw: str, fallback: tuple[int, int, int]
+            ) -> tuple[int, int, int]:
+                parts = [p.strip() for p in (raw or "").split(",")]
+                if len(parts) != 3:
+                    return fallback
+                try:
+                    vals = tuple(int(v) for v in parts)
+                except ValueError:
+                    return fallback
+                if any(v < 0 or v > 255 for v in vals):
+                    return fallback
+                return vals  # type: ignore[return-value]
+
+            def on_complete(
+                st: _ConfigState,
+                rc_label: str,
+                diff: int,
+                rp: str,
+                cp: str,
+                cfg,
+                o: str,
+                b: str,
+                k: str,
+                w: str,
+            ):
+                color = self._map_color(rc_label)
+                if color is None:
+                    return st, "Select a valid robot color."
+
+                robot_dev = self._normalize_robot_port(rp)
+                if robot_dev is None:
+                    return st, "Select a valid robot port."
+
+                cam = self._parse_camera_port(cp)
+                if cam is None:
+                    return st, "Camera port must be an integer."
+
+                cfg_path, cfg_err = self._validate_config_file(cfg)
+                if cfg_err is not None:
+                    return st, cfg_err
+
+                st.robot_color = color
+                st.difficulty_level = int(diff)
+                st.robot_port = robot_dev
+                st.camera_port = cam
+                st.configuration_file_path = cfg_path
+                st.color_config = {
+                    "orange": _parse_rgb(o, (220, 70, 0)),
+                    "blue": _parse_rgb(b, (42, 113, 157)),
+                    "black": _parse_rgb(k, (107, 108, 101)),
+                    "white": _parse_rgb(w, (198, 205, 203)),
+                }
+                st.completed = True
+
+                msg = (
+                    "Configuration saved.\n"
+                    f"- robot_color: {st.robot_color.name}\n"
+                    f"- difficulty: {st.difficulty_level}\n"
+                    f"- robot_port: {st.robot_port}\n"
+                    f"- camera_port: {st.camera_port}\n"
+                    f"- config_file: {st.configuration_file_path}"
+                )
+                return st, msg
+
+            complete.click(
+                fn=on_complete,
+                inputs=[
+                    state,
+                    robot_color,
+                    difficulty,
+                    robot_port,
+                    camera_port,
+                    config_file,
+                    orange_rgb,
+                    blue_rgb,
+                    black_rgb,
+                    white_rgb,
+                ],
+                outputs=[state, output],
             )
 
-        except Exception as e:
-            sg.popup_error(f"Error saving configuration: {str(e)}")
+            # keep state synced to instance on every completion click
+            def _sync_to_instance(st: _ConfigState):
+                self._state = st
+                return "Configuration captured in adapter state."
+
+            complete.click(fn=_sync_to_instance, inputs=[state], outputs=[output])
+
+        return app
 
     def run(self) -> None:
-        """Main loop for the configuration window."""
-        recording = False
-        while True:
-            event, values = self._window.read(20)
-            if event in [sg.WIN_CLOSED, "Cancel"]:
-                break
-            if event == "-Select_Orange-":
-                self._selected_color = Color.ORANGE
-                self._update_selected_color_label()
-                self._show_port_selection_tab()
-            if event == "-Select_Blue-":
-                self._selected_color = Color.BLUE
-                self._update_selected_color_label()
-                self._show_port_selection_tab()
+        """Launch Gradio config UI.
 
-            if event == "-Difficulty_Level-":
-                self._difficulty_level = int(values["-Difficulty_Level-"])
+        Note:
+        - In Gradio this is web-based and non-blocking from a data workflow
+          perspective; you finalize config by clicking "Save configuration".
+        - Existing callers can still call getters afterwards if this adapter
+          instance remains alive in-process.
+        """
+        self._app = self._build_app()
+        self._app.launch()
 
-            if (
-                event == "-TABGROUP-"
-                and values["-TABGROUP-"] != "-Color_Configuration-"
-                and recording
-            ):
-                recording = False
-                if self._cap:
-                    self._cap.release()
-                    self._cap = None
 
-            if event == "-Camera_Port-":
-                self._camera_port = int(values["-Camera_Port-"])
+def build_demo() -> gr.Blocks:
+    """Convenience helper to expose config-only demo app."""
+    return ConfigurationWindow()._build_app()
 
-            if event == "-Robot_Port-":
-                self._robot_port = values["-Robot_Port-"]
-                self._robot_port = self._robot_port[: self._robot_port.index(" ")]
 
-            if not self._window["-Color_Configuration-"].visible and None not in [
-                self._camera_port,
-                self._robot_port,
-            ]:
-                self._show_color_configuration_tab()
-
-            if (
-                event == "-TABGROUP-"
-                and values["-TABGROUP-"] == "-Color_Configuration-"
-                and not recording
-            ):
-                if self._camera_port is not None:
-                    self._cap = cv2.VideoCapture(self._camera_port)
-                    if not self._cap.isOpened():
-                        sg.popup("Failed to access the camera.")
-                    else:
-                        recording = True
-                else:
-                    sg.popup("No camera port selected!")
-
-            if event == "-All_Tiles_Method-":
-                self._window["-Corner_Tiles_Method-"].update(disabled=True)
-                self._window["-All_Tiles_Method-"].update(disabled=True)
-                self._show_calibration_controller()
-                self._config_method = CalibrationMethod.ALL
-                self._start_all_tiles_calibration()
-
-            if event == "-Corner_Tiles_Method-":
-                self._window["-Corner_Tiles_Method-"].update(disabled=True)
-                self._window["-All_Tiles_Method-"].update(disabled=True)
-                self._show_calibration_controller()
-                self._config_method = CalibrationMethod.CORNER
-                self._start_corner_calibration()
-
-            if event in ("-Robot_Move_Forward-", "w:25"):
-                self._controller.move_forward()
-            elif event in ("-Robot_Move_Backward-", "s:39"):
-                self._controller.move_backward()
-            elif event in ("-Robot_Move_Left-", "a:38"):
-                self._controller.move_left()
-            elif event in ("-Robot_Move_Right-", "d:40"):
-                self._controller.move_right()
-            elif event in ("-Robot_Move_Up-", "e:26"):
-                self._controller.move_up()
-            elif event in ("-Robot_Move_Down-", "q:24"):
-                self._controller.move_down()
-
-            if self._cap is not None and self._cap.isOpened() and recording:
-                self._handle_next_frame_event()
-
-            if values["-Step_Orange-"]:
-                self._window["-Info_Color_Selection-"].update("Orange color selection")
-            elif values["-Step_Blue-"]:
-                self._window["-Info_Color_Selection-"].update("Blue color selection")
-            elif values["-Step_Black-"]:
-                self._window["-Info_Color_Selection-"].update("Black color selection")
-            elif values["-Step_White-"]:
-                self._window["-Info_Color_Selection-"].update("White color selection")
-
-            if event == "-Graph-" and recording:
-                self._handle_graph_mouse_click_event(values)
-
-            if event == "-End_Color_Configuration-":
-                self._handle_end_color_configuration_event()
-
-            if event == "-Load_Config-":
-                self._handle_load_config_event()
-                self._window.close()
-
-            if event == "-Next_Calibration_Step-":
-                self._handle_calibration_step_completion()
-
-            if event == "-Save_Calibration_Config-":
-                self._save_calibration_config()
-                self._window.close()
-
-        if self._cap:
-            self._cap.release()
-        self._window.close()
+def main() -> None:
+    ConfigurationWindow().run()
 
 
 if __name__ == "__main__":
-    app = ConfigurationWindow()
-    app.run()
+    main()

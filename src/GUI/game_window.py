@@ -1,235 +1,260 @@
-from memory_profiler import profile
-import PySimpleGUI as sg
-import cv2
+from __future__ import annotations
+
+import ast
+from dataclasses import dataclass
+from typing import Optional
+
+import gradio as gr
 import numpy as np
 
-from src.common.utils import CONFIG_PATH
+from src.checkers_game.checkers_game import CheckersGame
+from src.checkers_game.negamax import NegamaxDecisionEngine
+from src.common.enums import Color, Status
 
-from src.common.configs import ColorConfig
 
-from src.computer_vision.board_recognition.contours import ContourProcessor
-from src.computer_vision.game_state_recognition import GameState
-from src.computer_vision.board_recognition.contours import ContourDetector
-from src.computer_vision.game_state_recognition import Game
+@dataclass
+class _SessionState:
+    game: CheckersGame
+    robot_color: Color
+    engine_depth: int
 
-from src.robot_manipulation.dobot_controller import DobotController
 
-from src.checkers_game.game_controller import GameController
+def _render_board_html(state: np.ndarray) -> str:
+    symbols = {
+        0: " ",
+        1: "🟠",
+        2: "🟠♛",
+        -1: "🔵",
+        -2: "🔵♛",
+    }
 
-from src.common.enums import Color, GameStateResult, RobotGameReportItem, Status
+    rows = []
+    for y in range(8):
+        cells = []
+        for x in range(8):
+            val = int(state[x][y])
+            dark = (x + y) % 2 == 1
+            bg = "#7f5f3a" if dark else "#d7c3a3"
+            cell = (
+                f'<td style="width:42px;height:42px;text-align:center;'
+                f'font-size:24px;background:{bg};border:1px solid #333;">'
+                f"{symbols[val]}</td>"
+            )
+            cells.append(cell)
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+
+    return (
+        '<div style="display:inline-block;border:2px solid #333;">'
+        '<table style="border-collapse:collapse;">' + "".join(rows) + "</table></div>"
+    )
+
+
+def _status_text(game: CheckersGame, robot_color: Color, depth: int) -> str:
+    turn = game.get_turn_of()
+    status = game.get_status()
+    winner = game.get_winning_player()
+    points = game.get_points()
+
+    if status == Status.IN_PROGRESS:
+        status_s = "IN_PROGRESS"
+    elif status == Status.DRAW:
+        status_s = "DRAW"
+    elif winner is None:
+        status_s = "WON"
+    else:
+        status_s = f"WON ({winner.name})"
+
+    return (
+        f"Turn: {turn.name if turn else 'N/A'}\n"
+        f"Status: {status_s}\n"
+        f"Robot color: {robot_color.name}\n"
+        f"Engine depth: {depth}\n"
+        f"Score ORANGE: {points[Color.ORANGE]} | BLUE: {points[Color.BLUE]}"
+    )
+
+
+def _moves_text(game: CheckersGame) -> str:
+    moves = game.get_possible_opts()
+    if not moves:
+        return "No legal moves."
+    return "\n".join(str(m) for m in moves)
+
+
+def _parse_move(text: str) -> list[int]:
+    try:
+        parsed = ast.literal_eval(text.strip())
+    except Exception as exc:
+        raise ValueError(f"Invalid move format: {exc}") from exc
+
+    if not isinstance(parsed, list) or not all(isinstance(i, int) for i in parsed):
+        raise ValueError("Move must be a list of ints, e.g. [21, 17].")
+    if len(parsed) < 2:
+        raise ValueError("Move must have at least 2 elements.")
+    return parsed
+
+
+def _new_state(robot_color: Color, depth: int) -> _SessionState:
+    return _SessionState(
+        game=CheckersGame(),
+        robot_color=robot_color,
+        engine_depth=max(1, int(depth)),
+    )
+
+
+def _refresh(s: _SessionState) -> tuple[str, str, str]:
+    return (
+        _render_board_html(s.game.get_game_state()),
+        _status_text(s.game, s.robot_color, s.engine_depth),
+        _moves_text(s.game),
+    )
 
 
 class GameWindow:
+    """Compatibility wrapper for old constructor signature + Gradio runtime."""
+
     def __init__(
         self,
         robot_color: Color,
-        robot_port: str,
-        camera_port: int,
-        color_config: ColorConfig,
-        config_name: str,
+        robot_port: str | None = None,
+        camera_port: int | None = None,
+        color_config: dict | None = None,
+        config_name: str | None = None,
         depth_of_engine: int = 3,
     ) -> None:
-        self._camera_port = camera_port
+        self.robot_color = robot_color
+        self.depth_of_engine = depth_of_engine
 
-        self._cap = cv2.VideoCapture(self._camera_port)
+        # Kept for compatibility with old call sites; intentionally unused.
+        self.robot_port = robot_port
+        self.camera_port = camera_port
+        self.color_config = color_config
+        self.config_name = config_name
 
-        self._game = GameController(robot_color, depth_of_engine)
-        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
-        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
-        self._device = self._dobot.device
-        self._board_recognition = GameState(color_config)
+        self._app: Optional[gr.Blocks] = None
 
-        # self._board_image = None
-        # self._game_state_image = None
+    def _build_app(self) -> gr.Blocks:
+        default_state = _new_state(self.robot_color, self.depth_of_engine)
 
-        self._layout = self._setup_main_layout()
-        self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
-        self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
+        with gr.Blocks(title="Checkers Game (Gradio)") as app:
+            gr.Markdown(
+                "## Checkers Game (Logic-only)\n"
+                "This view replaces the legacy desktop GUI and does not require robot/camera."
+            )
 
-    @staticmethod
-    def _setup_main_layout() -> list[sg.Element]:
-        layout = [
-            [
-                sg.TabGroup(
-                    [
-                        [
-                            sg.Tab("Game", GameWindow._setup_main_game_layout()),
-                        ],
-                        [
-                            sg.Tab(
-                                "Additional views",
-                                GameWindow._setup_additional_views_layout(),
-                            )
-                        ],
-                    ]
+            state = gr.State(default_state)
+
+            with gr.Row():
+                color_radio = gr.Radio(
+                    choices=["ORANGE", "BLUE"],
+                    value=self.robot_color.name,
+                    label="Engine Color",
                 )
-            ]
-        ]
-        return layout
+                depth_slider = gr.Slider(
+                    minimum=1,
+                    maximum=8,
+                    value=self.depth_of_engine,
+                    step=1,
+                    label="Engine Depth",
+                )
+                reset_btn = gr.Button("Reset Game")
 
-    @staticmethod
-    def _setup_main_game_layout() -> list[sg.Element]:
-        layout = [
-            [
-                sg.Image(
-                    enable_events=True,
-                    size=(640, 480),
-                    background_color="orange",
-                    key="-Main_Camera_View-",
-                ),
-                sg.Output(size=(80, 50), key="-OUTPUT-"),
-            ],
-            [
-                sg.Image(size=(200, 200), background_color="blue", key="-MOVE_IMAGE-"),
-                sg.Text("", key="-MOVE_STATUS-"),
-            ],
-        ]
-        return layout
+            board = gr.HTML()
+            summary = gr.Textbox(lines=5, label="Summary", interactive=False)
+            legal_moves = gr.Textbox(lines=10, label="Legal Moves", interactive=False)
 
-    @staticmethod
-    def _setup_additional_views_layout() -> list[sg.Element]:
-        layout = [
-            [
-                sg.Image(
-                    background_color="red",
-                    size=(640, 480),
-                    key="-Dilate_View-",
-                ),
-                sg.Image(
-                    background_color="black",
-                    size=(640, 480),
-                    key="-Board_View-",
-                ),
-            ],
-            [
-                sg.Image(
-                    background_color="white",
-                    size=(500, 500),
-                    key="-Game_State_View-",
-                ),
-                sg.Column(
-                    [
-                        [sg.Text("Kernel size")],
-                        [
-                            sg.Slider(
-                                (0, 10),
-                                orientation="horizontal",
-                                key="-Kernel_size_slider-",
-                            )
-                        ],
-                        [sg.Slider((0, 10), orientation="horizontal")],
-                        [sg.Slider((0, 10), orientation="horizontal")],
-                        [sg.Slider((0, 10), orientation="horizontal")],
-                    ]
-                ),
-            ],
-        ]
-        return layout
+            with gr.Row():
+                human_move = gr.Textbox(
+                    label="Human Move",
+                    placeholder="[21, 17] or [24, -20, 15]",
+                )
+                apply_human_btn = gr.Button("Apply Human Move")
+                apply_engine_btn = gr.Button("Apply Engine Move")
 
-    def _update_graph(self, frame: np.ndarray, graph_key: str) -> None:
-        if frame is None or frame.size == 0:
-            return
-        imgbytes = cv2.imencode(".png", frame)[1].tobytes()
-        self._window[graph_key].update(imgbytes)
-        del imgbytes
-        del frame
+            message = gr.Textbox(label="Message", interactive=False)
 
-    @profile
-    def run(self):
-        frame_skip = 20
+            def on_reset(color_name: str, depth: int):
+                color = Color.ORANGE if color_name == "ORANGE" else Color.BLUE
+                s = _new_state(color, depth)
+                b, sm, mv = _refresh(s)
+                return s, b, sm, mv, "Game reset."
 
-        while True:
-            event, values = self._window.read(20)
+            def on_apply_human(s: _SessionState, move_text: str):
+                try:
+                    move = _parse_move(move_text)
+                    s.game.perform_move(move)
+                    msg = f"Applied move: {move}"
+                except Exception as exc:
+                    msg = f"Move rejected: {exc}"
+                b, sm, mv = _refresh(s)
+                return s, b, sm, mv, msg
 
-            if event in (sg.WIN_CLOSED, "Cancel"):
-                break
+            def on_apply_engine(s: _SessionState, color_name: str, depth: int):
+                s.robot_color = Color.ORANGE if color_name == "ORANGE" else Color.BLUE
+                s.engine_depth = max(1, int(depth))
 
-            ret, image = self._cap.read()
-            if not ret:
-                continue
+                if s.game.get_status() != Status.IN_PROGRESS:
+                    b, sm, mv = _refresh(s)
+                    return s, b, sm, mv, "Game already finished."
 
-            if frame_skip > 0:
-                frame_skip -= 1
-                continue
-
-            # Update main camera view
-            self._update_graph(image, "-Main_Camera_View-")
-
-            try:
-                # Process game state
-                _, game_state = self._board_recognition.update_game_state(image)
-                update_game_state_result = self._game.update_game_state(game_state)
-
-                # Update game state view
-                self._game_state_image = self._board_recognition.get_game_state_image()
-                self._update_graph(self._game_state_image, "-Game_State_View-")
-
-                # Update board view
-                self._board_image = self._board_recognition.get_board_image()
-                self._update_graph(self._board_image, "-Board_View-")
-
-                dilate_image = ContourDetector.image_dil
-                self._update_graph(dilate_image, "-Dilate_View-")
-
-                # Handle game state results
-                if update_game_state_result in (
-                    GameStateResult.INVALID_OPPONENT_MOVE,
-                    GameStateResult.INVALID_ROBOT_MOVE,
-                ):
-                    self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
-                    self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
-                    continue
-
-                if update_game_state_result == GameStateResult.VALID_WRONG_ROBOT_MOVE:
-                    self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
-                    self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
-                    continue
-
-                game_state_report = self._game.report_state()
-
-                # Check game end conditions
-                if game_state_report[RobotGameReportItem.STATUS] != Status.IN_PROGRESS:
-                    if game_state_report[RobotGameReportItem.STATUS] == Status.DRAW:
-                        self._window["-MOVE_STATUS-"].update("Game Over - DRAW!")
-                    elif game_state_report[RobotGameReportItem.WINNER] == Color.BLUE:
-                        self._window["-MOVE_STATUS-"].update("Game Over - ROBOT WON!")
-                    else:
-                        self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
-                        self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
-                    break
-
-                # Handle turns
-                if (
-                    game_state_report[RobotGameReportItem.TURN_OF]
-                    == game_state_report[RobotGameReportItem.ROBOT_COLOR]
-                ):
-                    self._window["-MOVE_STATUS-"].update("Robot's turn...")
-                    self._dobot.perform_move(
-                        game_state_report[RobotGameReportItem.ROBOT_MOVE],
-                        is_crown=game_state_report[RobotGameReportItem.IS_CROWNED],
+                if s.game.get_turn_of() != s.robot_color:
+                    b, sm, mv = _refresh(s)
+                    turn = s.game.get_turn_of()
+                    return (
+                        s,
+                        b,
+                        sm,
+                        mv,
+                        f"It is {turn.name if turn else 'N/A'} turn, engine is {s.robot_color.name}.",
                     )
-                    frame_skip = 20
-                else:
-                    self._window["-MOVE_STATUS-"].update("Player's turn...")
 
-            except Exception as e:
-                print(f"Error: {e}")
-                continue
+                try:
+                    engine = NegamaxDecisionEngine(
+                        computer_color=s.robot_color, depth_to_use=s.engine_depth
+                    )
+                    chosen = engine.decide_move(s.game)
+                    s.game.perform_move(chosen)
+                    msg = f"Engine played: {chosen}"
+                except Exception as exc:
+                    msg = f"Engine failed: {exc}"
 
-        cv2.destroyAllWindows()
-        self._cap.release()
-        self._window.close()
+                b, sm, mv = _refresh(s)
+                return s, b, sm, mv, msg
+
+            # initial paint
+            ib, isummary, imoves = _refresh(default_state)
+            board.value = ib
+            summary.value = isummary
+            legal_moves.value = imoves
+
+            reset_btn.click(
+                on_reset,
+                inputs=[color_radio, depth_slider],
+                outputs=[state, board, summary, legal_moves, message],
+            )
+
+            apply_human_btn.click(
+                on_apply_human,
+                inputs=[state, human_move],
+                outputs=[state, board, summary, legal_moves, message],
+            )
+
+            apply_engine_btn.click(
+                on_apply_engine,
+                inputs=[state, color_radio, depth_slider],
+                outputs=[state, board, summary, legal_moves, message],
+            )
+
+        return app
+
+    def run(self) -> None:
+        self._app = self._build_app()
+        self._app.launch()
+
+
+def build_demo() -> gr.Blocks:
+    """Convenience factory for external demo scripts/tests."""
+    return GameWindow(robot_color=Color.ORANGE, depth_of_engine=3)._build_app()
 
 
 if __name__ == "__main__":
-    color_config = ColorConfig(
-        {
-            "orange": (220, 70, 0),
-            "blue": (42, 113, 157),
-            "black": (107, 108, 101),
-            "white": (198, 205, 203),
-        }
-    )
-
-    game_window = GameWindow(Color.ORANGE, "/dev/ttyUSB0", 2, color_config, "guit_test_2.txt")
-    game_window.run()
+    GameWindow(robot_color=Color.ORANGE, depth_of_engine=3).run()
