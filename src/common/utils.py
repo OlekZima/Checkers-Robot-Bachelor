@@ -1,11 +1,12 @@
 import math
-from pathlib import Path
 import sys
 import termios
+from pathlib import Path
 from typing import List, Optional, Tuple
 
+import cv2 as cv
 import numpy as np
-import cv2
+
 from src.common.enums import Color
 
 TWO_PI: float = 2.0 * np.pi
@@ -51,15 +52,16 @@ def flush_input() -> None:
     termios.tcflush(sys.stdin, termios.TCIOFLUSH)
 
 
-def get_avg_color(img: np.ndarray) -> List[int]:
+def get_avg_color(img: np.ndarray) -> tuple[int, int, int]:
     avg_color = np.mean(img, axis=(0, 1))
-    return avg_color.astype(int).tolist()
+    avg_color_list = avg_color.astype(int).tolist()
+    return (avg_color_list[0], avg_color_list[1], avg_color_list[2])
 
 
 def list_camera_ports() -> list[int]:
     working_ports = []
     for dev_port in range(10):
-        cap = cv2.VideoCapture(dev_port)
+        cap = cv.VideoCapture(dev_port)
         is_reading, img = cap.read()
         if is_reading:
             h, w, _ = img.shape
@@ -76,7 +78,7 @@ def get_pts_dist(pt1, pt2):
     return math.hypot(dx, dy)
 
 
-def get_avg_pos(points: List[List[int]] = None) -> List[int]:
+def get_avg_pos(points: Optional[List[List[int]]] = None) -> List[int]:
     """Calculate average position of points
 
     Args:
@@ -86,7 +88,7 @@ def get_avg_pos(points: List[List[int]] = None) -> List[int]:
         Point: Average position as Point object
     """
     if points is None or not points:
-        return 0, 0
+        return [0, 0]
 
     x_avg = sum(p[0] for p in points) // len(points)
     y_avg = sum(p[1] for p in points) // len(points)
