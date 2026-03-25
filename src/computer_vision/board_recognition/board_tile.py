@@ -1,25 +1,28 @@
 """Module for representing a tile on the board for the cv2 processing."""
 
 import math
-from typing import ClassVar, List, Optional, Self, Tuple, Dict
+from typing import Any, ClassVar, Dict, List, Optional, Self, Tuple, cast
 
-import cv2
+import cv2 as cv
 import numpy as np
+
 from src.common.utils import (
-    get_avg_pos,
     HALF_PI,
+    QUARTER_PI,
     THREE_QUARTER_PI,
     TWO_PI,
-    QUARTER_PI,
+    get_avg_pos,
 )
 
 from .contours import ContourDetector
+
+TileArray = np.ndarray
 
 
 class BoardTile:
     """Class representing a tile on the board for the cv2 processing."""
 
-    tiles: ClassVar[np.ndarray[Self]] = np.array([])
+    tiles: ClassVar[TileArray] = np.array([], dtype=object)
     _frame: ClassVar[Optional[np.ndarray]] = None
     NEIGHBORS_KEYS: ClassVar[List[str]] = ["n01", "n12", "n23", "n30"]
 
@@ -37,9 +40,11 @@ class BoardTile:
         """
         self.vertexes = [[0, 0] for _ in range(4)] if points is None else points
 
-        self.center = get_avg_pos(points)
+        self.center = get_avg_pos(points if points is not None else self.vertexes)
 
-        self.neighbors: Dict[str, Optional[Self]] = {key: None for key in self.NEIGHBORS_KEYS}
+        self.neighbors: Dict[str, Optional[Self]] = {
+            key: None for key in self.NEIGHBORS_KEYS
+        }
         self.neighbors_count = 0
 
         self.position: Tuple[Optional[int], Optional[int]] = (
@@ -61,7 +66,7 @@ class BoardTile:
                 Contours detected on the image of the tiles.
         """
         cls._frame = image
-        cls.tiles = np.array([])
+        cls.tiles = np.array([], dtype=object)
 
         # creating tiles from all contours
         for cnt in contours:
@@ -84,11 +89,11 @@ class BoardTile:
                 Array of bools representing if the tile should be kept.
         """
         keep_contour = np.zeros(cls.tiles.shape, dtype=bool)
-        tile: Self = None
-        other_tile: Self = None
 
         for i, tile in enumerate(cls.tiles):
+            tile = cast(Self, tile)
             for other_tile in cls.tiles[i + 1 :]:
+                other_tile = cast(Self, other_tile)
                 tile._connect_with_neigbor(  # pylint: disable=protected-access
                     other_tile
                 )
@@ -120,22 +125,37 @@ class BoardTile:
             shift (Optional[int], optional):
                 Shift. Defaults to 1.
         """
-        cv2.circle(cls._frame, coordinates, thickness, color, shift)
+        if cls._frame is None:
+            return
+        cv.circle(
+            cast(Any, cls._frame),
+            cast(Any, coordinates),
+            int(thickness),
+            cast(Any, color),
+            int(shift),
+        )
 
     @classmethod
     def _update_neighbors_connections(cls) -> None:
         """Fix the connections between tiles."""
-        tile: Self = None
-        neighbor: Self = None
+        if cls._frame is None:
+            return
 
         for tile in cls.tiles:
+            tile = cast(Self, tile)
             for neighbor_key, neighbor in tile.neighbors.items():
                 if neighbor is not None:
                     if neighbor not in cls.tiles:
                         tile.neighbors[neighbor_key] = None
                         tile.neighbors_count -= 1
                     else:
-                        cv2.line(cls._frame, tile.center, neighbor.center, (0, 0, 0), 1)
+                        cv.line(
+                            cls._frame,
+                            (tile.center[0], tile.center[1]),
+                            (neighbor.center[0], neighbor.center[1]),
+                            (0, 0, 0),
+                            1,
+                        )
 
     @classmethod
     def get_tiles_contours(cls) -> np.ndarray:
@@ -146,9 +166,9 @@ class BoardTile:
                 Contours of the tiles.
         """
         contours = np.ndarray((1, 4, 1, 2), dtype=int)
-        tile: Self = None
 
         for tile in cls.tiles:
+            tile = cast(Self, tile)
             contours = np.append(
                 contours,
                 [[[tile.vertexes[i]] for i in range(4)]],
@@ -165,7 +185,9 @@ class BoardTile:
         """
         for i, vertex in enumerate(self.vertexes):
             for j, other_vertex in enumerate(poss_neighbor.vertexes):
-                if self._are_vertices_connected(vertex, other_vertex, i, j, poss_neighbor):
+                if self._are_vertices_connected(
+                    vertex, other_vertex, i, j, poss_neighbor
+                ):
                     self._create_neighbor_connection(poss_neighbor, i, j)
 
     def _are_vertices_connected(
@@ -201,9 +223,10 @@ class BoardTile:
         jm = (j - 1) % 4
         ip = (i + 1) % 4
 
-        return (vertex == other_vertex).all() and (
-            self.vertexes[ip] == possible_neighbor.vertexes[jm]
-        ).all()
+        return (
+            vertex == other_vertex
+            and self.vertexes[ip] == possible_neighbor.vertexes[jm]
+        )
 
     def _create_neighbor_connection(self, neighbor: Self, i: int, j: int) -> None:
         """Creates a connection between the tile and the neighbor.
@@ -279,6 +302,8 @@ class BoardTile:
             Optional[np.ndarray]:
                 Frame of the board.
         """
+        if cls._frame is None:
+            return None
         return cls._frame.copy()
 
     def get_dir_2_point_rad(self, point: Optional[List[int]] = None) -> float:
@@ -385,7 +410,9 @@ class BoardTile:
             or (rad_max < rad_min <= dir_tmp)
         )
 
-    def get_neighbor_in_rad_range(self, rad_min: float, rad_max: float) -> Optional[Self]:
+    def get_neighbor_in_rad_range(
+        self, rad_min: float, rad_max: float
+    ) -> Optional[Self]:
         """Returns the neighbor in the given range of radians.
 
         Args:
@@ -403,7 +430,8 @@ class BoardTile:
             (
                 n
                 for n in self.neighbors.values()
-                if n is not None and self._is_point_in_rad_range(rad_min, rad_max, n.center)
+                if n is not None
+                and self._is_point_in_rad_range(rad_min, rad_max, n.center)
             ),
             None,
         )
@@ -493,7 +521,9 @@ class BoardTile:
                 List of number of steps in the given direction.
         """
         results = []
-        same_dir = self.get_neighbor_in_rad_range(ranges["minus_max"], ranges["plus_min"])
+        same_dir = self.get_neighbor_in_rad_range(
+            ranges["minus_max"], ranges["plus_min"]
+        )
 
         if same_dir is not None:
             # one more because it is in checked direction
@@ -508,7 +538,9 @@ class BoardTile:
         ):
             side_neighbor = self.get_neighbor_in_rad_range(min_range, max_range)
             if side_neighbor is not None:
-                results.append(side_neighbor.get_num_of_steps_in_dir_rad(dir_rad, dir_idx))
+                results.append(
+                    side_neighbor.get_num_of_steps_in_dir_rad(dir_rad, dir_idx)
+                )
 
         return results
 
@@ -539,7 +571,9 @@ class BoardTile:
                 neighbor.set_indexes(self.position[0] + dx, self.position[1] + dy)
                 neighbor.index_neighbors(dir_0)
 
-    def get_vertex_in_rad_range(self, rad_min: float, rad_max: float) -> Optional[List[int]]:
+    def get_vertex_in_rad_range(
+        self, rad_min: float, rad_max: float
+    ) -> Optional[List[int]]:
         """Returns the vertex in the given range of radians.
 
         Args:
@@ -554,13 +588,17 @@ class BoardTile:
                 Vertex in the given range of radians.
         """
         return next(
-            (v for v in self.vertexes if self._is_point_in_rad_range(rad_min, rad_max, v)),
+            (
+                v
+                for v in self.vertexes
+                if self._is_point_in_rad_range(rad_min, rad_max, v)
+            ),
             None,
         )
 
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture(0)
+    cap = cv.VideoCapture(0)
     processor = ContourDetector()
 
     while True:
@@ -572,8 +610,12 @@ if __name__ == "__main__":
         BoardTile.create_tiles(frame, image_contours)
 
         display_image = BoardTile.get_frame()
-        cv2.drawContours(display_image, image_contours, -1, (0, 255, 0), 2)
-        cv2.imshow("frame", display_image)
+        if display_image is None:
+            continue
+        cv.drawContours(
+            cast(Any, display_image), cast(Any, image_contours), -1, (0, 255, 0), 2
+        )
+        cv.imshow("frame", display_image)
 
-        if cv2.waitKey(0) & 0xFF == ord("q"):
+        if cv.waitKey(0) & 0xFF == ord("q"):
             break
