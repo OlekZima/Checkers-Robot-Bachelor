@@ -5,14 +5,11 @@ description = "Checkers robot project with Gradio demo and legacy desktop GUI co
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    # New web demo UI
     "gradio>=6.10.0",
-
-    # Legacy GUI/runtime stack
     "memory-profiler>=0.61.0",
     "numpy>=2.2.1",
     "opencv-python>=4.10.0.84",
     "pillow>=11.1.0",
     "pydobotplus>=0.1.2",
-    "PySimpleGUI>=5.0.8.3",
+    "pyserial>=3.4",
 ]

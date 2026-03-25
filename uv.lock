@@ -155,9 +155,9 @@ dependencies = [
     { name = "memory-profiler" },
     { name = "numpy" },
     { name = "opencv-python" },
-    { name = "opencv-stubs" },
     { name = "pillow" },
     { name = "pydobotplus" },
+    { name = "pyserial" },
 ]
 
 [package.metadata]
@@ -166,9 +166,9 @@ requires-dist = [
     { name = "memory-profiler", specifier = ">=0.61.0" },
     { name = "numpy", specifier = ">=2.2.1" },
     { name = "opencv-python", specifier = ">=4.10.0.84" },
-    { name = "opencv-stubs", specifier = ">=0.1.3" },
     { name = "pillow", specifier = ">=11.1.0" },
     { name = "pydobotplus", specifier = ">=0.1.2" },
+    { name = "pyserial", specifier = ">=3.4" },
 ]
 
 [[package]]
@@ -552,15 +552,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3f/a4/d2537f47fd7fcfba966bd806e3ec18e7ee1681056d4b0a9c8d983983e4d5/opencv_python-4.10.0.84-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9ace140fc6d647fbe1c692bcb2abce768973491222c067c131d80957c595b71f", size = 62548253 },
     { url = "https://files.pythonhosted.org/packages/1e/39/bbf57e7b9dab623e8773f6ff36385456b7ae7fa9357a5e53db732c347eac/opencv_python-4.10.0.84-cp37-abi3-win32.whl", hash = "sha256:2db02bb7e50b703f0a2d50c50ced72e95c574e1e5a0bb35a8a86d0b35c98c236", size = 28737688 },
     { url = "https://files.pythonhosted.org/packages/ec/6c/fab8113424af5049f85717e8e527ca3773299a3c6b02506e66436e19874f/opencv_python-4.10.0.84-cp37-abi3-win_amd64.whl", hash = "sha256:32dbbd94c26f611dc5cc6979e6b7aa1f55a64d6b463cc1dcd3c95505a63e48fe", size = 38842521 },
-]
-
-[[package]]
-name = "opencv-stubs"
-version = "0.1.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/f4/8cdf24683aae51ad94e443b2b8482a117d7ecf8d6663be8877ec490a73e9/opencv_stubs-0.1.3.tar.gz", hash = "sha256:25b74af6bd7903340587e0fdc7d49ced0d159b56bbc598e5a58d5f3a01549e1c", size = 376250 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/8b/6041723a40fedc5092bf39a91f0daa0410ebaa09763f07385a01871309bb/opencv_stubs-0.1.3-py3-none-any.whl", hash = "sha256:37074b00ede8ec9e2e2b0e77d02277841421606520327087580309e968e45bfc", size = 365107 },
 ]
 
 [[package]]
