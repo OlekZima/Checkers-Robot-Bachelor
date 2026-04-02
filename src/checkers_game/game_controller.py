@@ -1,154 +1,249 @@
+"""Game controller module for managing the checkers game flow.
+
+This module coordinates the game state, AI decision making, and
+move validation based on computer vision input.
+"""
+
+from __future__ import annotations
+
+from typing import Dict, List, Optional
+
 import numpy as np
-from src.checkers_game.checkers_game import CheckersGame, Color, Status
+
+from src.checkers_game.checkers_game import CheckersGame
 from src.checkers_game.negamax import NegamaxDecisionEngine
 from src.common.enums import (
-    RobotGameReportItem,
-    GameStateResult,
+    Color,
+    GameReportField,
+    GameStatus,
+    MoveValidationResult,
 )
-from src.common.utils import get_coord_from_tile_id
+from src.common.utils import tile_id_to_grid_coords
 
 
 class GameController:
-    def __init__(self, robot_color: Color, engine_depth: int = 3):
+    """Orchestrates the checkers game, handling AI moves and state updates.
+
+    This class manages the interaction between the game logic, the AI engine,
+    and the external state updates provided by computer vision.
+    """
+
+    def __init__(self, robot_color: Color, engine_depth: int = 3) -> None:
+        """Initialize the game controller.
+
+        Args:
+            robot_color: The color assigned to the robot player.
+            engine_depth: Search depth for the AI decision engine.
+        """
         self.game = CheckersGame()
-
-        self.computer_color: Color = robot_color
-
-        self.robot_move = None
-        self.is_crowned = None
-
+        self.computer_color = robot_color
         self.decision_engine = NegamaxDecisionEngine(
-            computer_color=self.computer_color, depth_to_use=engine_depth
+            computer_color=self.computer_color, search_depth=engine_depth
         )
 
-    def report_state(self):
-        report = {
-            RobotGameReportItem.GAME_STATE: self.game.get_game_state(),
-            RobotGameReportItem.POINTS: self.game.get_points(),
-            RobotGameReportItem.STATUS: self.game.get_status(),
-            RobotGameReportItem.WINNER: self.game.get_winning_player(),
-            RobotGameReportItem.OPTIONS: self.game.get_possible_opts(),
-            RobotGameReportItem.TURN_OF: self.game.get_turn_of(),
-            RobotGameReportItem.ROBOT_COLOR: self.computer_color,
-            RobotGameReportItem.ROBOT_MOVE: self.robot_move,
-            RobotGameReportItem.IS_CROWNED: self.is_crowned,
+        # State tracking
+        self._planned_move: Optional[List[int]] = None
+        self._is_crowning_move: Optional[bool] = None
+
+    def generate_report(self) -> Dict[GameReportField, object]:
+        """Generate a comprehensive report of the current game state.
+
+        Returns:
+            Dictionary mapping report fields to their current values.
+        """
+        return {
+            GameReportField.GAME_STATE: self.game.get_game_state(),
+            GameReportField.POINTS: self.game.get_points(),
+            GameReportField.STATUS: self.game.get_status(),
+            GameReportField.WINNER: self.game.get_winning_player(),
+            GameReportField.OPTIONS: self.game.get_possible_opts(),
+            GameReportField.TURN_OF: self.game.get_turn_of(),
+            GameReportField.ROBOT_COLOR: self.computer_color,
+            GameReportField.ROBOT_MOVE: self._planned_move,
+            GameReportField.IS_CROWNED: self._is_crowning_move,
         }
 
-        return report
-
     def update_game_state(
-        self, board_state: np.ndarray, allow_different_robot_moves=False
-    ) -> GameStateResult:
-        is_robot_turn: bool = self.game.get_turn_of() == self.computer_color
+        self, observed_board: np.ndarray, allow_different_robot_moves: bool = False
+    ) -> MoveValidationResult:
+        """Update the game state based on the observed board from computer vision.
 
-        # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
-        self_game_state = self.game.get_game_state()
-        for i in range(0, len(self_game_state), 1):
-            for j in range(0, len(self_game_state[i]), 1):
-                if self_game_state[i][j] == -2:
-                    self_game_state[i][j] = -1
-                if self_game_state[i][j] == 2:
-                    self_game_state[i][j] = 1
+        This method compares the observed board with the expected state,
+        validates moves, and triggers AI planning when appropriate.
 
-        rotated_board_state = np.rot90(board_state, 2)
+        Args:
+            observed_board: The 8x8 board state detected by CV.
+            allow_different_robot_moves: If True, accept any valid robot move
+                even if it differs from the planned move.
 
-        # 1 - checking if game state hasn't changed
-        # is_same_state = False
-        # if np.array_equal(board_state, self_game_state) or np.array_equal(
-        #     rotated_board_state, self_game_state
-        # ):
-        is_same_state = (
-            True
-            if np.array_equal(board_state, self_game_state)
-            or np.array_equal(rotated_board_state, self_game_state)
-            else False
+        Returns:
+            MoveValidationResult indicating the outcome of the update.
+        """
+        is_robot_turn = self.game.get_turn_of() == self.computer_color
+
+        # Normalize states for comparison (CV cannot distinguish kings from men)
+        expected_state = self._normalize_state_for_comparison(
+            self.game.get_game_state()
         )
-        if is_same_state:
+        observed_rotated = np.rot90(observed_board, 2)
+
+        # Check if the board state has changed
+        if self._states_match(observed_board, expected_state, observed_rotated):
             if is_robot_turn:
-                if self.robot_move is None or self.is_crowned is None:
-                    self.robot_move = self.decision_engine.decide_move(self.game)
-                    x_tmp, y_tmp = get_coord_from_tile_id(self.robot_move[0])
-                    piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
-                    if (
-                        self.computer_color == Color.BLUE
-                        and self.robot_move[len(self.robot_move) - 1] in [1, 2, 3, 4]
-                        and piece_moved == -1
-                    ) or (
-                        self.computer_color == Color.ORANGE
-                        and self.robot_move[len(self.robot_move) - 1]
-                        in [29, 30, 31, 32]
-                        and piece_moved == 1
-                    ):
-                        self.is_crowned = True
-                    else:
-                        self.is_crowned = False
-                return GameStateResult.NO_ROBOT_MOVE
-            return GameStateResult.NO_OPPONENT_MOVE
+                self._ensure_move_is_planned()
+                return MoveValidationResult.NO_ROBOT_MOVE
+            return MoveValidationResult.NO_OPPONENT_MOVE
 
-        # 2 - checking if move was permitted, and if yes what was the exact move
-        is_permitted = False
-        move_performed = None
-        moves_allowed = self.game.get_possible_outcomes()
+        # Validate the move performed
+        move_performed = self._find_matching_move(observed_board, observed_rotated)
 
-        for move_outcome in moves_allowed:
-            # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
-            for i in range(len(move_outcome[1])):
-                for j in range(len(move_outcome[1][i])):
-                    if move_outcome[1][i][j] == -2:
-                        move_outcome[1][i][j] = -1
-                    if move_outcome[1][i][j] == 2:
-                        move_outcome[1][i][j] = 1
+        if move_performed is None:
+            return (
+                MoveValidationResult.INVALID_ROBOT_MOVE
+                if is_robot_turn
+                else MoveValidationResult.INVALID_OPPONENT_MOVE
+            )
 
-            if np.array_equal(board_state, move_outcome[1]) or np.array_equal(
-                rotated_board_state, move_outcome[1]
-            ):
-                is_permitted = True
-                move_performed = move_outcome[0]
-                break
+        # Execute the move
+        if is_robot_turn:
+            return self._handle_robot_move(move_performed, allow_different_robot_moves)
+        else:
+            return self._handle_opponent_move(move_performed)
 
-        # 2.5 - if is permitted then perform actions accordingly
-        if is_permitted:
-            if is_robot_turn:
-                was_right_move = move_performed == self.robot_move
+    def _normalize_state_for_comparison(self, state: np.ndarray) -> np.ndarray:
+        """Convert king pieces to men for comparison with CV output.
 
-                if was_right_move:
-                    self.game.perform_move(move_performed)
-                    self.robot_move = None
-                    self.is_crowned = None
-                    return GameStateResult.VALID_RIGHT_ROBOT_MOVE
-                if allow_different_robot_moves:
-                    self.game.perform_move(move_performed)
-                    self.robot_move = None
-                    self.is_crowned = None
-                return GameStateResult.VALID_WRONG_ROBOT_MOVE
+        Computer vision often cannot distinguish between kings and regular pieces,
+        so we normalize the internal state to treat kings as men for comparison.
 
-            self.game.perform_move(move_performed)
+        Args:
+            state: The internal game state matrix.
 
-            if self.game.get_status() == Status.IN_PROGRESS:
-                self.robot_move = self.decision_engine.decide_move(self.game)
-                x_tmp, y_tmp = get_coord_from_tile_id(self.robot_move[0])
-                piece_moved = self.game.get_game_state()[x_tmp][y_tmp]
-                if (
-                    self.computer_color == Color.BLUE
-                    and self.robot_move[-1] in [1, 2, 3, 4]
-                    and piece_moved == -1
-                ) or (
-                    self.computer_color == Color.ORANGE
-                    and self.robot_move[-1] in [29, 30, 31, 32]
-                    and piece_moved == 1
-                ):
-                    self.is_crowned = True
-                else:
-                    self.is_crowned = False
-            else:
-                self.robot_move = None
-                self.is_crowned = None
+        Returns:
+            A copy of the state with kings converted to men.
+        """
+        normalized = state.copy()
+        normalized[normalized == 2] = 1  # Orange king -> Orange man
+        normalized[normalized == -2] = -1  # Blue king -> Blue man
+        return normalized
 
-            return GameStateResult.VALID_OPPONENT_MOVE
+    def _states_match(
+        self,
+        observed: np.ndarray,
+        expected: np.ndarray,
+        observed_rotated: np.ndarray,
+    ) -> bool:
+        """Check if the observed board matches the expected state.
 
-        # 3 - informing about invalid move
-        return (
-            GameStateResult.INVALID_ROBOT_MOVE
-            if is_robot_turn
-            else GameStateResult.INVALID_OPPONENT_MOVE
+        Args:
+            observed: Raw observed board.
+            expected: Expected board (normalized).
+            observed_rotated: Observed board rotated 180 degrees.
+
+        Returns:
+            True if states match, False otherwise.
+        """
+        return np.array_equal(observed, expected) or np.array_equal(
+            observed_rotated, expected
         )
+
+    def _find_matching_move(
+        self, observed: np.ndarray, observed_rotated: np.ndarray
+    ) -> Optional[List[int]]:
+        """Find the move that results in the observed board state.
+
+        Args:
+            observed: Raw observed board.
+            observed_rotated: Observed board rotated 180 degrees.
+
+        Returns:
+            The move sequence if found, otherwise None.
+        """
+        possible_outcomes = self.game.get_possible_outcomes()
+
+        for move, outcome_state in possible_outcomes:
+            normalized_outcome = self._normalize_state_for_comparison(outcome_state)
+            if self._states_match(observed, normalized_outcome, observed_rotated):
+                return move
+
+        return None
+
+    def _ensure_move_is_planned(self) -> None:
+        """Plan a move if one hasn't been planned yet."""
+        if self._planned_move is None or self._is_crowning_move is None:
+            self._planned_move = self.decision_engine.decide_move(self.game)
+            self._is_crowning_move = self._check_if_crowning_move(self._planned_move)
+
+    def _check_if_crowning_move(self, move: List[int]) -> bool:
+        """Determine if a move results in a king promotion.
+
+        Args:
+            move: The move sequence to check.
+
+        Returns:
+            True if the move results in crowning, False otherwise.
+        """
+        if not move:
+            return False
+
+        destination_tile = move[-1]
+        start_x, start_y = tile_id_to_grid_coords(move[0])
+        piece_value = self.game.get_game_state()[start_x][start_y]
+
+        is_blue_crowning = (
+            self.computer_color == Color.BLUE
+            and destination_tile in [1, 2, 3, 4]
+            and piece_value == -1
+        )
+        is_orange_crowning = (
+            self.computer_color == Color.ORANGE
+            and destination_tile in [29, 30, 31, 32]
+            and piece_value == 1
+        )
+
+        return is_blue_crowning or is_orange_crowning
+
+    def _handle_robot_move(
+        self, move: List[int], allow_different: bool
+    ) -> MoveValidationResult:
+        """Process a move made by the robot.
+
+        Args:
+            move: The move sequence performed.
+            allow_different: Whether to accept moves different from the plan.
+
+        Returns:
+            MoveValidationResult indicating success or deviation.
+        """
+        if move == self._planned_move:
+            self.game.perform_move(move)
+            self._planned_move = None
+            self._is_crowning_move = None
+            return MoveValidationResult.VALID_RIGHT_ROBOT_MOVE
+
+        if allow_different:
+            self.game.perform_move(move)
+            self._planned_move = None
+            self._is_crowning_move = None
+
+        return MoveValidationResult.VALID_WRONG_ROBOT_MOVE
+
+    def _handle_opponent_move(self, move: List[int]) -> MoveValidationResult:
+        """Process a move made by the opponent and plan the robot's response.
+
+        Args:
+            move: The opponent's move sequence.
+
+        Returns:
+            MoveValidationResult indicating a valid opponent move.
+        """
+        self.game.perform_move(move)
+
+        if self.game.get_status() == GameStatus.IN_PROGRESS:
+            self._planned_move = self.decision_engine.decide_move(self.game)
+            self._is_crowning_move = self._check_if_crowning_move(self._planned_move)
+        else:
+            self._planned_move = None
+            self._is_crowning_move = None
+
+        return MoveValidationResult.VALID_OPPONENT_MOVE

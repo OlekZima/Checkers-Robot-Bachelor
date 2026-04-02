@@ -31,6 +31,7 @@ QUARTER_PI: float = np.pi / 4.0
 
 THREE_QUARTER_PI: float = 3.0 * np.pi / 4.0
 
+
 def tile_id_to_grid_coords(
     tile_id: int, player_color: Optional[Color] = None
 ) -> tuple[int, int]:
@@ -79,6 +80,7 @@ def grid_coords_to_tile_id(x_coord: int, y_coord: int) -> int:
 
     return int(tile_id)
 
+
 def lerp(start: float, end: float, t: float) -> float:
     """Linearly interpolate between two values.
 
@@ -108,7 +110,9 @@ def euclidean_distance(pt1: tuple[int, int], pt2: tuple[int, int]) -> float:
     return math.hypot(dx, dy)
 
 
-def compute_centroid(points: Optional[Sequence[Sequence[int]]] = None) -> tuple[int, int]:
+def compute_centroid(
+    points: Optional[Sequence[Sequence[int]]] = None,
+) -> tuple[int, int]:
     """Calculate the integer centroid (average position) of a set of points.
 
     Args:
@@ -141,6 +145,7 @@ def normalize_radians(angle: float) -> float:
         return angle - TWO_PI
     return angle
 
+
 def compute_average_bgr_color(image: np.ndarray) -> tuple[int, int, int]:
     """Compute the average BGR color of an image region.
 
@@ -167,6 +172,7 @@ def euclidean_color_distance(
         Euclidean distance in 3D color space.
     """
     return math.sqrt(sum((s - t) ** 2 for s, t in zip(sample_bgr, target_bgr)))
+
 
 def flush_stdin() -> None:
     """Flush the standard input buffer."""
