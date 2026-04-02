@@ -89,9 +89,7 @@ class GameWindow:
 
         self._setup_ui()
 
-    def _create_image_label(
-        self, width: int, height: int, bg_color: str
-    ) -> QLabel:
+    def _create_image_label(self, width: int, height: int, bg_color: str) -> QLabel:
         """Create a QLabel for displaying images.
 
         Args:
@@ -111,9 +109,7 @@ class GameWindow:
     def _create_status_label(self) -> QLabel:
         """Create a label for displaying move status messages."""
         label = QLabel("")
-        label.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
-        )
+        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         label.setWordWrap(True)
         return label
 
@@ -143,9 +139,7 @@ class GameWindow:
 
         left_layout = QVBoxLayout()
         left_layout.addWidget(self._main_camera_view)
-        left_layout.addWidget(
-            self._move_image, alignment=Qt.AlignmentFlag.AlignCenter
-        )
+        left_layout.addWidget(self._move_image, alignment=Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(self._move_status)
 
         right_layout = QVBoxLayout()
@@ -272,7 +266,9 @@ class GameWindow:
                 is_crowning = bool(report.get(GameReportField.IS_CROWNED, False))
 
                 if robot_move is not None:
-                    self._robot.execute_move(cast(List[int], robot_move), is_crown=is_crowning)
+                    self._robot.execute_move(
+                        cast(List[int], robot_move), is_crown=is_crowning
+                    )
 
                 self._frame_skip = 20
             else:
