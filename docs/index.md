@@ -1,173 +1,166 @@
----
-icon: lucide/rocket
----
+# Checkers Robot Bachelor
 
-# Get started
+> An autonomous checkers-playing robot system integrating computer vision, game AI, and robotic arm manipulation.
 
-For full documentation visit [zensical.org](https://zensical.org/docs/).
+## Overview
 
-## Commands
+This project implements a complete autonomous checkers game system that combines:
 
-* [`zensical new`][new] - Create a new project
-* [`zensical serve`][serve] - Start local web server
-* [`zensical build`][build] - Build your site
+- **Computer Vision** — Real-time board detection, tile recognition, and checker piece identification
+- **Game Logic** — Full checkers rule implementation with move validation and state management
+- **AI Decision Engine** — Negamax algorithm with alpha-beta pruning for optimal move selection
+- **Robot Manipulation** — Dobot robotic arm control for physical piece movement
+- **GUI Interface** — PyQt6-based application for configuration, calibration, and game monitoring
 
-  [new]: https://zensical.org/docs/usage/new/
-  [serve]: https://zensical.org/docs/usage/preview/
-  [build]: https://zensical.org/docs/usage/build/
+## Quick Start
 
-## Examples
+### Prerequisites
 
-### Admonitions
+```bash
+# Install dependencies
+uv sync
 
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/)
-
-!!! note
-
-    This is a **note** admonition. Use it to provide helpful information.
-
-!!! warning
-
-    This is a **warning** admonition. Be careful!
-
-### Details
-
-> Go to [documentation](https://zensical.org/docs/authoring/admonitions/#collapsible-blocks)
-
-??? info "Click to expand for more info"
-
-    This content is hidden until you click to expand it.
-    Great for FAQs or long explanations.
-
-## Code Blocks
-
-> Go to [documentation](https://zensical.org/docs/authoring/code-blocks/)
-
-``` python hl_lines="2" title="Code blocks"
-def greet(name):
-    print(f"Hello, {name}!") # (1)!
-
-greet("Python")
+# Run type checking
+uvx ty check
 ```
 
-1.  > Go to [documentation](https://zensical.org/docs/authoring/code-blocks/#code-annotations)
+### Running the Application
 
-    Code annotations allow to attach notes to lines of code.
+```bash
+# Launch the configuration and calibration window
+uv run -m src.GUI.init_window
 
-Code can also be highlighted inline: `#!python print("Hello, Python!")`.
-
-## Content tabs
-
-> Go to [documentation](https://zensical.org/docs/authoring/content-tabs/)
-
-=== "Python"
-
-    ``` python
-    print("Hello from Python!")
-    ```
-
-=== "Rust"
-
-    ``` rs
-    println!("Hello from Rust!");
-    ```
-
-## Diagrams
-
-> Go to [documentation](https://zensical.org/docs/authoring/diagrams/)
-
-``` mermaid
-graph LR
-  A[Start] --> B{Error?};
-  B -->|Yes| C[Hmm...];
-  C --> D[Debug];
-  D --> B;
-  B ---->|No| E[Yay!];
+# Launch the game window (requires calibration)
+uv run -m src.GUI.game_window
 ```
 
-## Footnotes
+## Project Structure
 
-> Go to [documentation](https://zensical.org/docs/authoring/footnotes/)
+```
+src/
+├── checkers_game/          # Game logic and AI
+│   ├── checkers_game.py    # Core game rules and state
+│   ├── game_controller.py  # Game flow coordination
+│   └── negamax.py          # AI decision engine
+├── common/                 # Shared utilities
+│   ├── configs/            # Configuration types
+│   ├── enums/              # Enumeration types
+│   ├── exceptions/         # Custom exception hierarchy
+│   └── utils.py            # Helper functions
+├── computer_vision/        # Vision processing
+│   ├── board_recognition/  # Board and tile detection
+│   ├── checker.py          # Checker piece model
+│   ├── checker_detector.py # Checker detection logic
+│   └── game_state_recognition.py  # Game state visualization
+├── robot_manipulation/     # Robot arm control
+│   ├── robot_arm.py        # Hardware abstraction
+│   ├── dobot_arm.py        # Dobot implementation
+│   ├── move_executor.py    # Movement sequences
+│   ├── king_manager.py     # King piece handling
+│   ├── robot_manipulator.py # Main facade
+│   └── calibration_controller.py  # Calibration workflow
+└── GUI/                    # User interface
+    ├── init_window.py      # Configuration & calibration
+    └── game_window.py      # Main game interface
+```
 
-Here's a sentence with a footnote.[^1]
+## Documentation
 
-Hover it, to see a tooltip.
+### Core Modules
 
-[^1]: This is the footnote.
+| Module | Description |
+|--------|-------------|
+| [Checkers Game](api/checkers_game.md) | Game rules, state management, and move validation |
+| [Game Controller](api/game_controller.md) | Coordinates game flow between CV, AI, and robot |
+| [Negamax Engine](api/negamax.md) | AI decision making with alpha-beta pruning |
 
+### Computer Vision
 
-## Formatting
+| Module | Description |
+|--------|-------------|
+| [Contour Detector](api/contour_detector.md) | Board contour detection and preprocessing |
+| [Board Tile](api/board_tile.md) | Individual tile representation |
+| [Tile Grid](api/tile_grid.md) | Tile collection and neighbor management |
+| [Board](api/board.md) | Complete board detection and point interpolation |
+| [Board Detector](api/board_detector.md) | High-level board detection facade |
+| [Checker](api/checker.md) | Checker piece data model |
+| [Checker Detector](api/checker_detector.md) | Vectorized checker color detection |
+| [Game State Recognition](api/game_state_recognition.md) | Game state visualization and tracking |
 
-> Go to [documentation](https://zensical.org/docs/authoring/formatting/)
+### Robot Manipulation
 
-- ==This was marked (highlight)==
-- ^^This was inserted (underline)^^
-- ~~This was deleted (strikethrough)~~
-- H~2~O
-- A^T^A
-- ++ctrl+alt+del++
+| Module | Description |
+|--------|-------------|
+| [Robot Arm](api/robot_arm.md) | Abstract hardware interface |
+| [Dobot Arm](api/dobot_arm.md) | Dobot Magician implementation |
+| [Move Executor](api/move_executor.md) | Piece movement sequences |
+| [King Manager](api/king_manager.md) | King piece inventory and placement |
+| [Robot Manipulator](api/robot_manipulator.md) | Main robot control facade |
+| [Calibration Controller](api/calibration_controller.md) | Arm calibration workflow |
+| [Calibration Data](api/calibration_data.md) | Calibrated position storage |
+| [Calibration File Handler](api/calibration_file_handler.md) | Calibration file I/O |
 
-## Icons, Emojis
+### Common Utilities
 
-> Go to [documentation](https://zensical.org/docs/authoring/icons-emojis/)
+| Module | Description |
+|--------|-------------|
+| [Configs](api/configs.md) | Configuration dataclasses and typed dicts |
+| [Enums](api/enums.md) | Enumeration types for game state |
+| [Exceptions](api/exceptions.md) | Custom exception hierarchy |
+| [Utils](api/utils.md) | Coordinate conversion and math utilities |
 
-* :sparkles: `:sparkles:`
-* :rocket: `:rocket:`
-* :tada: `:tada:`
-* :memo: `:memo:`
-* :eyes: `:eyes:`
+### GUI
 
-## Maths
+| Module | Description |
+|--------|-------------|
+| [Game Window](api/game_window.md) | Main game interface |
+| [Init Window](api/init_window.md) | Configuration and calibration interface |
 
-> Go to [documentation](https://zensical.org/docs/authoring/math/)
+## Architecture
 
-$$
-\cos x=\sum_{k=0}^{\infty}\frac{(-1)^k}{(2k)!}x^{2k}
-$$
+### System Flow
 
-!!! warning "Needs configuration"
-    Note that MathJax is included via a `script` tag on this page and is not
-    configured in the generated default configuration to avoid including it
-    in a pages that do not need it. See the documentation for details on how
-    to configure it on all your pages if they are more Maths-heavy than these
-    simple starter pages.
+```
+┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
+│   Camera    │────▶│ Computer Vision  │────▶│ Game State   │
+│   Input     │     │ (Board/Checker)  │     │ Recognition  │
+└─────────────┘     └──────────────────┘     └──────┬───────┘
+                                                     │
+┌─────────────┐     ┌──────────────────┐     ┌──────▼───────┐
+│   Dobot     │◀────│ Robot            │◀────│ Game         │
+│   Arm       │     │ Manipulation     │     │ Controller   │
+└─────────────┘     └──────────────────┘     └──────┬───────┘
+                                                     │
+                                              ┌──────▼───────┐
+                                              │ Negamax AI   │
+                                              │ Engine       │
+                                              └──────────────┘
+```
 
-<script id="MathJax-script" src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [["\\(", "\\)"]],
-      displayMath: [["\\[", "\\]"]],
-      processEscapes: true,
-      processEnvironments: true
-    },
-    options: {
-      ignoreHtmlClass: ".*|",
-      processHtmlClass: "arithmatex"
-    }
-  };
+### Design Principles
 
-  document$.subscribe(() => {
-    MathJax.startup.output.clearCache()
-    MathJax.typesetClear()
-    MathJax.texReset()
-    MathJax.typesetPromise()
-  })
-</script>
+- **Single Responsibility** — Each class has one clear purpose
+- **Dependency Injection** — Components receive dependencies explicitly
+- **Hardware Abstraction** — Robot control through abstract interfaces
+- **Type Safety** — Full type hints with `ty` static analysis
+- **Backward Compatibility** — Legacy imports supported via re-exports
 
-## Task Lists
+## Development
 
-> Go to [documentation](https://zensical.org/docs/authoring/lists/#using-task-lists)
+### Type Checking
 
-* [x] Install Zensical
-* [x] Configure `zensical.toml`
-* [x] Write amazing documentation
-* [ ] Deploy anywhere
+```bash
+uvx ty check
+```
 
-## Tooltips
+### Code Style
 
-> Go to [documentation](https://zensical.org/docs/authoring/tooltips/)
+The project follows PEP 8 conventions with:
+- Type hints on all functions and methods
+- Google-style docstrings for mkdocstrings compatibility
+- One class per file (except tightly coupled pairs)
+- Descriptive naming over abbreviations
 
-[Hover me][example]
+## License
 
-  [example]: https://example.com "I'm a tooltip!"
+This project is part of a bachelor's degree program.
