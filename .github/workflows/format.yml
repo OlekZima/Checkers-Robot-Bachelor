@@ -1,0 +1,12 @@
+name: Apply formatting
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  format:
+    - uses: astral-sh/ruff-action@v3
+      with:
+        args: "format --check --diff"
