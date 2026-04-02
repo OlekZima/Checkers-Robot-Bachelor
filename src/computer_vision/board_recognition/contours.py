@@ -190,7 +190,7 @@ if __name__ == "__main__":
         )
         cv.imshow("CONTOURS", frame)
 
-        if cv.waitKey(1) & 0xFF == ord("q"):
+        if cv.waitKey(0) & 0xFF == ord("q"):
             break
     cap.release()
     cv.destroyAllWindows()

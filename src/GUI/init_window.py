@@ -1,285 +1,682 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import re
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, cast
 
-import gradio as gr
+import cv2
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QImage, QIcon,  QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QRadioButton,
+    QSpinBox,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from serial.tools import list_ports
 
 from src.common.configs import ColorConfig
-from src.common.enums import Color
-
-
-@dataclass
-class _ConfigState:
-    robot_color: Optional[Color] = None
-    difficulty_level: int = 3
-    robot_port: Optional[str] = None
-    camera_port: Optional[int] = None
-    configuration_file_path: Optional[Path] = None
-    color_config: ColorConfig | None = None
-    completed: bool = False
-
-
-def _default_color_config() -> ColorConfig:
-    return {
-        "orange": (220, 70, 0),
-        "blue": (42, 113, 157),
-        "black": (107, 108, 101),
-        "white": (198, 205, 203),
-    }
+from src.common.enums import CalibrationMethod, Color
+from src.common.utils import CONFIG_PATH, list_camera_ports
+from src.robot_manipulation.calibration_controller import CalibrationController
 
 
 class ConfigurationWindow:
-    """Compatibility adapter with Gradio backend.
-
-    Public API matches the old class:
-    - run()
-    - get_robot_port()
-    - get_camera_port()
-    - get_config_colors_dict()
-    - get_robot_color()
-    - get_configuration_file_path()
-    - get_difficulty_level()
-    """
+    """Configuration window for the checkers robot."""
 
     def __init__(self) -> None:
-        self._state = _ConfigState(color_config=_default_color_config())
-        self._app: Optional[gr.Blocks] = None
+        self._selected_color: Optional[Color] = None
+        self._difficulty_level: int = 3
 
-    def _get_property_if_exist(self, name: str):
-        value = getattr(self._state, name)
-        if value is None:
-            raise AttributeError(
-                f"No {name} property!\nLooks like you didn't complete the `run` flow."
-            )
-        return value
+        self._robot_port: Optional[str] = None
+        self._camera_port: Optional[int] = None
+        self._configuration_file_path: Optional[Path] = None
 
-    def get_robot_port(self) -> str:
-        return self._get_property_if_exist("robot_port")
+        self._cap = None
+        self._frame = None
 
-    def get_camera_port(self) -> int:
-        return self._get_property_if_exist("camera_port")
+        self._selected_config_color: Optional[str] = None
+        self._config_method: Optional[CalibrationMethod] = None
 
-    def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
-        return self._get_property_if_exist("color_config")
+        self._color_config: ColorConfig = cast(
+            ColorConfig,
+            {
+                "orange": (0, 0, 0),
+                "blue": (0, 0, 0),
+                "black": (0, 0, 0),
+                "white": (0, 0, 0),
+            },
+        )
 
-    def get_robot_color(self) -> Color:
-        return self._get_property_if_exist("robot_color")
+        self._controller: Optional[CalibrationController] = None
 
-    def get_configuration_file_path(self) -> Path:
-        return self._get_property_if_exist("configuration_file_path")
+        self._app = QApplication.instance() or QApplication([])
+        self._window = QDialog()
+        self._window.setWindowTitle("Configuration")
+        self._window.setMinimumSize(980, 780)
 
-    def get_difficulty_level(self) -> int:
-        return self._get_property_if_exist("difficulty_level")
+        self._tabs = QTabWidget()
+        self._tabs.addTab(self._create_color_selection_tab(), "Color Selection")
+        self._tabs.addTab(self._create_port_selection_tab(), "Port Selection")
+        self._tabs.addTab(self._create_color_configuration_tab(), "Color Configuration")
+        self._tabs.addTab(self._create_calibration_tab(), "Calibration")
+        self._tabs.setTabEnabled(1, False)
+        self._tabs.setTabEnabled(2, False)
+        self._tabs.setTabEnabled(3, False)
+        self._tabs.currentChanged.connect(self._on_tab_changed)
 
-    @staticmethod
-    def _list_robot_ports() -> list[str]:
-        ports = []
-        for p in list_ports.comports():
-            # keep compact "device - description" format
-            desc = p.description if p.description else "Unknown"
-            ports.append(f"{p.device} - {desc}")
-        return ports if ports else ["(no serial ports detected)"]
+        layout = QVBoxLayout(self._window)
+        layout.addWidget(self._tabs)
 
-    @staticmethod
-    def _normalize_robot_port(port_choice: str) -> Optional[str]:
-        if not port_choice or port_choice.startswith("(no serial ports"):
-            return None
-        # stored value is only device path
-        return port_choice.split(" - ", 1)[0]
+        self._camera_timer = QTimer(self._window)
+        self._camera_timer.timeout.connect(self._update_camera_frame)
 
-    @staticmethod
-    def _parse_camera_port(raw: str) -> Optional[int]:
-        raw = (raw or "").strip()
-        if raw == "":
-            return None
-        try:
-            return int(raw)
-        except ValueError:
-            return None
+    def _create_color_selection_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
 
-    @staticmethod
-    def _map_color(label: str) -> Optional[Color]:
-        if not label:
-            return None
-        if label.lower() == "orange":
-            return Color.ORANGE
-        if label.lower() == "blue":
-            return Color.BLUE
+        title = QLabel("Select Robot's color")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("font-weight: bold; font-size: 18px;")
+
+        self._selected_color_label = QLabel("Selected Color for robot is: None")
+        self._selected_color_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._orange_button = QPushButton()
+        orange_pixmap = QPixmap("assets/checkers_img/orange.png")
+        if not orange_pixmap.isNull():
+            self._orange_button.setIcon(QIcon(orange_pixmap))
+            self._orange_button.setIconSize(orange_pixmap.size())
+            self._orange_button.setFixedSize(120, 120)
+        else:
+            self._orange_button.setText("Orange")
+        self._orange_button.clicked.connect(lambda: self._set_robot_color(Color.ORANGE))
+
+        self._blue_button = QPushButton()
+        blue_pixmap = QPixmap("assets/checkers_img/blue.png")
+        if not blue_pixmap.isNull():
+            self._blue_button.setIcon(QIcon(blue_pixmap))
+            self._blue_button.setIconSize(blue_pixmap.size())
+            self._blue_button.setFixedSize(120, 120)
+        else:
+            self._blue_button.setText("Blue")
+        self._blue_button.clicked.connect(lambda: self._set_robot_color(Color.BLUE))
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self._orange_button)
+        button_layout.addWidget(self._blue_button)
+        button_layout.addStretch()
+
+        difficulty_label = QLabel("Select difficulty level")
+        difficulty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._difficulty_spinbox = QSpinBox()
+        self._difficulty_spinbox.setRange(1, 10)
+        self._difficulty_spinbox.setValue(3)
+        self._difficulty_spinbox.valueChanged.connect(self._on_difficulty_changed)
+        self._difficulty_spinbox.setFixedWidth(100)
+
+        difficulty_layout = QHBoxLayout()
+        difficulty_layout.addStretch()
+        difficulty_layout.addWidget(self._difficulty_spinbox)
+        difficulty_layout.addStretch()
+
+        layout.addStretch()
+        layout.addWidget(title)
+        layout.addLayout(button_layout)
+        layout.addWidget(self._selected_color_label)
+        layout.addStretch()
+        layout.addWidget(difficulty_label)
+        layout.addLayout(difficulty_layout)
+        layout.addStretch()
+
+        return tab
+
+    def _create_port_selection_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        title = QLabel("Select ports for robot and camera")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("font-weight: bold; font-size: 16px;")
+
+        self._robot_port_combo = QComboBox()
+        self._camera_port_combo = QComboBox()
+
+        for port in list_ports.comports():
+            self._robot_port_combo.addItem(f"{port.device} ({port.description})", port.device)
+
+        self._robot_port_combo.currentIndexChanged.connect(self._on_robot_port_changed)
+        self._camera_port_combo.currentIndexChanged.connect(self._on_camera_port_changed)
+
+        available_cameras = list_camera_ports()
+        for port in available_cameras:
+            self._camera_port_combo.addItem(str(port), port)
+
+        grid = QGridLayout()
+        grid.addWidget(QLabel("Robot port:"), 0, 0)
+        grid.addWidget(self._robot_port_combo, 0, 1)
+        grid.addWidget(QLabel("Camera port:"), 1, 0)
+        grid.addWidget(self._camera_port_combo, 1, 1)
+
+        layout.addWidget(title)
+        layout.addLayout(grid)
+        layout.addStretch()
+
+        return tab
+
+    def _create_color_configuration_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        header = QLabel("Configure the colors for the game")
+        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header.setStyleSheet("font-weight: bold; font-size: 16px;")
+
+        self._info_color_selection = QLabel("Orange color selection")
+        self._info_color_selection.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._image_label = QLabel()
+        self._image_label.setFixedSize(640, 480)
+        self._image_label.setStyleSheet("background-color: white; border: 1px solid black;")
+        self._image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._image_label.mousePressEvent = cast(Any, self._on_color_image_mouse_press)
+
+        self._radio_orange = QRadioButton("Orange color")
+        self._radio_blue = QRadioButton("Blue color")
+        self._radio_black = QRadioButton("Black color")
+        self._radio_white = QRadioButton("White color")
+        self._radio_orange.setChecked(True)
+
+        self._radio_orange.toggled.connect(lambda: self._info_color_selection.setText("Orange color selection"))
+        self._radio_blue.toggled.connect(lambda: self._info_color_selection.setText("Blue color selection"))
+        self._radio_black.toggled.connect(lambda: self._info_color_selection.setText("Black color selection"))
+        self._radio_white.toggled.connect(lambda: self._info_color_selection.setText("White color selection"))
+
+        radio_layout = QVBoxLayout()
+        radio_layout.addWidget(self._radio_orange)
+        radio_layout.addWidget(self._radio_blue)
+        radio_layout.addWidget(self._radio_black)
+        radio_layout.addWidget(self._radio_white)
+
+        next_button = QPushButton("Next")
+        next_button.clicked.connect(self._handle_end_color_configuration_event)
+
+        controls_layout = QHBoxLayout()
+        controls_layout.addWidget(self._image_label)
+        controls_layout.addLayout(radio_layout)
+
+        layout.addWidget(header)
+        layout.addWidget(self._info_color_selection)
+        layout.addLayout(controls_layout)
+        layout.addWidget(next_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch()
+
+        return tab
+
+    def _create_calibration_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        method_layout = QHBoxLayout()
+        self._corner_method_radio = QRadioButton("Corner tiles")
+        self._all_tiles_method_radio = QRadioButton("All tiles")
+        self._corner_method_radio.toggled.connect(self._on_method_selected)
+        self._all_tiles_method_radio.toggled.connect(self._on_method_selected)
+
+        method_layout.addWidget(QLabel("Select calibration method:"))
+        method_layout.addWidget(self._corner_method_radio)
+        method_layout.addWidget(self._all_tiles_method_radio)
+
+        self._robot_xy_controls = QGroupBox("XY Movement")
+        xy_layout = QGridLayout()
+        self._robot_forward_button = QPushButton("Forward")
+        self._robot_left_button = QPushButton("Left")
+        self._robot_right_button = QPushButton("Right")
+        self._robot_backward_button = QPushButton("Backward")
+        self._robot_up_button = QPushButton("Up")
+        self._robot_down_button = QPushButton("Down")
+
+        self._robot_forward_button.clicked.connect(lambda: self._handle_robot_movement_event("forward"))
+        self._robot_backward_button.clicked.connect(lambda: self._handle_robot_movement_event("backward"))
+        self._robot_left_button.clicked.connect(lambda: self._handle_robot_movement_event("left"))
+        self._robot_right_button.clicked.connect(lambda: self._handle_robot_movement_event("right"))
+        self._robot_up_button.clicked.connect(lambda: self._handle_robot_movement_event("up"))
+        self._robot_down_button.clicked.connect(lambda: self._handle_robot_movement_event("down"))
+
+        xy_layout.addWidget(self._robot_forward_button, 0, 1)
+        xy_layout.addWidget(self._robot_left_button, 1, 0)
+        xy_layout.addWidget(self._robot_right_button, 1, 2)
+        xy_layout.addWidget(self._robot_backward_button, 2, 1)
+        self._robot_xy_controls.setLayout(xy_layout)
+        self._robot_xy_controls.setVisible(False)
+
+        self._robot_z_controls = QGroupBox("Z Movement")
+        z_layout = QVBoxLayout()
+        z_layout.addWidget(self._robot_up_button)
+        z_layout.addWidget(self._robot_down_button)
+        self._robot_z_controls.setLayout(z_layout)
+        self._robot_z_controls.setVisible(False)
+
+        self._robot_next_position_label = QLabel("")
+        self._robot_next_position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._robot_next_position_label.setVisible(False)
+
+        self._robot_position_label = QLabel("Current robot position:")
+        self._robot_position_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._robot_position_label.setVisible(False)
+
+        button_row = QHBoxLayout()
+        self._load_config_button = QPushButton("Load config file and finish")
+        self._next_step_button = QPushButton("Next Calibration Step")
+        self._save_config_button = QPushButton("Save Calibration Config")
+
+        self._load_config_button.clicked.connect(self._handle_load_config_event)
+        self._next_step_button.clicked.connect(self._handle_calibration_step_completion)
+        self._save_config_button.clicked.connect(self._save_calibration_config)
+
+        self._next_step_button.setVisible(False)
+        self._save_config_button.setVisible(False)
+
+        button_row.addWidget(self._load_config_button)
+        button_row.addWidget(self._next_step_button)
+        button_row.addWidget(self._save_config_button)
+
+        layout.addLayout(method_layout)
+        layout.addWidget(self._robot_xy_controls)
+        layout.addWidget(self._robot_z_controls)
+        layout.addWidget(self._robot_next_position_label)
+        layout.addWidget(self._robot_position_label)
+        layout.addLayout(button_row)
+        layout.addStretch()
+
+        return tab
+
+    def _set_robot_color(self, color: Color) -> None:
+        self._selected_color = color
+        self._selected_color_label.setText(f"Selected Color for robot is: {color}")
+        self._tabs.setTabEnabled(1, True)
+        self._tabs.setCurrentIndex(1)
+
+    def _on_difficulty_changed(self, value: int) -> None:
+        self._difficulty_level = value
+
+    def _on_robot_port_changed(self, index: int) -> None:
+        port = self._robot_port_combo.itemData(index)
+        if isinstance(port, str):
+            self._robot_port = port
+        self._try_enable_color_configuration_tab()
+
+    def _on_camera_port_changed(self, index: int) -> None:
+        port = self._camera_port_combo.itemData(index)
+        if isinstance(port, int):
+            self._camera_port = port
+        self._try_enable_color_configuration_tab()
+
+    def _try_enable_color_configuration_tab(self) -> None:
+        if self._robot_port and self._camera_port is not None:
+            self._tabs.setTabEnabled(2, True)
+
+    def _on_tab_changed(self, index: int) -> None:
+        if index == 2:
+            if self._camera_port is None:
+                self._show_message("No camera port selected!", QMessageBox.Icon.Warning)
+                return
+            self._start_camera_preview()
+        else:
+            self._stop_camera_preview()
+
+    def _start_camera_preview(self) -> None:
+        if self._camera_port is None:
+            return
+        if self._cap is not None:
+            self._cap.release()
+        self._cap = cv2.VideoCapture(self._camera_port)
+        if not self._cap.isOpened():
+            self._show_message("Failed to access the camera.", QMessageBox.Icon.Critical)
+            self._cap = None
+            return
+        self._camera_timer.start(33)
+
+    def _stop_camera_preview(self) -> None:
+        if self._camera_timer.isActive():
+            self._camera_timer.stop()
+        if self._cap is not None:
+            self._cap.release()
+            self._cap = None
+
+    def _update_camera_frame(self) -> None:
+        if self._cap is None:
+            return
+        ret, frame = self._cap.read()
+        if not ret or frame is None:
+            return
+        self._frame = frame
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        height, width, channel = frame_rgb.shape
+        bytes_per_line = width * channel
+        q_image = QImage(
+            frame_rgb.data.tobytes(),
+            width,
+            height,
+            bytes_per_line,
+            QImage.Format.Format_RGB888,
+        )
+        pixmap = QPixmap.fromImage(q_image)
+        self._image_label.setPixmap(pixmap.scaled(self._image_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+
+    def _handle_graph_mouse_click_event(self, x: int, y: int) -> None:
+        if self._frame is None:
+            return
+        frame_height, frame_width, _ = self._frame.shape
+        if x < 0 or y < 0 or x >= frame_width or y >= frame_height:
+            return
+
+        b, g, r = self._frame[y, x]
+        self._selected_config_color = self._get_selected_color_name()
+        if self._selected_config_color is None:
+            return
+
+        if self._selected_config_color == "orange":
+            self._color_config["orange"] = (int(r), int(g), int(b))
+        elif self._selected_config_color == "blue":
+            self._color_config["blue"] = (int(r), int(g), int(b))
+        elif self._selected_config_color == "black":
+            self._color_config["black"] = (int(r), int(g), int(b))
+        elif self._selected_config_color == "white":
+            self._color_config["white"] = (int(r), int(g), int(b))
+        self._show_message(
+            f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})",
+            QMessageBox.Icon.Information,
+        )
+
+    def _get_selected_color_name(self) -> Optional[str]:
+        if self._radio_orange.isChecked():
+            return "orange"
+        if self._radio_blue.isChecked():
+            return "blue"
+        if self._radio_black.isChecked():
+            return "black"
+        if self._radio_white.isChecked():
+            return "white"
         return None
 
-    @staticmethod
-    def _validate_config_file(file_obj) -> tuple[Optional[Path], Optional[str]]:
-        if file_obj is None:
-            return None, "Please upload/select a calibration config file."
-        path = Path(file_obj.name)
+    def _handle_load_config_event(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self._window,
+            "Select a configuration file.",
+            str(CONFIG_PATH),
+            "Configuration file (*.txt)",
+        )
+        if not file_path:
+            return
+
+        selected_path = Path(file_path)
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except OSError as exc:
-            return None, f"Failed to read config file: {exc}"
-
-        if len(lines) != 42:
-            return None, f"Invalid config file: expected 42 lines, got {len(lines)}"
-        return path, None
-
-    def _build_app(self) -> gr.Blocks:
-        with gr.Blocks(title="Checkers Robot Configuration (Gradio)") as app:
-            gr.Markdown(
-                "## Checkers Robot Configuration\n"
-                "This replaces the legacy desktop configuration window."
+            with selected_path.open("r", encoding="UTF-8") as config_file:
+                lines = config_file.readlines()
+                if len(lines) != 42:
+                    raise ValueError("Invalid configuration file length.")
+        except Exception as exc:
+            self._show_message(
+                f"Invalid configuration file: {exc}", QMessageBox.Icon.Critical
             )
+            return
 
-            state = gr.State(value=self._state)
+        self._configuration_file_path = Path(selected_path.name)
+        self._show_message(
+            f"Configuration file {selected_path.name} loaded successfully!",
+            QMessageBox.Icon.Information,
+        )
+        self._window.accept()
 
-            with gr.Row():
-                robot_color = gr.Radio(
-                    choices=["Orange", "Blue"], label="Robot Color", value="Orange"
-                )
-                difficulty = gr.Slider(
-                    minimum=1, maximum=10, value=3, step=1, label="Difficulty"
-                )
+    def _handle_end_color_configuration_event(self) -> None:
+        self._color_config = cast(
+            ColorConfig,
+            {
+                "orange": tuple(map(int, self._color_config["orange"])),
+                "blue": tuple(map(int, self._color_config["blue"])),
+                "black": tuple(map(int, self._color_config["black"])),
+                "white": tuple(map(int, self._color_config["white"])),
+            },
+        )
+        message = (
+            "Selected colors for the game [R, G, B]" +
+            f"\nOrange: {self._color_config['orange']}"
+            f"\nBlue: {self._color_config['blue']}"
+            f"\nBlack: {self._color_config['black']}"
+            f"\nWhite: {self._color_config['white']}"
+        )
+        self._show_message(message, QMessageBox.Icon.Information)
+        self._tabs.setTabEnabled(3, True)
+        self._tabs.setCurrentIndex(3)
 
-            with gr.Row():
-                robot_port = gr.Dropdown(
-                    choices=self._list_robot_ports(),
-                    value=None,
-                    label="Robot Port",
-                    allow_custom_value=False,
-                )
-                camera_port = gr.Textbox(
-                    label="Camera Port (integer)", value="0", placeholder="e.g. 0"
-                )
+    def _handle_robot_movement_event(self, direction: str) -> None:
+        if self._controller is None:
+            return
+        if direction == "forward":
+            self._controller.move_forward()
+        elif direction == "backward":
+            self._controller.move_backward()
+        elif direction == "left":
+            self._controller.move_left()
+        elif direction == "right":
+            self._controller.move_right()
+        elif direction == "up":
+            self._controller.move_up()
+        elif direction == "down":
+            self._controller.move_down()
 
-            config_file = gr.File(
-                label="Calibration Config File (.txt)",
-                file_types=[".txt"],
-                type="filepath",
+    def _on_method_selected(self) -> None:
+        if self._corner_method_radio.isChecked() or self._all_tiles_method_radio.isChecked():
+            self._corner_method_radio.setDisabled(True)
+            self._all_tiles_method_radio.setDisabled(True)
+            self._robot_xy_controls.setVisible(True)
+            self._robot_z_controls.setVisible(True)
+            self._robot_next_position_label.setVisible(True)
+            self._robot_position_label.setVisible(True)
+            self._load_config_button.setVisible(True)
+            self._show_calibration_controller()
+
+            if self._all_tiles_method_radio.isChecked():
+                self._config_method = CalibrationMethod.ALL
+                self._start_all_tiles_calibration()
+            else:
+                self._config_method = CalibrationMethod.CORNER
+                self._start_corner_calibration()
+
+    def _show_calibration_controller(self) -> None:
+        if self._robot_port is None:
+            self._show_message("Select a robot port before calibration.", QMessageBox.Icon.Warning)
+            return
+        self._controller = CalibrationController(self._robot_port)
+
+    def _on_color_image_mouse_press(self, event) -> None:
+        if event is None or event.button() != Qt.MouseButton.LeftButton:
+            return
+        position = event.position()
+        self._handle_graph_mouse_click_event(int(position.x()), int(position.y()))
+
+    def _start_all_tiles_calibration(self) -> None:
+        if self._configuration_file_path is None:
+            self._show_message("No configuration file selected. Calibration aborted.", QMessageBox.Icon.Critical)
+            return
+        if self._controller is None:
+            self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
+            return
+        try:
+            self._controller.read_file_config(str(self._configuration_file_path))
+            self._update_calibration_instruction(CalibrationMethod.ALL)
+            self._controller.move_to_current_all_tiles_calibration_position()
+            self._next_step_button.setVisible(True)
+        except Exception as exc:
+            self._show_message(f"Error preparing all tiles calibration: {exc}", QMessageBox.Icon.Critical)
+
+    def _handle_calibration_step_completion(self) -> None:
+        if self._controller is None or self._config_method is None:
+            return
+
+        if self._config_method == CalibrationMethod.CORNER:
+            self._controller.save_current_corner_calibration_position()
+            if not self._controller.is_corner_calibration_complete():
+                self._update_calibration_instruction()
+                self._controller.move_to_current_corner_calibration_position()
+            else:
+                self._robot_next_position_label.setText("Calibration complete.")
+                self._next_step_button.setVisible(False)
+                self._save_config_button.setVisible(True)
+                self._controller.finalize_corner_calibration()
+                self._show_message(
+                    "Calibration completed successfully! Save the configuration file.",
+                    QMessageBox.Icon.Information,
+                )
+        else:
+            self._controller.save_current_all_tiles_calibration_position()
+            if not self._controller.is_all_tiles_calibration_complete():
+                self._update_calibration_instruction(CalibrationMethod.ALL)
+                self._controller.move_to_current_all_tiles_calibration_position()
+            else:
+                self._robot_next_position_label.setText("Calibration complete.")
+                self._next_step_button.setVisible(False)
+                self._show_message(
+                    "Calibration completed successfully! Save the configuration file.",
+                    QMessageBox.Icon.Information,
+                )
+                self._save_all_tiles_configuration()
+
+    def _start_corner_calibration(self) -> None:
+        if self._controller is None:
+            self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
+            return
+        self._controller.start_corner_calibration()
+        self._update_calibration_instruction()
+        self._controller.move_to_current_corner_calibration_position()
+        self._next_step_button.setVisible(True)
+
+    def _update_calibration_instruction(
+        self,
+        calibration_method: Optional[CalibrationMethod] = CalibrationMethod.CORNER,
+    ) -> None:
+        assert self._controller is not None
+        if calibration_method == CalibrationMethod.ALL:
+            instruction = self._controller.get_current_all_tiles_calibration_step()
+        else:
+            instruction = self._controller.get_current_corner_calibration_step()
+        if instruction:
+            self._robot_next_position_label.setText(instruction)
+            self._next_step_button.setEnabled(True)
+        else:
+            self._robot_next_position_label.setText("Calibration complete.")
+            self._next_step_button.setEnabled(False)
+
+    def _save_all_tiles_configuration(self) -> None:
+        if self._controller is None:
+            self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
+            return
+        filename, _ = QFileDialog.getSaveFileName(
+            self._window,
+            "Save Calibration Configuration",
+            str(CONFIG_PATH / "calibration_config.txt"),
+            "Text Files (*.txt)",
+        )
+        if not filename:
+            self._show_message("No filename provided. Configuration not saved.", QMessageBox.Icon.Warning)
+            return
+        safe_name = re.sub(r"[^\w\-_.]", "", Path(filename).stem)
+        if not safe_name:
+            self._show_message("Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical)
+            return
+        try:
+            self._controller.save_all_tiles_config(safe_name)
+            self._show_message(
+                f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
+                QMessageBox.Icon.Information,
             )
+            self._show_message("End of calibration. Starting the game.", QMessageBox.Icon.Information)
+        except Exception as exc:
+            self._show_message(f"Error saving configuration: {exc}", QMessageBox.Icon.Critical)
 
-            # Optional manual color setup (RGB tuples as text)
-            with gr.Accordion("Advanced: Color config (RGB tuples)", open=False):
-                orange_rgb = gr.Textbox(label="Orange", value="220,70,0")
-                blue_rgb = gr.Textbox(label="Blue", value="42,113,157")
-                black_rgb = gr.Textbox(label="Black", value="107,108,101")
-                white_rgb = gr.Textbox(label="White", value="198,205,203")
+    def _save_calibration_config(self) -> None:
+        if self._controller is None:
+            self._show_message("No calibration controller initialized.", QMessageBox.Icon.Warning)
+            return
 
-            output = gr.Textbox(label="Status", lines=5, interactive=False)
-            complete = gr.Button("Save configuration")
+        filename, _ = QFileDialog.getSaveFileName(
+            self._window,
+            "Save Calibration Configuration",
+            str(CONFIG_PATH / "calibration_config.txt"),
+            "Text Files (*.txt)",
+        )
+        if not filename:
+            self._show_message("No filename provided. Configuration not saved.", QMessageBox.Icon.Warning)
+            return
 
-            def _parse_rgb(
-                raw: str, fallback: tuple[int, int, int]
-            ) -> tuple[int, int, int]:
-                parts = [p.strip() for p in (raw or "").split(",")]
-                if len(parts) != 3:
-                    return fallback
-                try:
-                    vals = tuple(int(v) for v in parts)
-                except ValueError:
-                    return fallback
-                if any(v < 0 or v > 255 for v in vals):
-                    return fallback
-                return vals  # type: ignore[return-value]
+        safe_name = re.sub(r"[^\w\-_.]", "", Path(filename).stem)
+        if not safe_name:
+            self._show_message("Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical)
+            return
 
-            def on_complete(
-                st: _ConfigState,
-                rc_label: str,
-                diff: int,
-                rp: str,
-                cp: str,
-                cfg,
-                o: str,
-                b: str,
-                k: str,
-                w: str,
-            ):
-                color = self._map_color(rc_label)
-                if color is None:
-                    return st, "Select a valid robot color."
-
-                robot_dev = self._normalize_robot_port(rp)
-                if robot_dev is None:
-                    return st, "Select a valid robot port."
-
-                cam = self._parse_camera_port(cp)
-                if cam is None:
-                    return st, "Camera port must be an integer."
-
-                cfg_path, cfg_err = self._validate_config_file(cfg)
-                if cfg_err is not None:
-                    return st, cfg_err
-
-                st.robot_color = color
-                st.difficulty_level = int(diff)
-                st.robot_port = robot_dev
-                st.camera_port = cam
-                st.configuration_file_path = cfg_path
-                st.color_config = {
-                    "orange": _parse_rgb(o, (220, 70, 0)),
-                    "blue": _parse_rgb(b, (42, 113, 157)),
-                    "black": _parse_rgb(k, (107, 108, 101)),
-                    "white": _parse_rgb(w, (198, 205, 203)),
-                }
-                st.completed = True
-
-                msg = (
-                    "Configuration saved.\n"
-                    f"- robot_color: {st.robot_color.name}\n"
-                    f"- difficulty: {st.difficulty_level}\n"
-                    f"- robot_port: {st.robot_port}\n"
-                    f"- camera_port: {st.camera_port}\n"
-                    f"- config_file: {st.configuration_file_path}"
-                )
-                return st, msg
-
-            complete.click(
-                fn=on_complete,
-                inputs=[
-                    state,
-                    robot_color,
-                    difficulty,
-                    robot_port,
-                    camera_port,
-                    config_file,
-                    orange_rgb,
-                    blue_rgb,
-                    black_rgb,
-                    white_rgb,
-                ],
-                outputs=[state, output],
+        try:
+            self._controller.save_corners_config(safe_name)
+            self._show_message(
+                f"Calibration configuration saved to {self._controller.get_config_path() / (safe_name + '.txt')}",
+                QMessageBox.Icon.Information,
             )
+            self._show_message("End of calibration. Starting the game.", QMessageBox.Icon.Information)
+            self._window.accept()
+        except Exception as exc:
+            self._show_message(f"Error saving configuration: {exc}", QMessageBox.Icon.Critical)
 
-            # keep state synced to instance on every completion click
-            def _sync_to_instance(st: _ConfigState):
-                self._state = st
-                return "Configuration captured in adapter state."
+    def _show_message(self, message: str, icon: QMessageBox.Icon = QMessageBox.Icon.Information) -> None:
+        dialog = QMessageBox(self._window)
+        dialog.setIcon(icon)
+        dialog.setText(message)
+        dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+        dialog.exec()
 
-            complete.click(fn=_sync_to_instance, inputs=[state], outputs=[output])
+    def _get_property_if_exist(self, property_name: str):
+        if getattr(self, property_name) is None:
+            raise AttributeError(
+                f"No {property_name} property!\nLooks like you didn't run the `run` method."
+            )
+        return getattr(self, property_name)
 
-        return app
+    def get_robot_port(self) -> str:
+        return self._get_property_if_exist("_robot_port")
+
+    def get_camera_port(self) -> int:
+        return self._get_property_if_exist("_camera_port")
+
+    def get_config_colors_dict(self) -> ColorConfig:
+        return self._get_property_if_exist("_color_config")
+
+    def get_robot_color(self) -> Color:
+        return self._get_property_if_exist("_selected_color")
+
+    def get_configuration_file_path(self) -> Path:
+        return self._get_property_if_exist("_configuration_file_path")
+
+    def get_difficulty_level(self) -> int:
+        return self._get_property_if_exist("_difficulty_level")
 
     def run(self) -> None:
-        """Launch Gradio config UI.
-
-        Note:
-        - In Gradio this is web-based and non-blocking from a data workflow
-          perspective; you finalize config by clicking "Save configuration".
-        - Existing callers can still call getters afterwards if this adapter
-          instance remains alive in-process.
-        """
-        self._app = self._build_app()
-        self._app.launch()
-
-
-def build_demo() -> gr.Blocks:
-    """Convenience helper to expose config-only demo app."""
-    return ConfigurationWindow()._build_app()
-
-
-def main() -> None:
-    ConfigurationWindow().run()
+        self._window.exec()
+        self._stop_camera_preview()
 
 
 if __name__ == "__main__":
-    main()
+    app = QApplication.instance() or QApplication([])
+    window = ConfigurationWindow()
+    window.run()

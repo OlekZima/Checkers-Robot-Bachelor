@@ -1,261 +1,248 @@
 from __future__ import annotations
 
-import ast
-from dataclasses import dataclass
-from typing import Optional
 from pathlib import Path
 
-import gradio as gr
+import cv2
 import numpy as np
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QMainWindow,
+    QPlainTextEdit,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+    QHBoxLayout,
+)
 
-from src.checkers_game.checkers_game import CheckersGame
-from src.checkers_game.negamax import NegamaxDecisionEngine
-from src.common.enums import Color, Status
-
-
-@dataclass
-class _SessionState:
-    game: CheckersGame
-    robot_color: Color
-    engine_depth: int
-
-
-def _render_board_html(state: np.ndarray) -> str:
-    symbols = {
-        0: " ",
-        1: "🟠",
-        2: "🟠♛",
-        -1: "🔵",
-        -2: "🔵♛",
-    }
-
-    rows = []
-    for y in range(8):
-        cells = []
-        for x in range(8):
-            val = int(state[x][y])
-            dark = (x + y) % 2 == 1
-            bg = "#7f5f3a" if dark else "#d7c3a3"
-            cell = (
-                f'<td style="width:42px;height:42px;text-align:center;'
-                f'font-size:24px;background:{bg};border:1px solid #333;">'
-                f"{symbols[val]}</td>"
-            )
-            cells.append(cell)
-        rows.append("<tr>" + "".join(cells) + "</tr>")
-
-    return (
-        '<div style="display:inline-block;border:2px solid #333;">'
-        '<table style="border-collapse:collapse;">' + "".join(rows) + "</table></div>"
-    )
-
-
-def _status_text(game: CheckersGame, robot_color: Color, depth: int) -> str:
-    turn = game.get_turn_of()
-    status = game.get_status()
-    winner = game.get_winning_player()
-    points = game.get_points()
-
-    if status == Status.IN_PROGRESS:
-        status_s = "IN_PROGRESS"
-    elif status == Status.DRAW:
-        status_s = "DRAW"
-    elif winner is None:
-        status_s = "WON"
-    else:
-        status_s = f"WON ({winner.name})"
-
-    return (
-        f"Turn: {turn.name if turn else 'N/A'}\n"
-        f"Status: {status_s}\n"
-        f"Robot color: {robot_color.name}\n"
-        f"Engine depth: {depth}\n"
-        f"Score ORANGE: {points[Color.ORANGE]} | BLUE: {points[Color.BLUE]}"
-    )
-
-
-def _moves_text(game: CheckersGame) -> str:
-    moves = game.get_possible_opts()
-    if not moves:
-        return "No legal moves."
-    return "\n".join(str(m) for m in moves)
-
-
-def _parse_move(text: str) -> list[int]:
-    try:
-        parsed = ast.literal_eval(text.strip())
-    except Exception as exc:
-        raise ValueError(f"Invalid move format: {exc}") from exc
-
-    if not isinstance(parsed, list) or not all(isinstance(i, int) for i in parsed):
-        raise ValueError("Move must be a list of ints, e.g. [21, 17].")
-    if len(parsed) < 2:
-        raise ValueError("Move must have at least 2 elements.")
-    return parsed
-
-
-def _new_state(robot_color: Color, depth: int) -> _SessionState:
-    return _SessionState(
-        game=CheckersGame(),
-        robot_color=robot_color,
-        engine_depth=max(1, int(depth)),
-    )
-
-
-def _refresh(s: _SessionState) -> tuple[str, str, str]:
-    return (
-        _render_board_html(s.game.get_game_state()),
-        _status_text(s.game, s.robot_color, s.engine_depth),
-        _moves_text(s.game),
-    )
+from src.checkers_game.game_controller import GameController
+from src.common.configs import ColorConfig
+from src.common.enums import Color, GameStateResult, RobotGameReportItem, Status
+from src.common.utils import CONFIG_PATH
+from src.computer_vision.board_recognition.contours import ContourDetector
+from src.computer_vision.game_state_recognition import GameState
+from src.robot_manipulation.dobot_controller import DobotController
 
 
 class GameWindow:
-    """Compatibility wrapper for old constructor signature + Gradio runtime."""
-
     def __init__(
         self,
         robot_color: Color,
-        robot_port: str | None = None,
-        camera_port: int | None = None,
-        color_config: dict | None = None,
-        config_name: Path | None = None,
+        robot_port: str,
+        camera_port: int,
+        color_config: ColorConfig,
+        config_name: str | Path,
         depth_of_engine: int = 3,
     ) -> None:
-        self.robot_color = robot_color
-        self.depth_of_engine = depth_of_engine
+        self._camera_port = camera_port
+        self._cap = cv2.VideoCapture(self._camera_port)
 
-        # Kept for compatibility with old call sites; intentionally unused.
-        self.robot_port = robot_port
-        self.camera_port = camera_port
-        self.color_config = color_config
-        self.config_name = config_name
+        self._game = GameController(robot_color, depth_of_engine)
+        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
+        self._device = self._dobot.device
+        self._board_recognition = GameState(color_config)
 
-        self._app: Optional[gr.Blocks] = None
+        self._app = QApplication.instance() or QApplication([])
+        self._window = QMainWindow()
+        self._window.setWindowTitle("Checkers Game")
+        self._window.setMinimumSize(1320, 900)
 
-    def _build_app(self) -> gr.Blocks:
-        default_state = _new_state(self.robot_color, self.depth_of_engine)
+        self._main_camera_view = QLabel()
+        self._main_camera_view.setFixedSize(640, 480)
+        self._main_camera_view.setStyleSheet("background-color: black;")
+        self._main_camera_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        with gr.Blocks(title="Checkers Game (Gradio)") as app:
-            gr.Markdown(
-                "## Checkers Game (Logic-only)\n"
-                "This view replaces the legacy desktop GUI and does not require robot/camera."
+        self._move_image = QLabel()
+        self._move_image.setFixedSize(200, 200)
+        self._move_image.setStyleSheet("background-color: blue;")
+        self._move_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._move_status = QLabel("")
+        self._move_status.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self._move_status.setWordWrap(True)
+
+        self._output_view = QPlainTextEdit()
+        self._output_view.setReadOnly(True)
+        self._output_view.setFixedWidth(320)
+
+        self._dilate_view = QLabel()
+        self._dilate_view.setFixedSize(640, 480)
+        self._dilate_view.setStyleSheet("background-color: red;")
+        self._dilate_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._board_view = QLabel()
+        self._board_view.setFixedSize(640, 480)
+        self._board_view.setStyleSheet("background-color: black;")
+        self._board_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._game_state_view = QLabel()
+        self._game_state_view.setFixedSize(500, 500)
+        self._game_state_view.setStyleSheet("background-color: white;")
+        self._game_state_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._timer = QTimer(self._window)
+        self._timer.timeout.connect(self._process_frame)
+        self._frame_skip = 20
+
+        self._setup_ui()
+
+    def _setup_ui(self) -> None:
+        central_widget = QWidget()
+        self._window.setCentralWidget(central_widget)
+
+        tab_widget = QTabWidget()
+        tab_widget.addTab(self._create_game_tab(), "Game")
+        tab_widget.addTab(self._create_additional_views_tab(), "Additional views")
+
+        layout = QVBoxLayout(central_widget)
+        layout.addWidget(tab_widget)
+
+    def _create_game_tab(self) -> QWidget:
+        container = QWidget()
+        layout = QHBoxLayout(container)
+
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self._main_camera_view)
+        left_layout.addWidget(self._move_image, alignment=Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(self._move_status)
+
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(self._output_view)
+        right_layout.addStretch()
+
+        layout.addLayout(left_layout)
+        layout.addLayout(right_layout)
+
+        return container
+
+    def _create_additional_views_tab(self) -> QWidget:
+        container = QWidget()
+        layout = QHBoxLayout(container)
+
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self._dilate_view)
+        left_layout.addWidget(self._board_view)
+
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(self._game_state_view)
+        right_layout.addStretch()
+
+        layout.addLayout(left_layout)
+        layout.addLayout(right_layout)
+
+        return container
+
+    def _convert_frame_to_pixmap(self, frame: np.ndarray) -> QPixmap:
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        height, width, channel = rgb_frame.shape
+        bytes_per_line = channel * width
+        q_image = QImage(
+            rgb_frame.data.tobytes(),
+            width,
+            height,
+            bytes_per_line,
+            QImage.Format.Format_RGB888,
+        )
+        return QPixmap.fromImage(q_image)
+
+    def _update_graph(self, frame: np.ndarray, label: QLabel) -> None:
+        if frame is None or frame.size == 0:
+            return
+        pixmap = self._convert_frame_to_pixmap(frame)
+        label.setPixmap(
+            pixmap.scaled(
+                label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
+        )
 
-            state = gr.State(default_state)
+    def _process_frame(self) -> None:
+        if self._cap is None or not self._cap.isOpened():
+            return
 
-            with gr.Row():
-                color_radio = gr.Radio(
-                    choices=["ORANGE", "BLUE"],
-                    value=self.robot_color.name,
-                    label="Engine Color",
+        ret, image = self._cap.read()
+        if not ret or image is None:
+            return
+
+        if self._frame_skip > 0:
+            self._frame_skip -= 1
+            return
+
+        self._update_graph(image, self._main_camera_view)
+
+        try:
+            _, game_state = self._board_recognition.update_game_state(image)
+            update_game_state_result = self._game.update_game_state(game_state)
+
+            self._game_state_image = self._board_recognition.get_game_state_image()
+            self._update_graph(self._game_state_image, self._game_state_view)
+
+            self._board_image = self._board_recognition.get_board_image()
+            self._update_graph(self._board_image, self._board_view)
+
+            dilate_image = ContourDetector.image_dil
+            if dilate_image is not None:
+                self._update_graph(dilate_image, self._dilate_view)
+
+            if update_game_state_result in (
+                GameStateResult.INVALID_OPPONENT_MOVE,
+                GameStateResult.INVALID_ROBOT_MOVE,
+            ):
+                self._move_status.setText("Invalid move! Please correct it.")
+                return
+
+            if update_game_state_result == GameStateResult.VALID_WRONG_ROBOT_MOVE:
+                self._move_status.setText("Wrong robot move! Please correct it.")
+                return
+
+            game_state_report = self._game.report_state()
+            status = game_state_report.get(RobotGameReportItem.STATUS)
+            if status != Status.IN_PROGRESS:
+                if status == Status.DRAW:
+                    self._move_status.setText("Game Over - DRAW!")
+                elif game_state_report.get(RobotGameReportItem.WINNER) == Color.BLUE:
+                    self._move_status.setText("Game Over - ROBOT WON!")
+                else:
+                    self._move_status.setText("Game Over - OPPONENT WON!")
+                self._timer.stop()
+                self._window.close()
+                return
+
+            if (
+                game_state_report.get(RobotGameReportItem.TURN_OF)
+                == game_state_report.get(RobotGameReportItem.ROBOT_COLOR)
+            ):
+                self._move_status.setText("Robot's turn...")
+                self._dobot.perform_move(
+                    game_state_report.get(RobotGameReportItem.ROBOT_MOVE),
+                    is_crown=game_state_report.get(RobotGameReportItem.IS_CROWNED, False),
                 )
-                depth_slider = gr.Slider(
-                    minimum=1,
-                    maximum=8,
-                    value=self.depth_of_engine,
-                    step=1,
-                    label="Engine Depth",
-                )
-                reset_btn = gr.Button("Reset Game")
-
-            board = gr.HTML()
-            summary = gr.Textbox(lines=5, label="Summary", interactive=False)
-            legal_moves = gr.Textbox(lines=10, label="Legal Moves", interactive=False)
-
-            with gr.Row():
-                human_move = gr.Textbox(
-                    label="Human Move",
-                    placeholder="[21, 17] or [24, -20, 15]",
-                )
-                apply_human_btn = gr.Button("Apply Human Move")
-                apply_engine_btn = gr.Button("Apply Engine Move")
-
-            message = gr.Textbox(label="Message", interactive=False)
-
-            def on_reset(color_name: str, depth: int):
-                color = Color.ORANGE if color_name == "ORANGE" else Color.BLUE
-                s = _new_state(color, depth)
-                b, sm, mv = _refresh(s)
-                return s, b, sm, mv, "Game reset."
-
-            def on_apply_human(s: _SessionState, move_text: str):
-                try:
-                    move = _parse_move(move_text)
-                    s.game.perform_move(move)
-                    msg = f"Applied move: {move}"
-                except Exception as exc:
-                    msg = f"Move rejected: {exc}"
-                b, sm, mv = _refresh(s)
-                return s, b, sm, mv, msg
-
-            def on_apply_engine(s: _SessionState, color_name: str, depth: int):
-                s.robot_color = Color.ORANGE if color_name == "ORANGE" else Color.BLUE
-                s.engine_depth = max(1, int(depth))
-
-                if s.game.get_status() != Status.IN_PROGRESS:
-                    b, sm, mv = _refresh(s)
-                    return s, b, sm, mv, "Game already finished."
-
-                if s.game.get_turn_of() != s.robot_color:
-                    b, sm, mv = _refresh(s)
-                    turn = s.game.get_turn_of()
-                    return (
-                        s,
-                        b,
-                        sm,
-                        mv,
-                        f"It is {turn.name if turn else 'N/A'} turn, engine is {s.robot_color.name}.",
-                    )
-
-                try:
-                    engine = NegamaxDecisionEngine(
-                        computer_color=s.robot_color, depth_to_use=s.engine_depth
-                    )
-                    chosen = engine.decide_move(s.game)
-                    s.game.perform_move(chosen)
-                    msg = f"Engine played: {chosen}"
-                except Exception as exc:
-                    msg = f"Engine failed: {exc}"
-
-                b, sm, mv = _refresh(s)
-                return s, b, sm, mv, msg
-
-            # initial paint
-            ib, isummary, imoves = _refresh(default_state)
-            board.value = ib
-            summary.value = isummary
-            legal_moves.value = imoves
-
-            reset_btn.click(
-                on_reset,
-                inputs=[color_radio, depth_slider],
-                outputs=[state, board, summary, legal_moves, message],
-            )
-
-            apply_human_btn.click(
-                on_apply_human,
-                inputs=[state, human_move],
-                outputs=[state, board, summary, legal_moves, message],
-            )
-
-            apply_engine_btn.click(
-                on_apply_engine,
-                inputs=[state, color_radio, depth_slider],
-                outputs=[state, board, summary, legal_moves, message],
-            )
-
-        return app
+                self._frame_skip = 20
+            else:
+                self._move_status.setText("Player's turn...")
+        except Exception as error:
+            self._output_view.appendPlainText(f"Error: {error}")
 
     def run(self) -> None:
-        self._app = self._build_app()
-        self._app.launch()
-
-
-def build_demo() -> gr.Blocks:
-    """Convenience factory for external demo scripts/tests."""
-    return GameWindow(robot_color=Color.ORANGE, depth_of_engine=3)._build_app()
+        self._window.show()
+        self._timer.start(30)
+        self._app.exec()
+        if self._cap is not None:
+            self._cap.release()
 
 
 if __name__ == "__main__":
-    GameWindow(robot_color=Color.ORANGE, depth_of_engine=3).run()
+    app = QApplication.instance() or QApplication([])
+    color_config = ColorConfig(
+        {
+            "orange": (220, 70, 0),
+            "blue": (42, 113, 157),
+            "black": (107, 108, 101),
+            "white": (198, 205, 203),
+        }
+    )
+    window = GameWindow(Color.ORANGE, "/dev/ttyUSB0", 2, color_config, "guit_test_2.txt")
+    window.run()

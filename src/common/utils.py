@@ -3,7 +3,7 @@ import sys
 import termios
 from pathlib import Path
 from collections.abc import Sequence
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import cv2 as cv
 import numpy as np
