@@ -6,7 +6,7 @@ from typing import Any, Optional, cast
 
 import cv2
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QImage, QIcon,  QPixmap
+from PyQt6.QtGui import QImage, QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -156,10 +156,14 @@ class ConfigurationWindow:
         self._camera_port_combo = QComboBox()
 
         for port in list_ports.comports():
-            self._robot_port_combo.addItem(f"{port.device} ({port.description})", port.device)
+            self._robot_port_combo.addItem(
+                f"{port.device} ({port.description})", port.device
+            )
 
         self._robot_port_combo.currentIndexChanged.connect(self._on_robot_port_changed)
-        self._camera_port_combo.currentIndexChanged.connect(self._on_camera_port_changed)
+        self._camera_port_combo.currentIndexChanged.connect(
+            self._on_camera_port_changed
+        )
 
         available_cameras = detect_available_camera_ports()
         for port in available_cameras:
@@ -190,7 +194,9 @@ class ConfigurationWindow:
 
         self._image_label = QLabel()
         self._image_label.setFixedSize(640, 480)
-        self._image_label.setStyleSheet("background-color: white; border: 1px solid black;")
+        self._image_label.setStyleSheet(
+            "background-color: white; border: 1px solid black;"
+        )
         self._image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._image_label.mousePressEvent = cast(Any, self._on_color_image_mouse_press)
 
@@ -200,10 +206,18 @@ class ConfigurationWindow:
         self._radio_white = QRadioButton("White color")
         self._radio_orange.setChecked(True)
 
-        self._radio_orange.toggled.connect(lambda: self._info_color_selection.setText("Orange color selection"))
-        self._radio_blue.toggled.connect(lambda: self._info_color_selection.setText("Blue color selection"))
-        self._radio_black.toggled.connect(lambda: self._info_color_selection.setText("Black color selection"))
-        self._radio_white.toggled.connect(lambda: self._info_color_selection.setText("White color selection"))
+        self._radio_orange.toggled.connect(
+            lambda: self._info_color_selection.setText("Orange color selection")
+        )
+        self._radio_blue.toggled.connect(
+            lambda: self._info_color_selection.setText("Blue color selection")
+        )
+        self._radio_black.toggled.connect(
+            lambda: self._info_color_selection.setText("Black color selection")
+        )
+        self._radio_white.toggled.connect(
+            lambda: self._info_color_selection.setText("White color selection")
+        )
 
         radio_layout = QVBoxLayout()
         radio_layout.addWidget(self._radio_orange)
@@ -249,12 +263,24 @@ class ConfigurationWindow:
         self._robot_up_button = QPushButton("Up")
         self._robot_down_button = QPushButton("Down")
 
-        self._robot_forward_button.clicked.connect(lambda: self._handle_robot_movement_event("forward"))
-        self._robot_backward_button.clicked.connect(lambda: self._handle_robot_movement_event("backward"))
-        self._robot_left_button.clicked.connect(lambda: self._handle_robot_movement_event("left"))
-        self._robot_right_button.clicked.connect(lambda: self._handle_robot_movement_event("right"))
-        self._robot_up_button.clicked.connect(lambda: self._handle_robot_movement_event("up"))
-        self._robot_down_button.clicked.connect(lambda: self._handle_robot_movement_event("down"))
+        self._robot_forward_button.clicked.connect(
+            lambda: self._handle_robot_movement_event("forward")
+        )
+        self._robot_backward_button.clicked.connect(
+            lambda: self._handle_robot_movement_event("backward")
+        )
+        self._robot_left_button.clicked.connect(
+            lambda: self._handle_robot_movement_event("left")
+        )
+        self._robot_right_button.clicked.connect(
+            lambda: self._handle_robot_movement_event("right")
+        )
+        self._robot_up_button.clicked.connect(
+            lambda: self._handle_robot_movement_event("up")
+        )
+        self._robot_down_button.clicked.connect(
+            lambda: self._handle_robot_movement_event("down")
+        )
 
         xy_layout.addWidget(self._robot_forward_button, 0, 1)
         xy_layout.addWidget(self._robot_left_button, 1, 0)
@@ -345,7 +371,9 @@ class ConfigurationWindow:
             self._cap.release()
         self._cap = cv2.VideoCapture(self._camera_port)
         if not self._cap.isOpened():
-            self._show_message("Failed to access the camera.", QMessageBox.Icon.Critical)
+            self._show_message(
+                "Failed to access the camera.", QMessageBox.Icon.Critical
+            )
             self._cap = None
             return
         self._camera_timer.start(33)
@@ -375,7 +403,13 @@ class ConfigurationWindow:
             QImage.Format.Format_RGB888,
         )
         pixmap = QPixmap.fromImage(q_image)
-        self._image_label.setPixmap(pixmap.scaled(self._image_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        self._image_label.setPixmap(
+            pixmap.scaled(
+                self._image_label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
 
     def _handle_graph_mouse_click_event(self, x: int, y: int) -> None:
         if self._frame is None:
@@ -453,8 +487,8 @@ class ConfigurationWindow:
             },
         )
         message = (
-            "Selected colors for the game [R, G, B]" +
-            f"\nOrange: {self._color_config['orange']}"
+            "Selected colors for the game [R, G, B]"
+            + f"\nOrange: {self._color_config['orange']}"
             f"\nBlue: {self._color_config['blue']}"
             f"\nBlack: {self._color_config['black']}"
             f"\nWhite: {self._color_config['white']}"
@@ -480,7 +514,10 @@ class ConfigurationWindow:
             self._controller.move_down()
 
     def _on_method_selected(self) -> None:
-        if self._corner_method_radio.isChecked() or self._all_tiles_method_radio.isChecked():
+        if (
+            self._corner_method_radio.isChecked()
+            or self._all_tiles_method_radio.isChecked()
+        ):
             self._corner_method_radio.setDisabled(True)
             self._all_tiles_method_radio.setDisabled(True)
             self._robot_xy_controls.setVisible(True)
@@ -499,7 +536,9 @@ class ConfigurationWindow:
 
     def _show_calibration_controller(self) -> None:
         if self._robot_port is None:
-            self._show_message("Select a robot port before calibration.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "Select a robot port before calibration.", QMessageBox.Icon.Warning
+            )
             return
         self._controller = CalibrationController(self._robot_port)
 
@@ -511,10 +550,15 @@ class ConfigurationWindow:
 
     def _start_all_tiles_calibration(self) -> None:
         if self._configuration_file_path is None:
-            self._show_message("No configuration file selected. Calibration aborted.", QMessageBox.Icon.Critical)
+            self._show_message(
+                "No configuration file selected. Calibration aborted.",
+                QMessageBox.Icon.Critical,
+            )
             return
         if self._controller is None:
-            self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "Calibration controller is not initialized.", QMessageBox.Icon.Warning
+            )
             return
         try:
             self._controller.start_tile_calibration(self._configuration_file_path)
@@ -522,7 +566,10 @@ class ConfigurationWindow:
             self._controller.move_to_current_position()
             self._next_step_button.setVisible(True)
         except Exception as exc:
-            self._show_message(f"Error preparing all tiles calibration: {exc}", QMessageBox.Icon.Critical)
+            self._show_message(
+                f"Error preparing all tiles calibration: {exc}",
+                QMessageBox.Icon.Critical,
+            )
 
     def _handle_calibration_step_completion(self) -> None:
         if self._controller is None or self._config_method is None:
@@ -558,7 +605,9 @@ class ConfigurationWindow:
 
     def _start_corner_calibration(self) -> None:
         if self._controller is None:
-            self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "Calibration controller is not initialized.", QMessageBox.Icon.Warning
+            )
             return
         self._controller.start_corner_calibration()
         self._update_calibration_instruction()
@@ -583,7 +632,9 @@ class ConfigurationWindow:
 
     def _save_all_tiles_configuration(self) -> None:
         if self._controller is None:
-            self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "Calibration controller is not initialized.", QMessageBox.Icon.Warning
+            )
             return
         filename, _ = QFileDialog.getSaveFileName(
             self._window,
@@ -592,11 +643,16 @@ class ConfigurationWindow:
             "Text Files (*.txt)",
         )
         if not filename:
-            self._show_message("No filename provided. Configuration not saved.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "No filename provided. Configuration not saved.",
+                QMessageBox.Icon.Warning,
+            )
             return
         safe_name = re.sub(r"[^\w\-_.]", "", Path(filename).stem)
         if not safe_name:
-            self._show_message("Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical)
+            self._show_message(
+                "Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical
+            )
             return
         try:
             self._controller.save_tile_calibration(safe_name)
@@ -604,13 +660,19 @@ class ConfigurationWindow:
                 f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
                 QMessageBox.Icon.Information,
             )
-            self._show_message("End of calibration. Starting the game.", QMessageBox.Icon.Information)
+            self._show_message(
+                "End of calibration. Starting the game.", QMessageBox.Icon.Information
+            )
         except Exception as exc:
-            self._show_message(f"Error saving configuration: {exc}", QMessageBox.Icon.Critical)
+            self._show_message(
+                f"Error saving configuration: {exc}", QMessageBox.Icon.Critical
+            )
 
     def _save_calibration_config(self) -> None:
         if self._controller is None:
-            self._show_message("No calibration controller initialized.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "No calibration controller initialized.", QMessageBox.Icon.Warning
+            )
             return
 
         filename, _ = QFileDialog.getSaveFileName(
@@ -620,12 +682,17 @@ class ConfigurationWindow:
             "Text Files (*.txt)",
         )
         if not filename:
-            self._show_message("No filename provided. Configuration not saved.", QMessageBox.Icon.Warning)
+            self._show_message(
+                "No filename provided. Configuration not saved.",
+                QMessageBox.Icon.Warning,
+            )
             return
 
         safe_name = re.sub(r"[^\w\-_.]", "", Path(filename).stem)
         if not safe_name:
-            self._show_message("Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical)
+            self._show_message(
+                "Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical
+            )
             return
 
         try:
@@ -634,12 +701,18 @@ class ConfigurationWindow:
                 f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
                 QMessageBox.Icon.Information,
             )
-            self._show_message("End of calibration. Starting the game.", QMessageBox.Icon.Information)
+            self._show_message(
+                "End of calibration. Starting the game.", QMessageBox.Icon.Information
+            )
             self._window.accept()
         except Exception as exc:
-            self._show_message(f"Error saving configuration: {exc}", QMessageBox.Icon.Critical)
+            self._show_message(
+                f"Error saving configuration: {exc}", QMessageBox.Icon.Critical
+            )
 
-    def _show_message(self, message: str, icon: QMessageBox.Icon = QMessageBox.Icon.Information) -> None:
+    def _show_message(
+        self, message: str, icon: QMessageBox.Icon = QMessageBox.Icon.Information
+    ) -> None:
         dialog = QMessageBox(self._window)
         dialog.setIcon(icon)
         dialog.setText(message)
