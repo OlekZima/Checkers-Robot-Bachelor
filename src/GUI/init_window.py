@@ -28,7 +28,7 @@ from serial.tools import list_ports
 
 from src.common.configs import ColorConfig
 from src.common.enums import CalibrationMethod, Color
-from src.common.utils import CONFIG_PATH, list_camera_ports
+from src.common.utils import CONFIG_PATH, detect_available_camera_ports
 from src.robot_manipulation.calibration_controller import CalibrationController
 
 
@@ -161,7 +161,7 @@ class ConfigurationWindow:
         self._robot_port_combo.currentIndexChanged.connect(self._on_robot_port_changed)
         self._camera_port_combo.currentIndexChanged.connect(self._on_camera_port_changed)
 
-        available_cameras = list_camera_ports()
+        available_cameras = detect_available_camera_ports()
         for port in available_cameras:
             self._camera_port_combo.addItem(str(port), port)
 
@@ -517,9 +517,9 @@ class ConfigurationWindow:
             self._show_message("Calibration controller is not initialized.", QMessageBox.Icon.Warning)
             return
         try:
-            self._controller.read_file_config(str(self._configuration_file_path))
+            self._controller.start_tile_calibration(self._configuration_file_path)
             self._update_calibration_instruction(CalibrationMethod.ALL)
-            self._controller.move_to_current_all_tiles_calibration_position()
+            self._controller.move_to_current_position()
             self._next_step_button.setVisible(True)
         except Exception as exc:
             self._show_message(f"Error preparing all tiles calibration: {exc}", QMessageBox.Icon.Critical)
@@ -529,10 +529,10 @@ class ConfigurationWindow:
             return
 
         if self._config_method == CalibrationMethod.CORNER:
-            self._controller.save_current_corner_calibration_position()
+            self._controller.save_current_corner_position()
             if not self._controller.is_corner_calibration_complete():
                 self._update_calibration_instruction()
-                self._controller.move_to_current_corner_calibration_position()
+                self._controller.move_to_current_corner_position()
             else:
                 self._robot_next_position_label.setText("Calibration complete.")
                 self._next_step_button.setVisible(False)
@@ -543,10 +543,10 @@ class ConfigurationWindow:
                     QMessageBox.Icon.Information,
                 )
         else:
-            self._controller.save_current_all_tiles_calibration_position()
-            if not self._controller.is_all_tiles_calibration_complete():
+            self._controller.save_current_tile_position()
+            if not self._controller.is_tile_calibration_complete():
                 self._update_calibration_instruction(CalibrationMethod.ALL)
-                self._controller.move_to_current_all_tiles_calibration_position()
+                self._controller.move_to_current_position()
             else:
                 self._robot_next_position_label.setText("Calibration complete.")
                 self._next_step_button.setVisible(False)
@@ -562,7 +562,7 @@ class ConfigurationWindow:
             return
         self._controller.start_corner_calibration()
         self._update_calibration_instruction()
-        self._controller.move_to_current_corner_calibration_position()
+        self._controller.move_to_current_corner_position()
         self._next_step_button.setVisible(True)
 
     def _update_calibration_instruction(
@@ -571,9 +571,9 @@ class ConfigurationWindow:
     ) -> None:
         assert self._controller is not None
         if calibration_method == CalibrationMethod.ALL:
-            instruction = self._controller.get_current_all_tiles_calibration_step()
+            instruction = self._controller.get_current_tile_step_description()
         else:
-            instruction = self._controller.get_current_corner_calibration_step()
+            instruction = self._controller.get_current_corner_step_description()
         if instruction:
             self._robot_next_position_label.setText(instruction)
             self._next_step_button.setEnabled(True)
@@ -599,7 +599,7 @@ class ConfigurationWindow:
             self._show_message("Invalid filename. Configuration not saved.", QMessageBox.Icon.Critical)
             return
         try:
-            self._controller.save_all_tiles_config(safe_name)
+            self._controller.save_tile_calibration(safe_name)
             self._show_message(
                 f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
                 QMessageBox.Icon.Information,
@@ -629,9 +629,9 @@ class ConfigurationWindow:
             return
 
         try:
-            self._controller.save_corners_config(safe_name)
+            self._controller.save_tile_calibration(safe_name)
             self._show_message(
-                f"Calibration configuration saved to {self._controller.get_config_path() / (safe_name + '.txt')}",
+                f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
                 QMessageBox.Icon.Information,
             )
             self._show_message("End of calibration. Starting the game.", QMessageBox.Icon.Information)
@@ -680,3 +680,10 @@ if __name__ == "__main__":
     app = QApplication.instance() or QApplication([])
     window = ConfigurationWindow()
     window.run()
+
+    print(f"Camera port: {window.get_camera_port()}")
+    print(f"Colors config: {window.get_config_colors_dict()}")
+    print(f"File config: {window.get_configuration_file_path()}")
+    print(f"Difficulty level: {window.get_difficulty_level()}")
+    print(f"Robot color: {window.get_robot_color()}")
+    print(f"Robot port: {window.get_robot_port()}")
