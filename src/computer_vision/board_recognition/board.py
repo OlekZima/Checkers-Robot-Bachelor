@@ -563,13 +563,13 @@ if __name__ == "__main__":
 
         try:
             board = detector.detect(img)
-            print(len(BoardTile.tiles))
+            print(f"Found tiles: {len(BoardTile.tiles)}")
             draw_image = board.get_frame_copy()
             cv.imshow("RESULT", draw_image)
         except (BoardDetectionError, InsufficientDataError, NoStartTileError) as exc:
             print(exc)
 
-        if cv.waitKey(1) == ord("q"):
+        if cv.waitKey() == ord("q"):
             break
 
     cap.release()

@@ -71,7 +71,7 @@ class BoardTile:
 
         # creating tiles from all contours
         for cnt in contours:
-            points = [cnt[i][0] for i in range(4)]
+            points = [list(map(int, cnt[i][0])) for i in range(4)]
             tile_list.append(BoardTile(points=points))
         cls.tiles = np.array(tile_list, dtype=object)
 

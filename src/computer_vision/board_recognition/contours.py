@@ -1,6 +1,6 @@
 """Module for detecting contours on the board. Contains ContourProcessor class."""
 
-from typing import Optional, Tuple, cast
+from typing import Optional, Tuple
 
 import cv2 as cv
 import numpy as np
@@ -162,7 +162,7 @@ class ContourDetector:
         syntetic_image = np.zeros(image_shape, dtype=np.uint8)
         cv.drawContours(
             syntetic_image,
-            cast(list[np.ndarray], contours.tolist()),
+            [contour.astype(np.int32) for contour in contours],
             -1,
             (255, 255, 255),
             2,
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         contours_frame = image_processor.get_contours(frame)
         cv.drawContours(
             frame,
-            cast(list[np.ndarray], contours_frame.tolist()),
+            [contour.astype(np.int32) for contour in contours_frame],
             -1,
             (0, 255, 0),
             2,

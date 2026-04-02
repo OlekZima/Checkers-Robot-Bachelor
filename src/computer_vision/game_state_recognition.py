@@ -143,15 +143,30 @@ class GameState:
         Returns:
             Tuple[bool, np.ndarray]: Tuple containing whether the game state changed and the game state itself
         """
-        self._board = self._board_detector.detect(image.copy())
-        checkers = Checkers.detect_checkers(
-            self._board, image, self.colors["orange"], self.colors["blue"]
-        )
-        new_game_state = self._build_game_state(
-            checkers, self._board.is_00_white(self.colors)
-        )
-        is_updated = self._update_game_log(new_game_state)
-        return is_updated, self.game_state
+        if image is None or not isinstance(image, np.ndarray) or image.size == 0:
+            return False, self.game_state
+
+        try:
+            self._board = self._board_detector.detect(image.copy())
+        except Exception:
+            self._board = None
+            return False, self.game_state
+
+        if self._board is None or self._board.frame is None:
+            self._board = None
+            return False, self.game_state
+
+        try:
+            checkers = Checkers.detect_checkers(
+                self._board, image, self.colors["orange"], self.colors["blue"]
+            )
+            new_game_state = self._build_game_state(
+                checkers, self._board.is_00_white(self.colors)
+            )
+            is_updated = self._update_game_log(new_game_state)
+            return is_updated, self.game_state
+        except Exception:
+            return False, self.game_state
 
     def get_game_state_image(self) -> np.ndarray:
         """Generate visualization of current game state."""
@@ -162,7 +177,7 @@ class GameState:
 
     def get_board_image(self) -> np.ndarray:
         """Get the board image from the last update."""
-        if self._board is None:
+        if self._board is None or self._board.frame is None:
             return np.array([])
         return self._board.get_frame_copy()
 
@@ -226,7 +241,7 @@ class GameState:
 
 
 if __name__ == "__main__":
-    camera_port = 2
+    camera_port = 0
     cap = cv.VideoCapture(camera_port)
     game = GameState(
         {
