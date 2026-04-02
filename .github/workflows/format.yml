@@ -1,14 +1,21 @@
 name: Apply formatting
+
 on: push
 
 jobs:
   format:
-    name: Format
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Run Ruff - python formatter
+      - uses: actions/checkout@v4
+      - name: Run Ruff formatter
         uses: astral-sh/ruff-action@v3
         with:
-          args: "format --check --diff"
+          args: "format"
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add .
+          git diff --quiet && git diff --staged --quiet || git commit -m "Apply formatting"
+          git push
