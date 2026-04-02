@@ -7,6 +7,12 @@ on:
 
 jobs:
   format:
-    - uses: astral-sh/ruff-action@v3
-      with:
-        args: "format --check --diff"
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run Ruff - python formatter
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: latest
