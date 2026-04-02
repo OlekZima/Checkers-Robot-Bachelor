@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import cv2 as cv
 import numpy as np
@@ -31,10 +31,10 @@ class Board:
     def __init__(self, frame: np.ndarray) -> None:
         self.frame: np.ndarray = frame
         self.tiles: List[BoardTile] = []
-        self.points: List[List[Optional[List[int]]]] = [
+        self.points: List[List[Optional[tuple[int, int]]]] = [
             [None for _ in range(9)] for _ in range(9)
         ]
-        self.vertexes: List[Optional[List[int]]] = [None] * 4
+        self.vertexes: List[Optional[tuple[int, int]]] = [None] * 4
 
     @classmethod
     def from_image(
@@ -143,30 +143,37 @@ class Board:
         """Draw inner board lines."""
         for i in range(9):
             for j in range(9):
-                if (
-                    i != 8
-                    and self.points[i][j] is not None
-                    and self.points[i + 1][j] is not None
-                ):
-                    cv.line(
-                        self.frame,
-                        self.points[i][j],
-                        self.points[i + 1][j],
-                        (0, 255, 0),
-                        1,
-                    )
-                if (
-                    j != 8
-                    and self.points[i][j] is not None
-                    and self.points[i][j + 1] is not None
-                ):
-                    cv.line(
-                        self.frame,
-                        self.points[i][j],
-                        self.points[i][j + 1],
-                        (0, 255, 0),
-                        1,
-                    )
+                if i == 8:
+                    continue
+
+                start_point = self.points[i][j]
+                end_point = self.points[i + 1][j]
+                if start_point is None or end_point is None:
+                    continue
+
+                cv.line(
+                    self.frame,
+                    start_point,
+                    end_point,
+                    (0, 255, 0),
+                    1,
+                )
+
+                if j == 8:
+                    continue
+
+                start_point = self.points[i][j]
+                end_point = self.points[i][j + 1]
+                if start_point is None or end_point is None:
+                    continue
+
+                cv.line(
+                    self.frame,
+                    start_point,
+                    end_point,
+                    (0, 255, 0),
+                    1,
+                )
 
     def _draw_border_points(self) -> None:
         """Draw board vertex points."""
@@ -265,9 +272,12 @@ class Board:
             if None in tile.position:
                 continue
 
+            tile_x, tile_y = tile.position
+            assert tile_x is not None and tile_y is not None
+
             # tile.position is guaranteed to be ints after the guard above
-            tile_x = int(tile.position[0])  # type: ignore[arg-type]
-            tile_y = int(tile.position[1])  # type: ignore[arg-type]
+            tile_x = int(tile_x)
+            tile_y = int(tile_y)
 
             for pos, dir_range in vertex_positions:
                 x = tile_x + pos[0]
@@ -278,7 +288,11 @@ class Board:
                         directions[dir_range[0]],
                         directions[dir_range[1]],
                     )
-                    self.points[x][y] = tile.get_vertex_in_rad_range(start_dir, end_dir)
+                    vertex = tile.get_vertex_in_rad_range(start_dir, end_dir)
+                    if vertex is not None:
+                        self.points[x][y] = (vertex[0], vertex[1])
+                    else:
+                        self.points[x][y] = None
 
     def _calculate_orthogonal_directions(self, dir_0: float) -> List[float]:
         directions = [dir_0]
@@ -298,23 +312,23 @@ class Board:
         ]
 
     @classmethod
-    def _extrapolate_last_point(cls, points: List[Optional[List[int]]]) -> List[int]:
+    def _extrapolate_last_point(cls, points: List[Optional[tuple[int, int]]]) -> tuple[int, int]:
         min_idx, max_idx = cls._find_point_range(points)
         if min_idx == max_idx:
             point = points[min_idx]
-            return [0, 0] if point is None else point
+            return (0, 0) if point is None else point
 
         vector = cls._calculate_extrapolation_vector(points, min_idx, max_idx)
         base_point = points[min_idx]
         if base_point is None:
             raise InsufficientDataError("Cannot extrapolate from empty base point")
 
-        return [base_point[i] + vector[i] for i in range(2)]
+        return (base_point[0] + vector[0], base_point[1] + vector[1])
 
     @classmethod
     def _calculate_extrapolation_vector(
-        cls, points: List[Optional[List[int]]], min_idx: int, max_idx: int
-    ) -> List[int]:
+        cls, points: List[Optional[tuple[int, int]]], min_idx: int, max_idx: int
+    ) -> tuple[int, int]:
         start_point = points[min_idx]
         end_point = points[max_idx]
         if start_point is None or end_point is None:
@@ -322,15 +336,15 @@ class Board:
 
         vector_init_len = max_idx - min_idx
         if vector_init_len == 0:
-            return [0, 0]
+            return (0, 0)
 
         vector_final_len = 8 - min_idx
         vector = [end_point[i] - start_point[i] for i in range(2)]
         scale_factor = vector_final_len / vector_init_len
-        return [int(v * scale_factor) for v in vector]
+        return (int(vector[0] * scale_factor), int(vector[1] * scale_factor))
 
     @staticmethod
-    def _find_point_range(points: List[Optional[List[int]]]) -> Tuple[int, int]:
+    def _find_point_range(points: List[Optional[tuple[int, int]]]) -> Tuple[int, int]:
         min_idx, max_idx = 8, 0
         for i, point in enumerate(points):
             if point is not None:
@@ -360,8 +374,8 @@ class Board:
             if self.vertexes[vertex_idx] is not None:
                 continue
 
-            points1: List[Optional[List[int]]] = [v[col_idx] for v in self.points]
-            points2: List[Optional[List[int]]] = row_points
+            points1: List[Optional[tuple[int, int]]] = [v[col_idx] for v in self.points]
+            points2: List[Optional[tuple[int, int]]] = row_points
 
             if vertex_idx in [0, 3]:
                 points1 = points1[::-1]
@@ -393,7 +407,7 @@ class Board:
 
     def _interpolate_border(
         self,
-        border_points: List[Optional[List[int]]],
+        border_points: List[Optional[tuple[int, int]]],
         fixed_idx: int,
         is_vertical: bool,
     ) -> None:
@@ -424,21 +438,22 @@ class Board:
 
     @staticmethod
     def _get_averaging_points(
-        points: List[Optional[List[int]]], current_idx: int
-    ) -> List[List[int]]:
-        averaging_points: List[List[int]] = []
+        points: List[Optional[tuple[int, int]]], current_idx: int
+    ) -> List[tuple[int, int]]:
+        averaging_points: List[tuple[int, int]] = []
 
         left = points[current_idx - 1]
         if left is not None:
             averaging_points.append(left)
 
         for j in range(current_idx + 1, len(points)):
-            if points[j] is not None:
-                averaging_points.append(points[j])  # type: ignore[arg-type]
+            point = points[j]
+            if point is not None:
+                averaging_points.append(point)
                 break
 
         if not averaging_points:
-            return [[0, 0]]
+            return [(0, 0)]
         return averaging_points
 
     def _interpolate_inner_points(self) -> None:
@@ -463,21 +478,32 @@ class Board:
 
     @staticmethod
     def _get_next_valid_points(
-        points: List[Optional[List[int]]], current_idx: int, prev_point: List[int]
-    ) -> List[List[int]]:
+        points: List[Optional[tuple[int, int]]], current_idx: int, prev_point: tuple[int, int]
+    ) -> List[tuple[int, int]]:
         result = [prev_point]
 
         for k in range(current_idx + 1, len(points)):
-            if points[k] is not None:
-                result.append(points[k])  # type: ignore[arg-type]
+            point = points[k]
+            if point is not None:
+                result.append(point)
                 break
 
         return result
 
     def is_00_white(self, color_config: ColorConfig, radius: int = 4) -> bool:
-        pt = get_avg_pos(
-            [self.points[0][0], self.points[0][1], self.points[1][1], self.points[1][0]]
-        )
+        top_left = self.points[0][0]
+        top_right = self.points[0][1]
+        bottom_right = self.points[1][1]
+        bottom_left = self.points[1][0]
+        if (
+            top_left is None
+            or top_right is None
+            or bottom_right is None
+            or bottom_left is None
+        ):
+            return False
+
+        pt = get_avg_pos([top_left, top_right, bottom_right, bottom_left])
 
         frame_height, frame_width = self.frame.shape[:2]
         x_min = max(0, pt[0] - radius)
@@ -499,8 +525,8 @@ class Board:
 
     @staticmethod
     def _get_mirrored_2d_matrix_y_axis(
-        matrix: List[List[Optional[List[int]]]],
-    ) -> List[List[Optional[List[int]]]]:
+        matrix: List[List[Optional[tuple[int, int]]]],
+    ) -> List[List[Optional[tuple[int, int]]]]:
         return [matrix[len(matrix) - 1 - c] for c in range(len(matrix))]
 
 

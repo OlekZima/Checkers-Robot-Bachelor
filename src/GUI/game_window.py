@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from typing import Optional
+from pathlib import Path
 
 import gradio as gr
 import numpy as np
@@ -118,7 +119,7 @@ class GameWindow:
         robot_port: str | None = None,
         camera_port: int | None = None,
         color_config: dict | None = None,
-        config_name: str | None = None,
+        config_name: Path | None = None,
         depth_of_engine: int = 3,
     ) -> None:
         self.robot_color = robot_color

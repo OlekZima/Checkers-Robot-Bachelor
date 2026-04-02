@@ -784,14 +784,14 @@ class CheckersGame:
 
         self.log.append(sequence)  # log sequence
 
-        opponent = Color.BLUE if self.turn_of == Color.ORANGE else Color.ORANGE
+        opponent: Color = Color.BLUE if self.turn_of == Color.ORANGE else Color.ORANGE
 
         # Check for draw criteria
         self.draw_criteria_log.append((opponent, self.get_game_state()))
 
         draw_criteria_count = 0
         for i in self.draw_criteria_log:
-            if np.array_equal(i[0], opponent) and np.array_equal(i[1], self.game_state):
+            if i[0] == opponent and np.array_equal(i[1], self.game_state):
                 draw_criteria_count += 1
         if draw_criteria_count >= 3:
             self.status = Status.DRAW

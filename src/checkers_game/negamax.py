@@ -70,7 +70,7 @@ Finished in {time_elapsed:.2f} s
         # check for draw criteria
         draw_criteria_count = 0
         for i in draw_criteria_log:
-            if np.array_equal(i[0], turn_of_color) and np.array_equal(i[1], game_state):
+            if i[0] == turn_of_color and np.array_equal(i[1], game_state):
                 draw_criteria_count += 1
         if draw_criteria_count >= 3:
             return None, 0, 0

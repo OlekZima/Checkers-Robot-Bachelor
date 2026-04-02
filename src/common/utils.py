@@ -2,6 +2,7 @@ import math
 import sys
 import termios
 from pathlib import Path
+from collections.abc import Sequence
 from typing import List, Optional, Tuple
 
 import cv2 as cv
@@ -78,7 +79,7 @@ def get_pts_dist(pt1, pt2):
     return math.hypot(dx, dy)
 
 
-def get_avg_pos(points: Optional[List[List[int]]] = None) -> List[int]:
+def get_avg_pos(points: Optional[Sequence[Sequence[int]]] = None) -> tuple[int, int]:
     """Calculate average position of points
 
     Args:
@@ -88,12 +89,12 @@ def get_avg_pos(points: Optional[List[List[int]]] = None) -> List[int]:
         Point: Average position as Point object
     """
     if points is None or not points:
-        return [0, 0]
+        return 0, 0
 
     x_avg = sum(p[0] for p in points) // len(points)
     y_avg = sum(p[1] for p in points) // len(points)
 
-    return [x_avg, y_avg]
+    return x_avg, y_avg
 
 
 def distance_from_color(

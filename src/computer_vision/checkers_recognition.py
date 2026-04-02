@@ -57,7 +57,7 @@ class Checkers:
         return b, g, r
 
     @staticmethod
-    def _get_board_tile_pts(board: Board, x: int, y: int) -> List[List[int]]:
+    def _get_board_tile_pts(board: Board, x: int, y: int) -> List[tuple[int, int]]:
         """Get the four corner points of a board tile."""
         pts = [
             board.points[x][y],

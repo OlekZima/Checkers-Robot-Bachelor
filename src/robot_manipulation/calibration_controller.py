@@ -23,7 +23,7 @@ class CalibrationController:
     def __init__(self, dobot_port) -> None:
         CONFIG_PATH.mkdir(exist_ok=True)
 
-        self.base_config = None
+        self.base_config: list[list[float]] | np.ndarray | None = None
 
         # Connecting to DOBOT
         CalibrationController.device = Dobot(dobot_port)
@@ -113,6 +113,8 @@ class CalibrationController:
         self._move_arm(x, y, z, wait=True)
 
     def _get_xyz_position(self) -> tuple[float, float, float]:
+        if self.device is None:
+            raise DobotError("Dobot device is not initialized.")
         x, y, z, _ = self.device.get_pose().position
         return x, y, z
 
@@ -338,8 +340,10 @@ class CalibrationController:
         if len(configs) == 0:
             print("No configuration files found.")
             print("Calibration should be done from scratch.")
+            if self.device is None:
+                raise DobotError("Dobot device is not initialized.")
             x, y, z, _ = self.device.get_pose().position
-            config: list[list[int]] = [[x, y, z] for _ in range(42)]
+            config: list[list[float]] = [[x, y, z] for _ in range(42)]
             self.base_config = config
             return
 

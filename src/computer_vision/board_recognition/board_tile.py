@@ -1,6 +1,7 @@
 """Module for representing a tile on the board for the cv2 processing."""
 
 import math
+from collections.abc import Sequence
 from typing import Any, ClassVar, Dict, List, Optional, Self, Tuple, cast
 
 import cv2 as cv
@@ -66,12 +67,13 @@ class BoardTile:
                 Contours detected on the image of the tiles.
         """
         cls._frame = image
-        cls.tiles = np.array([], dtype=object)
+        tile_list: list[BoardTile] = []
 
         # creating tiles from all contours
         for cnt in contours:
             points = [cnt[i][0] for i in range(4)]
-            cls.tiles = np.append(cls.tiles, BoardTile(points=points))
+            tile_list.append(BoardTile(points=points))
+        cls.tiles = np.array(tile_list, dtype=object)
 
         # keepeing tiles that have at least 1 neighbor tile
         keep_cnt = cls._connect_neighboring_tiles()
@@ -107,8 +109,8 @@ class BoardTile:
         cls,
         coordinates: Tuple[int, int],
         thickness: int = 3,
-        color: Optional[Tuple[int, int, int]] = (0, 0, 255),
-        shift: Optional[int] = 1,
+        color: Tuple[int, int, int] = (0, 0, 255),
+        shift: int = 1,
     ) -> None:
         """Draws a circle on the ClassVar frame.
 
@@ -127,13 +129,7 @@ class BoardTile:
         """
         if cls._frame is None:
             return
-        cv.circle(
-            cast(Any, cls._frame),
-            cast(Any, coordinates),
-            int(thickness),
-            cast(Any, color),
-            int(shift),
-        )
+        cv.circle(cls._frame, coordinates, thickness, color, shift)
 
     @classmethod
     def _update_neighbors_connections(cls) -> None:
@@ -306,7 +302,7 @@ class BoardTile:
             return None
         return cls._frame.copy()
 
-    def get_dir_2_point_rad(self, point: Optional[List[int]] = None) -> float:
+    def get_dir_2_point_rad(self, point: Optional[Sequence[int]] = None) -> float:
         """Returns the direction in radians to the given point.
 
         Args:
@@ -397,7 +393,7 @@ class BoardTile:
         return angle + adjustment
 
     def _is_point_in_rad_range(
-        self, rad_min: float, rad_max: float, point: Optional[List[int]] = None
+        self, rad_min: float, rad_max: float, point: Optional[Sequence[int]] = None
     ):
         if point is None:
             point = [0, 0]
@@ -566,9 +562,14 @@ class BoardTile:
             (self.get_neighbor_in_rad_range(dir_23, dir_30), (-1, 0)),
         ]
 
+        if self.position[0] is None or self.position[1] is None:
+            return
+
+        current_x, current_y = self.position
+        assert current_x is not None and current_y is not None
         for neighbor, (dx, dy) in neighbors_data:
             if neighbor and (None in neighbor.position):
-                neighbor.set_indexes(self.position[0] + dx, self.position[1] + dy)
+                neighbor.set_indexes(current_x + dx, current_y + dy)
                 neighbor.index_neighbors(dir_0)
 
     def get_vertex_in_rad_range(
