@@ -5,12 +5,12 @@ from typing import Optional
 import numpy as np
 from pydobotplus import Dobot
 
+from src.common.exceptions import DobotError
 from src.common.utils import (
     CONFIG_PATH,
     get_coord_from_tile_id,
     linear_interpolate,
 )
-from src.common.exceptions import DobotError
 
 
 class CalibrationController:
@@ -18,12 +18,12 @@ class CalibrationController:
 
     _HEIGHT_OFFSET: float = 10.0
     _INCREMENT: float = 1.0
-    device: Dobot = None
+    device: Optional[Dobot] = None
 
     def __init__(self, dobot_port) -> None:
         CONFIG_PATH.mkdir(exist_ok=True)
 
-        self.base_config = None
+        self.base_config: list[list[float]] | np.ndarray | None = None
 
         # Connecting to DOBOT
         CalibrationController.device = Dobot(dobot_port)
@@ -113,11 +113,18 @@ class CalibrationController:
         self._move_arm(x, y, z, wait=True)
 
     def _get_xyz_position(self) -> tuple[float, float, float]:
+        if self.device is None:
+            raise DobotError("Dobot device is not initialized.")
         x, y, z, _ = self.device.get_pose().position
         return x, y, z
 
     def move_to_current_all_tiles_calibration_position(self):
         """Move the robot to the default position for the current all tiles calibration point."""
+        if self.base_config is None:
+            raise ValueError(
+                "Base configuration is not initialized. Load a configuration first."
+            )
+
         if 0 <= self._current_all_tiles_calibration_index < 42:
             default_pos = self.base_config[self._current_all_tiles_calibration_index]
             self._move_arm(
@@ -149,6 +156,11 @@ class CalibrationController:
 
     def save_current_all_tiles_calibration_position(self):
         """Save the adjusted position for the current all tiles calibration point."""
+        if self.base_config is None:
+            raise ValueError(
+                "Base configuration is not initialized. Load a configuration first."
+            )
+
         if 0 <= self._current_all_tiles_calibration_index < 42:
             x, y, z = self._get_xyz_position()
 
@@ -166,6 +178,11 @@ class CalibrationController:
 
     def save_all_tiles_config(self, filename: str):
         """Save the all tiles calibration configuration."""
+        if self.base_config is None:
+            raise ValueError(
+                "Base configuration is not initialized. Load a configuration first."
+            )
+
         config_path = CONFIG_PATH / f"{filename}.txt"
 
         with open(config_path, mode="w", encoding="UTF-8") as config_file:
@@ -254,11 +271,16 @@ class CalibrationController:
         self._interpolate_side_pockets()
 
     def _move_arm(self, x, y, z, wait: Optional[bool] = True) -> None:
+        if self.device is None:
+            raise DobotError("Dobot device is not initialized.")
+
         try:
             self.device.clear_alarms()
             self.device.move_to(x, y, z, wait=wait)
-        except DobotError as exc:
-            print(exc)
+        except Exception as exc:
+            raise DobotError(
+                f"Failed to move calibration arm to ({x}, {y}, {z})"
+            ) from exc
 
     def _interpolate_board_tiles(self) -> None:
         # 1) Interpolating border tiles coordinates
@@ -318,8 +340,10 @@ class CalibrationController:
         if len(configs) == 0:
             print("No configuration files found.")
             print("Calibration should be done from scratch.")
+            if self.device is None:
+                raise DobotError("Dobot device is not initialized.")
             x, y, z, _ = self.device.get_pose().position
-            config: list[list[int]] = [[x, y, z] for _ in range(42)]
+            config: list[list[float]] = [[x, y, z] for _ in range(42)]
             self.base_config = config
             return
 

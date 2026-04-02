@@ -30,7 +30,7 @@ class DobotController:
 
         self.read_calibration_file()
         # print(self.home_pos)
-        
+
         self.move_arm(
             self.home_pos[0], self.home_pos[1], self.home_pos[2] + 10, wait=True
         )
@@ -78,9 +78,12 @@ class DobotController:
         return [float(coord) for coord in line.split(";")]
 
     def move_arm(self, x, y, z, wait=True, retry=True, retry_limit=5):
+        last_exc: Exception | None = None
         try:
             self.device.move_to(x, y, z, wait=wait)
-        except Exception:
+            return
+        except Exception as exc:
+            last_exc = exc
             print("\n==========\nAn error occured while performing move\n")
             if retry:
                 retry_cnt = 0
@@ -91,18 +94,23 @@ class DobotController:
                         self.device.move_to(x_tmp + 1, y_tmp + 1, z_tmp + 1, wait=True)
                         self.device.move_to(x, y, z - 1, wait=wait)
                         print("\nRetry Successful\n")
-                        break
-                    except DobotError:
+                        print("\n==========\n")
+                        return
+                    except Exception as retry_exc:
+                        last_exc = retry_exc
                         print("\nRetry Failed\n")
                     retry_cnt += 1
             print("\n==========\n")
+        raise DobotError(f"Failed to move arm to ({x}, {y}, {z})") from last_exc
 
     def perform_move(
-        self, move: list[int] = None, is_crown: bool = False, height: float = 10
+        self, move: list[int] | None = None, is_crown: bool = False, height: float = 10
     ):
         # Grabbing the first piece
         if move is None:
-            move = [1, 1]
+            raise ValueError("Move cannot be None.")
+        if len(move) < 2:
+            raise ValueError("Move must contain at least start and end tile.")
         x, y = get_coord_from_tile_id(move[0], self.color)
         self.move_arm(
             self.board[x][y][0],
@@ -226,6 +234,9 @@ class DobotController:
             )
             self.device.suck(False)
 
+            if self.kings_available <= 0:
+                raise ValueError("No king pieces available for crowning.")
+
             if self.kings_available > 4:
                 xk = 0
                 yk = 8 - self.kings_available
@@ -234,6 +245,14 @@ class DobotController:
                 yk = 4 - self.kings_available
                 if yk == 4:
                     yk = 3
+
+            if not (
+                0 <= xk < self.side_pockets.shape[0]
+                and 0 <= yk < self.side_pockets.shape[1]
+            ):
+                raise ValueError(
+                    f"Invalid king pocket index computed: ({xk}, {yk}) for kings_available={self.kings_available}"
+                )
 
             self.move_arm(
                 self.side_pockets[xk][yk][0],

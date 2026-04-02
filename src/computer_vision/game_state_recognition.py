@@ -7,12 +7,13 @@ including board visualization, game state updates, and state tracking.
 
 from typing import List, Tuple
 
-import cv2
+import cv2 as cv
 import numpy as np
 
 from src.common.configs import ColorConfig
 from src.common.enums import Color
-from .board_recognition.board import Board
+
+from .board_recognition.board import Board, BoardDetector
 from .checkers_recognition import Checkers
 
 
@@ -49,6 +50,7 @@ class GameState:
         self,
         colors: ColorConfig,
         lack_of_trust_level: int = 5,
+        board_detector: BoardDetector | None = None,
     ) -> None:
         """
         Initialize a new Game instance.
@@ -60,10 +62,13 @@ class GameState:
         """
         self.colors = colors
         self.lack_of_trust_level = lack_of_trust_level
+        self._board_detector = (
+            board_detector if board_detector is not None else BoardDetector()
+        )
         self.game_state = self._create_initial_game_state()
         self.game_state_log: List[np.ndarray] = [self.game_state]
         self.game_state_image: np.ndarray = np.array([])
-        self._board: Board = None
+        self._board: Board | None = None
 
     @staticmethod
     def _create_initial_game_state() -> np.ndarray:
@@ -87,7 +92,9 @@ class GameState:
         return np.zeros((8, 8), dtype=int)
 
     @classmethod
-    def _build_game_state(cls, checkers: List[Checkers], is_00_white: bool) -> np.ndarray:
+    def _build_game_state(
+        cls, checkers: List[Checkers], is_00_white: bool
+    ) -> np.ndarray:
         """
         Build game state from detected checkers.
 
@@ -100,7 +107,9 @@ class GameState:
         """
         state = cls._create_empty_game_state()
         for checker in checkers:
-            state[checker.pos[0]][checker.pos[1]] = 1 if checker.color == Color.ORANGE else -1
+            state[checker.pos[0]][checker.pos[1]] = (
+                1 if checker.color == Color.ORANGE else -1
+            )
         return np.rot90(state, 1) if not is_00_white else state
 
     def _update_game_log(self, new_game_state: np.ndarray) -> bool:
@@ -125,22 +134,39 @@ class GameState:
         self.game_state_log.append(new_game_state)
         return False
 
-    def update_game_state(self, image: np.ndarray) -> np.ndarray:
+    def update_game_state(self, image: np.ndarray) -> Tuple[bool, np.ndarray]:
         """
         Updates the game state based on the input image.
         Args:
             image (np.ndarray): source image from camera
 
         Returns:
-            Tuple[bool, np.np.ndarray]: Tuple containing whether the game state changed and the game state itself
+            Tuple[bool, np.ndarray]: Tuple containing whether the game state changed and the game state itself
         """
-        self._board = Board.detect_board(image.copy())
-        checkers = Checkers.detect_checkers(
-            self._board, image, self.colors["orange"], self.colors["blue"]
-        )
-        new_game_state = self._build_game_state(checkers, self._board.is_00_white(self.colors))
-        self.game_state = new_game_state
-        return self._update_game_log(new_game_state), self.game_state
+        if image is None or not isinstance(image, np.ndarray) or image.size == 0:
+            return False, self.game_state
+
+        try:
+            self._board = self._board_detector.detect(image.copy())
+        except Exception:
+            self._board = None
+            return False, self.game_state
+
+        if self._board is None or self._board.frame is None:
+            self._board = None
+            return False, self.game_state
+
+        try:
+            checkers = Checkers.detect_checkers(
+                self._board, image, self.colors["orange"], self.colors["blue"]
+            )
+            new_game_state = self._build_game_state(
+                checkers, self._board.is_00_white(self.colors)
+            )
+            is_updated = self._update_game_log(new_game_state)
+            return is_updated, self.game_state
+        except Exception:
+            return False, self.game_state
 
     def get_game_state_image(self) -> np.ndarray:
         """Generate visualization of current game state."""
@@ -151,6 +177,8 @@ class GameState:
 
     def get_board_image(self) -> np.ndarray:
         """Get the board image from the last update."""
+        if self._board is None or self._board.frame is None:
+            return np.array([])
         return self._board.get_frame_copy()
 
     def _create_board_background(self) -> np.ndarray:
@@ -174,40 +202,54 @@ class GameState:
             y * self.CELL_SIZE + self.BOARD_OFFSET,
         )
         end_point = (start_point[0] + self.CELL_SIZE, start_point[1] + self.CELL_SIZE)
-        cv2.rectangle(img, start_point, end_point, color, -1)
+        cv.rectangle(img, start_point, end_point, color, -1)
 
     def _draw_board_grid(self, img: np.ndarray) -> None:
         """Draw the board grid lines."""
         for i in range(self.BOARD_SIZE + 1):
             offset = i * self.CELL_SIZE + self.BOARD_OFFSET
-            cv2.line(img, [offset, self.BOARD_OFFSET], [offset, 450], (0, 0, 0), 3)
-            cv2.line(img, [self.BOARD_OFFSET, offset], [450, offset], (0, 0, 0), 3)
+            cv.line(
+                img,
+                (offset, self.BOARD_OFFSET),
+                (offset, 450),
+                (0, 0, 0),
+                3,
+            )
+            cv.line(
+                img,
+                (self.BOARD_OFFSET, offset),
+                (450, offset),
+                (0, 0, 0),
+                3,
+            )
 
     def _draw_checkers(self, img: np.ndarray) -> None:
         """Draw checker pieces on the board."""
         for x, row in enumerate(self.game_state):
             for y, value in enumerate(row):
                 if value != 0:
-                    color = self.ORANGE_CHECKER_COLOR if value == 1 else self.BLUE_CHECKER_COLOR
+                    color = (
+                        self.ORANGE_CHECKER_COLOR
+                        if value == 1
+                        else self.BLUE_CHECKER_COLOR
+                    )
                     center = (
                         x * self.CELL_SIZE + self.BOARD_OFFSET + self.CELL_SIZE // 2,
                         y * self.CELL_SIZE + self.BOARD_OFFSET + self.CELL_SIZE // 2,
                     )
-                    cv2.circle(img, center, self.CHECKER_RADIUS, color, -1)
+                    cv.circle(img, center, self.CHECKER_RADIUS, color, -1)
 
 
 if __name__ == "__main__":
-    camera_port = 2
-    cap = cv2.VideoCapture(camera_port)
+    camera_port = 0
+    cap = cv.VideoCapture(camera_port)
     game = GameState(
-        ColorConfig(
-            {
-                "orange": (250, 90, 20),
-                "blue": (30, 85, 150),
-                "black": (60, 50, 39),
-                "white": (200, 200, 200),
-            }
-        )
+        {
+            "orange": (250, 90, 20),
+            "blue": (30, 85, 150),
+            "black": (60, 50, 39),
+            "white": (200, 200, 200),
+        }
     )
 
     while True:
@@ -215,13 +257,15 @@ if __name__ == "__main__":
         try:
             state = game.update_game_state(frame)
 
-            cv2.imshow("Game state", game.get_game_state_image())
-            cv2.imshow("Frame", Board.detect_board(frame).frame)
+            cv.imshow("Game state", game.get_game_state_image())
+            board_img = game.get_board_image()
+            if board_img.size != 0:
+                cv.imshow("Frame", board_img)
 
         except Exception as e:
             print(e)
-        if cv2.waitKey(30) == ord("q"):
+        if cv.waitKey(30) == ord("q"):
             break
 
     cap.release()
-    cv2.destroyAllWindows()
+    cv.destroyAllWindows()

@@ -1,8 +1,10 @@
-from typing import List, Optional, Self, Tuple
+from typing import List, Optional, Tuple
+
+from src.common.configs import RecognitionConfig
 from src.common.enums import Color
 from src.common.utils import distance_from_color, get_avg_color, get_avg_pos
+
 from .board_recognition.board import Board
-from src.common.configs import RecognitionConfig
 
 
 class Checkers:
@@ -23,7 +25,7 @@ class Checkers:
         orange_rgb: Tuple[int, int, int],
         blue_rgb: Tuple[int, int, int],
         color_dist_thresh: Optional[int] = None,
-    ) -> List[Self]:
+    ) -> List["Checkers"]:
         """Detect checkers on the board using RGB colors."""
         if color_dist_thresh is None:
             color_dist_thresh = RecognitionConfig.color_dist_threshold
@@ -32,7 +34,7 @@ class Checkers:
         orange_bgr = cls._rgb_to_bgr(orange_rgb)
         blue_bgr = cls._rgb_to_bgr(blue_rgb)
 
-        checkers: List[Self] = []
+        checkers: List[Checkers] = []
         for x in range(len(board.points) - 1):
             for y in range(len(board.points[x]) - 1):
                 board_tile_pts = cls._get_board_tile_pts(board, x, y)
@@ -44,24 +46,26 @@ class Checkers:
                     color_dist_thresh,
                 )
                 if detected_color is not None:
-                    checkers.append(Checkers(detected_color, (x, y)))
+                    checkers.append(cls(detected_color, (x, y)))
 
         return checkers
 
     @staticmethod
     def _rgb_to_bgr(rgb: Tuple[int, int, int]) -> Tuple[int, int, int]:
         """Convert RGB color to BGR color."""
-        return rgb[::-1]
+        b, g, r = rgb[::-1]
+        return b, g, r
 
     @staticmethod
-    def _get_board_tile_pts(board: Board, x: int, y: int) -> List[Tuple[int, int]]:
+    def _get_board_tile_pts(board: Board, x: int, y: int) -> List[tuple[int, int]]:
         """Get the four corner points of a board tile."""
-        return [
+        pts = [
             board.points[x][y],
             board.points[x][y + 1],
             board.points[x + 1][y + 1],
             board.points[x + 1][y],
         ]
+        return [pt for pt in pts if pt is not None]
 
     @classmethod
     def _detect_checker_color_if_present(
@@ -74,7 +78,19 @@ class Checkers:
         radius: int = 2,
     ) -> Optional[Color]:
         """Detect checker color at given point if present."""
-        test_sample = img[(pt[1] - radius) : (pt[1] + radius), (pt[0] - radius) : (pt[0] + radius)]
+        height, width = img.shape[:2]
+        x_min = max(0, pt[0] - radius)
+        x_max = min(width, pt[0] + radius)
+        y_min = max(0, pt[1] - radius)
+        y_max = min(height, pt[1] + radius)
+
+        if x_min >= x_max or y_min >= y_max:
+            return None
+
+        test_sample = img[y_min:y_max, x_min:x_max]
+        if test_sample.size == 0:
+            return None
+
         bgr_sample = get_avg_color(test_sample)
         return cls._get_color_if_within_threshold(
             bgr_sample, bgr_orange, bgr_blue, color_dist_thresh
