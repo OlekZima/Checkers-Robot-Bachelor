@@ -1,47 +1,74 @@
+"""Checkers game logic module.
+
+This module implements the rules and state management for a standard game of checkers.
+It supports move validation, jump sequences, king promotion, and draw detection.
+"""
+
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 
-from src.common.enums import Color, Status
+from src.common.enums import Color, GameStatus
 from src.common.exceptions import (
     CheckersGameEndError,
     CheckersGameNotPermittedMoveError,
 )
 from src.common.utils import (
-    get_coord_from_tile_id,
-    get_tile_id_from_coord,
+    grid_coords_to_tile_id,
+    tile_id_to_grid_coords,
 )
 
+# Constants
+BOARD_SIZE = 8
+EMPTY_TILE = 0
+ORANGE_MAN = 1
+BLUE_MAN = -1
+ORANGE_KING = 2
+BLUE_KING = -2
+MAX_DRAW_REPETITIONS = 3
 
-# Class contains basic info about game - model:
-#   -> state of the board
-#   -> log of movements
-#   -> points collected per each side
-#   -> info which player turn it is
-#
-# It has methods to:
-#   -> get previously described values
-#   -> check if game is won/draw at current point
-#   -> return all movements possible
-#   -> perform a specific movement by player, whose turn it is
-# These methods can be based on class methods which take game state as a parameter - as we may need it later
-# for decision making algorithm
+
 class CheckersGame:
-    def __init__(self):
-        # The convention is that:
-        #   - color wise:
-        #       -ORANGE -> 1 is man, 2 is king
-        #       -BLUE (in normal gameplay it is WHITE) -> -1 is man, -2 is king
-        #       -0 is an empty tile
-        #   - game state is 2d matrix:
-        #       - it is to be perceived as list of columns
-        #       - the orange are on the upper side
-        #       - the game_state[0][0] is the upper left tile
-        #       - the game_state[7][7] is the bottom right tile
-        #       - the upper side is y = 0
-        #       - the bottom side is y = 7
-        self.game_state: np.ndarray = np.array(
+    """Manages the state and rules of a checkers game.
+
+    The board is represented as an 8x8 NumPy array where:
+    - 0: Empty tile
+    - 1: Orange man
+    - -1: Blue man
+    - 2: Orange king
+    - -2: Blue king
+
+    Coordinates (x, y) map to `game_state[x][y]`.
+    Tile IDs are 1-based integers representing the 32 playable squares.
+    """
+
+    def __init__(self) -> None:
+        """Initialize a new checkers game with standard starting positions."""
+        self.game_state: np.ndarray = self._create_initial_board()
+        self.turn_of: Color = Color.BLUE
+        self.turn_player_opts: List[List[int]] = self.get_color_poss_opts(
+            self.turn_of, self.game_state
+        )
+        self.log: List[List[int]] = []
+        self.draw_criteria_log: List[Tuple[Color, np.ndarray]] = [
+            (self.turn_of, self.game_state.copy())
+        ]
+        self.orange_score: int = 0
+        self.blue_score: int = 0
+        self.status: GameStatus = GameStatus.IN_PROGRESS
+        self.winning_player: Optional[Color] = None
+
+    @staticmethod
+    def _create_initial_board() -> np.ndarray:
+        """Create the initial 8x8 board with pieces in starting positions.
+
+        Returns:
+            NumPy array representing the initial board state.
+        """
+        return np.array(
             [
                 [0, 1, 0, 0, 0, -1, 0, -1],
                 [1, 0, 1, 0, 0, 0, -1, 0],
@@ -54,757 +81,415 @@ class CheckersGame:
             ]
         )
 
-        # First move always goes to BLUE (in normal gameplay - white)
-        self.turn_of: Color = Color.BLUE
-
-        self.turn_player_opts = CheckersGame.get_color_poss_opts(
-            self.turn_of, self.game_state
-        )
-
-        # log of gameplay is saved as list of lists (each 'smaller' list is of integers - each represents id of tile - see rules_desc)
-        # each one round movement is a list of integers:
-        #   -> first item is starting id of a moved piece
-        #   -> each positive integer then is id of next tile the piece landed on
-        #   -> each negative integer indicates id of tile that the opponent piece was jumped over
-        #   -> for single move - the list has two items (both positive)
-        #   -> for jumping sequence -> the list has odd number of items and goes [+, -, ... , +]
-        self.log = []
-
-        # will be a list of tuples, where tuple[0] is player having turn, and tuple [1] is game_state
-        self.draw_criteria_log = [(self.turn_of, self.get_game_state())]
-
-        self.orange_score = 0
-        self.blue_score = 0
-
-        self.status = Status.IN_PROGRESS
-
-        # will be filled with Color.ORANGE/Color.BLUE if state becomes Status.WON
-        self.winning_player = None
-
     @classmethod
-    def _get_value_of_tile(cls, tile_id: int, game_state: np.ndarray) -> int:
-        x, y = get_coord_from_tile_id(tile_id)
+    def _get_tile_value(cls, tile_id: int, game_state: np.ndarray) -> int:
+        """Get the value of a tile by its ID.
 
+        Args:
+            tile_id: 1-based tile identifier.
+            game_state: Current board state.
+
+        Returns:
+            Integer value of the tile (0, 1, -1, 2, -2).
+        """
+        x, y = tile_id_to_grid_coords(tile_id)
         return int(game_state[x][y])
 
     @classmethod
-    def _get_man_poss_moves(cls, tile_id: int, game_state: np.ndarray):
-        poss_moves = []
-        val_of_id = CheckersGame._get_value_of_tile(tile_id, game_state)
+    def _get_man_moves(
+        cls, tile_id: int, game_state: np.ndarray
+    ) -> Optional[List[List[int]]]:
+        """Get all possible simple moves for a man piece.
 
-        # this tile doesn't contain a man piece of either player
-        if val_of_id not in (-1, 1):
+        Args:
+            tile_id: ID of the man piece.
+            game_state: Current board state.
+
+        Returns:
+            List of possible moves, or None if tile doesn't contain a man.
+        """
+        tile_value = cls._get_tile_value(tile_id, game_state)
+        if tile_value not in (ORANGE_MAN, BLUE_MAN):
             return None
 
-        x, y = get_coord_from_tile_id(tile_id)
+        x, y = tile_id_to_grid_coords(tile_id)
+        moves = []
 
-        # ORANGE -> moves 'down' towards bigger ids
-        if val_of_id == 1:
-            # piece should have been crowned and was mistakenly treated as man
-            if y + 1 == 8:
-                return None
-
-            if x - 1 >= 0 and game_state[x - 1][y + 1] == 0:
-                poss_moves.append([tile_id, get_tile_id_from_coord(x - 1, y + 1)])
-            if x + 1 < 8 and game_state[x + 1][y + 1] == 0:
-                poss_moves.append([tile_id, get_tile_id_from_coord(x + 1, y + 1)])
-
-        # BLUE -> moves 'up' towards lower ids
-        else:
-            # piece should have been crowned and was mistakenly treated as man
+        if tile_value == ORANGE_MAN:
+            if y + 1 == BOARD_SIZE:
+                return None  # Reached end, should be king
+            if x - 1 >= 0 and game_state[x - 1][y + 1] == EMPTY_TILE:
+                moves.append([tile_id, grid_coords_to_tile_id(x - 1, y + 1)])
+            if x + 1 < BOARD_SIZE and game_state[x + 1][y + 1] == EMPTY_TILE:
+                moves.append([tile_id, grid_coords_to_tile_id(x + 1, y + 1)])
+        else:  # BLUE_MAN
             if y == 0:
-                return None
+                return None  # Reached end, should be king
+            if x - 1 >= 0 and game_state[x - 1][y - 1] == EMPTY_TILE:
+                moves.append([tile_id, grid_coords_to_tile_id(x - 1, y - 1)])
+            if x + 1 < BOARD_SIZE and game_state[x + 1][y - 1] == EMPTY_TILE:
+                moves.append([tile_id, grid_coords_to_tile_id(x + 1, y - 1)])
 
-            if x - 1 >= 0 and game_state[x - 1][y - 1] == 0:
-                poss_moves.append([tile_id, get_tile_id_from_coord(x - 1, y - 1)])
-            if x + 1 < 8 and game_state[x + 1][y - 1] == 0:
-                poss_moves.append([tile_id, get_tile_id_from_coord(x + 1, y - 1)])
-
-        return poss_moves
+        return moves
 
     @classmethod
-    def _get_king_poss_moves(cls, tile_id: int, game_state: np.ndarray):
-        poss_moves = []
-        val_of_id = CheckersGame._get_value_of_tile(tile_id, game_state)
+    def _get_king_moves(
+        cls, tile_id: int, game_state: np.ndarray
+    ) -> Optional[List[List[int]]]:
+        """Get all possible simple moves for a king piece.
 
-        # this tile doesn't contain a king piece of either player
-        if val_of_id not in (-2, 2):
+        Args:
+            tile_id: ID of the king piece.
+            game_state: Current board state.
+
+        Returns:
+            List of possible moves, or None if tile doesn't contain a king.
+        """
+        tile_value = cls._get_tile_value(tile_id, game_state)
+        if tile_value not in (ORANGE_KING, BLUE_KING):
             return None
 
-        x, y = get_coord_from_tile_id(tile_id)
+        x, y = tile_id_to_grid_coords(tile_id)
+        moves = []
+        directions = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
 
-        # Diagonal of increasing x and y
-        x_tmp = x + 1
-        y_tmp = y + 1
-        while x_tmp < 8 and y_tmp < 8 and game_state[x_tmp][y_tmp] == 0:
-            poss_moves.append([tile_id, get_tile_id_from_coord(x_tmp, y_tmp)])
-            x_tmp += 1
-            y_tmp += 1
+        for dx, dy in directions:
+            x_tmp, y_tmp = x + dx, y + dy
+            while (
+                0 <= x_tmp < BOARD_SIZE
+                and 0 <= y_tmp < BOARD_SIZE
+                and game_state[x_tmp][y_tmp] == EMPTY_TILE
+            ):
+                moves.append([tile_id, grid_coords_to_tile_id(x_tmp, y_tmp)])
+                x_tmp += dx
+                y_tmp += dy
 
-        # Diagonal of decreasing x and increasing y
-        x_tmp = x - 1
-        y_tmp = y + 1
-        while x_tmp >= 0 and y_tmp < 8 and game_state[x_tmp][y_tmp] == 0:
-            poss_moves.append([tile_id, get_tile_id_from_coord(x_tmp, y_tmp)])
-            x_tmp -= 1
-            y_tmp += 1
-
-        # Diagonal of decreasing x and y
-        x_tmp = x - 1
-        y_tmp = y - 1
-        while x_tmp >= 0 and y_tmp >= 0 and game_state[x_tmp][y_tmp] == 0:
-            poss_moves.append([tile_id, get_tile_id_from_coord(x_tmp, y_tmp)])
-            x_tmp -= 1
-            y_tmp -= 1
-
-        # Diagonal of increasing x and decreasing y
-        x_tmp = x + 1
-        y_tmp = y - 1
-        while x_tmp < 8 and y_tmp >= 0 and game_state[x_tmp][y_tmp] == 0:
-            poss_moves.append([tile_id, get_tile_id_from_coord(x_tmp, y_tmp)])
-            x_tmp += 1
-            y_tmp -= 1
-
-        return poss_moves
+        return moves
 
     @classmethod
-    def _get_man_poss_jumps(cls, tile_id, game_state, prev_seq=None):
-        if prev_seq is None:
-            prev_seq = []
-        poss_jumps = []
-        val_of_id = CheckersGame._get_value_of_tile(tile_id, game_state)
+    def _get_man_jumps(
+        cls,
+        tile_id: int,
+        game_state: np.ndarray,
+        current_path: Optional[List[int]] = None,
+    ) -> Optional[List[List[int]]]:
+        """Recursively find all possible jump sequences for a man piece.
 
-        # this tile doesn't contain a man piece of either player
-        if val_of_id not in (-1, 1):
+        Args:
+            tile_id: ID of the man piece.
+            game_state: Current board state.
+            current_path: Sequence of tiles visited so far in this jump chain.
+
+        Returns:
+            List of complete jump sequences, or None if tile doesn't contain a man.
+        """
+        if current_path is None:
+            current_path = []
+
+        tile_value = cls._get_tile_value(tile_id, game_state)
+        if tile_value not in (ORANGE_MAN, BLUE_MAN):
             return None
 
-        x, y = get_coord_from_tile_id(tile_id)
+        x, y = tile_id_to_grid_coords(tile_id)
+        start_x, start_y = x, y
 
-        if len(prev_seq) == 0:
-            x_curr = x
-            y_curr = y
-        else:
-            x_curr, y_curr = get_coord_from_tile_id(prev_seq[len(prev_seq) - 1])
+        if current_path:
+            x, y = tile_id_to_grid_coords(current_path[-1])
 
-        # Looking for jumps on diagonal - increasing x and y
-        if (
-            # we need to move two tiles for jump
-            x_curr + 2 < 8
-            # we need to move two tiles for jump
-            and y_curr + 2 < 8
-            # we cannot jump two times over same opponent piece
-            and ((-1) * get_tile_id_from_coord(x_curr + 1, y_curr + 1)) not in prev_seq
-            # so that we have opposing side pieces
-            and game_state[x][y] * game_state[x_curr + 1][y_curr + 1] < 0
-            # we have empty tile after opponent (or the tile was initial jumping piece tile)
-            and (
-                game_state[x_curr + 2][y_curr + 2] == 0
-                or (x_curr + 2 == x and y_curr + 2 == y)
-            )
-        ):
-            # table which items represents begging of all subsequences
-            jump = [
-                get_tile_id_from_coord(x_curr, y_curr),
-                ((-1) * get_tile_id_from_coord(x_curr + 1, y_curr + 1)),
-                get_tile_id_from_coord(x_curr + 2, y_curr + 2),
+        jumps = []
+        directions = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+
+        for dx, dy in directions:
+            mid_x, mid_y = x + dx, y + dy
+            land_x, land_y = x + 2 * dx, y + 2 * dy
+
+            if not (0 <= land_x < BOARD_SIZE and 0 <= land_y < BOARD_SIZE):
+                continue
+
+            mid_tile_id = grid_coords_to_tile_id(mid_x, mid_y)
+            if -mid_tile_id in current_path:
+                continue  # Already jumped this piece
+
+            mid_value = game_state[mid_x][mid_y]
+            if tile_value * mid_value >= 0:
+                continue  # Not an opponent piece
+
+            land_value = game_state[land_x][land_y]
+            if land_value != EMPTY_TILE and not (
+                land_x == start_x and land_y == start_y
+            ):
+                continue  # Landing spot occupied
+
+            jump_segment = [
+                grid_coords_to_tile_id(x, y),
+                -mid_tile_id,
+                grid_coords_to_tile_id(land_x, land_y),
             ]
+            next_path = current_path + jump_segment[1:]
 
-            tmp_prev_seq = (
-                prev_seq + jump[1:]
-            )  # represents prev_seq to propagate to recursive call of method
-            sub_seq = CheckersGame._get_man_poss_jumps(
-                tile_id, game_state, tmp_prev_seq
-            )  # returns all poss sequences from next tile as table of tables
+            sub_jumps = cls._get_man_jumps(tile_id, game_state, next_path)
 
-            if len(sub_seq) == 0:
-                poss_jumps.append(jump)
+            if not sub_jumps:
+                jumps.append(jump_segment)
             else:
-                for i in sub_seq:
-                    full_sub_seq = jump + i[1:]
-                    poss_jumps.append(full_sub_seq)
+                for seq in sub_jumps:
+                    jumps.append(jump_segment + seq[1:])
 
-        # Looking for jumps on diagonal - decreasing x and increasing y
-        if (
-            x_curr - 2 >= 0  # we need to move two tiles for jump
-            and y_curr + 2 < 8  # we need to move two tiles for jump
-            and ((-1) * get_tile_id_from_coord(x_curr - 1, y_curr + 1))
-            not in prev_seq  # we cannot jump two times over same opponent piece
-            and game_state[x][y] * game_state[x_curr - 1][y_curr + 1]
-            < 0  # so that we have opposing side pieces
-            and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                game_state[x_curr - 2][y_curr + 2] == 0
-                or (x_curr - 2 == x and y_curr + 2 == y)
-            )
-        ):
-            jump = [  # table which items represents begging of all subsequences
-                get_tile_id_from_coord(x_curr, y_curr),
-                ((-1) * get_tile_id_from_coord(x_curr - 1, y_curr + 1)),
-                get_tile_id_from_coord(x_curr - 2, y_curr + 2),
-            ]
+        # Filter to keep only the longest sequences
+        if jumps:
+            max_len = max(len(s) for s in jumps)
+            jumps = [s for s in jumps if len(s) == max_len]
 
-            tmp_prev_seq = (
-                prev_seq + jump[1:]
-            )  # represents prev_seq to propagate to recursive call of method
-            sub_seq = CheckersGame._get_man_poss_jumps(
-                tile_id, game_state, tmp_prev_seq
-            )  # returns all poss sequences from next tile as table of tables
-
-            if len(sub_seq) == 0:
-                poss_jumps.append(jump)
-            else:
-                for i in sub_seq:
-                    full_sub_seq = jump + i[1:]
-                    poss_jumps.append(full_sub_seq)
-
-        # Looking for jumps on diagonal - decreasing x and y
-        if (
-            x_curr - 2 >= 0  # we need to move two tiles for jump
-            and y_curr - 2 >= 0  # we need to move two tiles for jump
-            and ((-1) * get_tile_id_from_coord(x_curr - 1, y_curr - 1))
-            not in prev_seq  # we cannot jump two times over same opponent piece
-            and game_state[x][y] * game_state[x_curr - 1][y_curr - 1]
-            < 0  # so that we have opposing side pieces
-            and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                game_state[x_curr - 2][y_curr - 2] == 0
-                or (x_curr - 2 == x and y_curr - 2 == y)
-            )
-        ):
-            jump = [  # table which items represents begging of all subsequences
-                get_tile_id_from_coord(x_curr, y_curr),
-                ((-1) * get_tile_id_from_coord(x_curr - 1, y_curr - 1)),
-                get_tile_id_from_coord(x_curr - 2, y_curr - 2),
-            ]
-
-            tmp_prev_seq = (
-                prev_seq + jump[1:]
-            )  # represents prev_seq to propagate to recursive call of method
-            sub_seq = CheckersGame._get_man_poss_jumps(
-                tile_id, game_state, tmp_prev_seq
-            )  # returns all poss sequences from next tile as table of tables
-
-            if len(sub_seq) == 0:
-                poss_jumps.append(jump)
-            else:
-                for i in sub_seq:
-                    full_sub_seq = jump + i[1:]
-                    poss_jumps.append(full_sub_seq)
-
-        # Looking for jumps on diagonal - increasing x and decreasing y
-        if (
-            x_curr + 2 < 8  # we need to move two tiles for jump
-            and y_curr - 2 >= 0  # we need to move two tiles for jump
-            and ((-1) * get_tile_id_from_coord(x_curr + 1, y_curr - 1))
-            not in prev_seq  # we cannot jump two times over same opponent piece
-            and game_state[x][y] * game_state[x_curr + 1][y_curr - 1]
-            < 0  # so that we have opposing side pieces
-            and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                game_state[x_curr + 2][y_curr - 2] == 0
-                or (x_curr + 2 == x and y_curr - 2 == y)
-            )
-        ):
-            jump = [  # table which items represents begging of all subsequences
-                get_tile_id_from_coord(x_curr, y_curr),
-                (-get_tile_id_from_coord(x_curr + 1, y_curr - 1)),
-                get_tile_id_from_coord(x_curr + 2, y_curr - 2),
-            ]
-
-            tmp_prev_seq = (
-                prev_seq + jump[1:]
-            )  # represents prev_seq to propagate to recursive call of method
-            sub_seq = CheckersGame._get_man_poss_jumps(
-                tile_id, game_state, tmp_prev_seq
-            )  # returns all poss sequences from next tile as table of tables
-
-            if len(sub_seq) == 0:
-                poss_jumps.append(jump)
-            else:
-                for i in sub_seq:
-                    full_sub_seq = jump + i[1:]
-                    poss_jumps.append(full_sub_seq)
-
-        # filter longest sequence(s) only
-        longest_num = 0
-        for s in poss_jumps:
-            if len(s) > longest_num:
-                longest_num = len(s)
-        poss_jumps[:] = [s for s in poss_jumps if len(s) == longest_num]
-
-        return poss_jumps
+        return jumps
 
     @classmethod
-    def _get_king_poss_jumps(
-        cls, tile_id: int, game_state: np.ndarray, prev_seq: Optional[List] = None
-    ):
-        if prev_seq is None:
-            prev_seq = []
-        poss_jumps = []
-        val_of_id = CheckersGame._get_value_of_tile(tile_id, game_state)
+    def _get_king_jumps(
+        cls,
+        tile_id: int,
+        game_state: np.ndarray,
+        current_path: Optional[List[int]] = None,
+    ) -> Optional[List[List[int]]]:
+        """Recursively find all possible jump sequences for a king piece.
 
-        if val_of_id not in (-2, 2):
-            return None  # this tile doesn't contain a man piece of either player
+        Args:
+            tile_id: ID of the king piece.
+            game_state: Current board state.
+            current_path: Sequence of tiles visited so far.
 
-        # indicate the beginning of jumping sequence
-        x, y = get_coord_from_tile_id(tile_id)
+        Returns:
+            List of complete jump sequences, or None if tile doesn't contain a king.
+        """
+        if current_path is None:
+            current_path = []
 
-        if len(prev_seq) == 0:
-            x_curr = x
-            y_curr = y
-        else:
-            x_curr, y_curr = get_coord_from_tile_id(prev_seq[len(prev_seq) - 1])
+        tile_value = cls._get_tile_value(tile_id, game_state)
+        if tile_value not in (ORANGE_KING, BLUE_KING):
+            return None
 
-        # Looking for jumps on diagonal - increasing x and y
-        x_tmp = x_curr
-        y_tmp = y_curr
-        while (  # this loop is meant to look if we have any poss jumps on that diagonal
-            x_tmp < 8
-            and y_tmp < 8
-            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
-        ):
-            if (  # true if we are ready to jump over an opponent piece
-                x_tmp + 2 < 8  # we need to move two tiles for jump
-                and y_tmp + 2 < 8  # we need to move two tiles for jump
-                and ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp + 1))
-                not in prev_seq  # we cannot jump two times over same opponent piece
-                and game_state[x][y] * game_state[x_tmp + 1][y_tmp + 1]
-                < 0  # so that we have opposing side pieces
-                and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                    game_state[x_tmp + 2][y_tmp + 2] == 0
-                    or (x_tmp + 2 == x and y_tmp + 2 == y)
-                )
-            ):
-                x_after_jump = x_tmp + 2
-                y_after_jump = y_tmp + 2
+        x, y = tile_id_to_grid_coords(tile_id)
+        start_x, start_y = x, y
 
-                # this loop is meant to go through all after jump landing possible positions
-                while (
-                    x_after_jump < 8
-                    and y_after_jump < 8
-                    and (
-                        game_state[x_after_jump][y_after_jump] == 0
-                        or (x_after_jump == x and y_after_jump == y)
-                    )
+        if current_path:
+            x, y = tile_id_to_grid_coords(current_path[-1])
+
+        jumps = []
+        directions = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+
+        for dx, dy in directions:
+            # Scan along diagonal to find opponent piece
+            scan_x, scan_y = x, y
+            while 0 <= scan_x < BOARD_SIZE and 0 <= scan_y < BOARD_SIZE:
+                val = game_state[scan_x][scan_y]
+                if val != EMPTY_TILE and not (scan_x == start_x and scan_y == start_y):
+                    break
+                scan_x += dx
+                scan_y += dy
+
+            # Check if we found an opponent piece
+            if not (0 <= scan_x < BOARD_SIZE and 0 <= scan_y < BOARD_SIZE):
+                continue
+
+            mid_x, mid_y = scan_x, scan_y
+            mid_tile_id = grid_coords_to_tile_id(mid_x, mid_y)
+
+            if tile_value * game_state[mid_x][mid_y] >= 0:
+                continue  # Not opponent
+            if -mid_tile_id in current_path:
+                continue  # Already jumped
+
+            # Scan for landing spots after opponent
+            land_x, land_y = mid_x + dx, mid_y + dy
+            while 0 <= land_x < BOARD_SIZE and 0 <= land_y < BOARD_SIZE:
+                land_val = game_state[land_x][land_y]
+                if land_val != EMPTY_TILE and not (
+                    land_x == start_x and land_y == start_y
                 ):
-                    # table which items represents begging of all subsequences
-                    jump = [
-                        get_tile_id_from_coord(x_curr, y_curr),
-                        ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp + 1)),
-                        get_tile_id_from_coord(x_after_jump, y_after_jump),
-                    ]
-                    # represents prev_seq to propagate to recursive call of method
-                    tmp_prev_seq = prev_seq + jump[1:]
+                    break
 
-                    # returns all poss sequences from next tile as table of tables
-                    sub_seq = CheckersGame._get_king_poss_jumps(
-                        tile_id, game_state, prev_seq=tmp_prev_seq
-                    )
+                jump_segment = [
+                    grid_coords_to_tile_id(x, y),
+                    -mid_tile_id,
+                    grid_coords_to_tile_id(land_x, land_y),
+                ]
+                next_path = current_path + jump_segment[1:]
 
-                    if len(sub_seq) == 0:
-                        poss_jumps.append(jump)
-                    else:
-                        for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
-                            # If we want to remain jumping same dir -> the convention is that we land just before next piece
-                            x_next_jumped, y_next_jumped = get_coord_from_tile_id(-i[1])
-                            if (
-                                x_next_jumped - x_after_jump > 0
-                                and y_next_jumped - y_after_jump > 0
-                            ):
-                                if (
-                                    x_next_jumped - x_after_jump == 1
-                                    and y_next_jumped - y_after_jump == 1
-                                ):
-                                    full_sub_seq = jump + i[1:]
-                                    poss_jumps.append(full_sub_seq)
-                            else:
-                                full_sub_seq = jump + i[1:]
-                                poss_jumps.append(full_sub_seq)
+                sub_jumps = cls._get_king_jumps(tile_id, game_state, next_path)
 
-                    x_after_jump += 1
-                    y_after_jump += 1
+                if not sub_jumps:
+                    jumps.append(jump_segment)
+                else:
+                    for seq in sub_jumps:
+                        jumps.append(jump_segment + seq[1:])
 
-            x_tmp += 1
-            y_tmp += 1
+                land_x += dx
+                land_y += dy
 
-        # Looking for jumps on diagonal - decreasing x and increasing y
-        x_tmp = x_curr
-        y_tmp = y_curr
-        while (  # this loop is meant to look if we have any poss jumps on that diagonal
-            x_tmp >= 0
-            and y_tmp < 8
-            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
-        ):
-            # true if we are ready to jump over an opponent piece
-            if (
-                # we need to move two tiles for jump
-                x_tmp - 2 >= 0
-                # we need to move two tiles for jump
-                and y_tmp + 2 < 8
-                # we cannot jump two times over same opponent piece
-                and ((-1) * get_tile_id_from_coord(x_tmp - 1, y_tmp + 1))
-                not in prev_seq
-                # so that we have opposing side pieces
-                and game_state[x][y] * game_state[x_tmp - 1][y_tmp + 1] < 0
-                # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                and (
-                    game_state[x_tmp - 2][y_tmp + 2] == 0
-                    or (x_tmp - 2 == x and y_tmp + 2 == y)
-                )
-            ):
-                x_after_jump = x_tmp - 2
-                y_after_jump = y_tmp + 2
-                while (  # this loop is meant to go through all after jump landing possible positions
-                    x_after_jump >= 0
-                    and y_after_jump < 8
-                    and (
-                        game_state[x_after_jump][y_after_jump] == 0
-                        or (x_after_jump == x and y_after_jump == y)
-                    )
-                ):
-                    jump = [  # table which items represents begging of all subsequences
-                        get_tile_id_from_coord(x_curr, y_curr),
-                        ((-1) * get_tile_id_from_coord(x_tmp - 1, y_tmp + 1)),
-                        get_tile_id_from_coord(x_after_jump, y_after_jump),
-                    ]
-                    tmp_prev_seq = (
-                        prev_seq + jump[1:]
-                    )  # represents prev_seq to propagate to recursive call of method
-                    sub_seq = CheckersGame._get_king_poss_jumps(
-                        tile_id, game_state, prev_seq=tmp_prev_seq
-                    )  # returns all poss sequences from next tile as table of tables
+        if jumps:
+            max_len = max(len(s) for s in jumps)
+            jumps = [s for s in jumps if len(s) == max_len]
 
-                    if len(sub_seq) == 0:
-                        poss_jumps.append(jump)
-                    else:
-                        for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
-                            # If we want to remain jumping same dir -> the convention is that we land just before next piece
-                            x_next_jumped, y_next_jumped = get_coord_from_tile_id(-i[1])
-                            if (
-                                x_next_jumped - x_after_jump < 0
-                                and y_next_jumped - y_after_jump > 0
-                            ):
-                                if (
-                                    x_next_jumped - x_after_jump == -1
-                                    and y_next_jumped - y_after_jump == 1
-                                ):
-                                    full_sub_seq = jump + i[1:]
-                                    poss_jumps.append(full_sub_seq)
-                            else:
-                                full_sub_seq = jump + i[1:]
-                                poss_jumps.append(full_sub_seq)
-
-                    x_after_jump -= 1
-                    y_after_jump += 1
-
-            x_tmp -= 1
-            y_tmp += 1
-
-        # Looking for jumps on diagonal - decreasing x and y
-        x_tmp = x_curr
-        y_tmp = y_curr
-        while (  # this loop is meant to look if we have any poss jumps on that diagonal
-            x_tmp >= 0
-            and y_tmp >= 0
-            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
-        ):
-            if (  # true if we are ready to jump over an opponent piece
-                x_tmp - 2 >= 0  # we need to move two tiles for jump
-                and y_tmp - 2 >= 0  # we need to move two tiles for jump
-                and ((-1) * get_tile_id_from_coord(x_tmp - 1, y_tmp - 1))
-                not in prev_seq  # we cannot jump two times over same opponent piece
-                and game_state[x][y] * game_state[x_tmp - 1][y_tmp - 1]
-                < 0  # so that we have opposing side pieces
-                and (  # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                    game_state[x_tmp - 2][y_tmp - 2] == 0
-                    or (x_tmp - 2 == x and y_tmp - 2 == y)
-                )
-            ):
-                x_after_jump = x_tmp - 2
-                y_after_jump = y_tmp - 2
-                while (  # this loop is meant to go through all after jump landing possible positions
-                    x_after_jump >= 0
-                    and y_after_jump >= 0
-                    and (
-                        game_state[x_after_jump][y_after_jump] == 0
-                        or (x_after_jump == x and y_after_jump == y)
-                    )
-                ):
-                    jump = [  # table which items represents begging of all subsequences
-                        get_tile_id_from_coord(x_curr, y_curr),
-                        ((-1) * get_tile_id_from_coord(x_tmp - 1, y_tmp - 1)),
-                        get_tile_id_from_coord(x_after_jump, y_after_jump),
-                    ]
-                    tmp_prev_seq = (
-                        prev_seq + jump[1:]
-                    )  # represents prev_seq to propagate to recursive call of method
-                    sub_seq = CheckersGame._get_king_poss_jumps(
-                        tile_id, game_state, prev_seq=tmp_prev_seq
-                    )  # returns all poss sequences from next tile as table of tables
-
-                    if len(sub_seq) == 0:
-                        poss_jumps.append(jump)
-                    else:
-                        for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
-                            # If we want to remain jumping same dir -> the convention is that we land just before next piece
-                            x_next_jumped, y_next_jumped = get_coord_from_tile_id(-i[1])
-                            if (
-                                x_next_jumped - x_after_jump < 0
-                                and y_next_jumped - y_after_jump < 0
-                            ):
-                                if (
-                                    x_next_jumped - x_after_jump == -1
-                                    and y_next_jumped - y_after_jump == -1
-                                ):
-                                    full_sub_seq = jump + i[1:]
-                                    poss_jumps.append(full_sub_seq)
-                            else:
-                                full_sub_seq = jump + i[1:]
-                                poss_jumps.append(full_sub_seq)
-
-                    x_after_jump -= 1
-                    y_after_jump -= 1
-
-            x_tmp -= 1
-            y_tmp -= 1
-
-        # Looking for jumps on diagonal - increasing x and decreasing y
-        x_tmp = x_curr
-        y_tmp = y_curr
-        # this loop is meant to look if we have any poss jumps on that diagonal
-        while (
-            x_tmp < 8
-            and y_tmp >= 0
-            and (game_state[x_tmp][y_tmp] == 0 or (x_tmp == x and y_tmp == y))
-        ):
-            # true if we are ready to jump over an opponent piece
-            if (
-                # we need to move two tiles for jump
-                x_tmp + 2 < 8
-                # we need to move two tiles for jump
-                and y_tmp - 2 >= 0
-                # we cannot jump two times over same opponent piece
-                and ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp - 1))
-                not in prev_seq
-                # so that we have opposing side pieces
-                and game_state[x][y] * game_state[x_tmp + 1][y_tmp - 1] < 0
-                # we have empty tile after opponent (or the tile was initial jumping piece tile)
-                and (
-                    game_state[x_tmp + 2][y_tmp - 2] == 0
-                    or (x_tmp + 2 == x and y_tmp - 2 == y)
-                )
-            ):
-                x_after_jump = x_tmp + 2
-                y_after_jump = y_tmp - 2
-
-                # this loop is meant to go through all after jump landing possible positions
-                while (
-                    x_after_jump < 8
-                    and y_after_jump >= 0
-                    and (
-                        game_state[x_after_jump][y_after_jump] == 0
-                        or (x_after_jump == x and y_after_jump == y)
-                    )
-                ):
-                    jump = [  # table which items represents begging of all subsequences
-                        get_tile_id_from_coord(x_curr, y_curr),
-                        ((-1) * get_tile_id_from_coord(x_tmp + 1, y_tmp - 1)),
-                        get_tile_id_from_coord(x_after_jump, y_after_jump),
-                    ]
-                    # represents prev_seq to propagate to recursive call of method
-                    tmp_prev_seq = prev_seq + jump[1:]
-                    # returns all poss sequences from next tile as table of tables
-                    sub_seq = CheckersGame._get_king_poss_jumps(
-                        tile_id, game_state, prev_seq=tmp_prev_seq
-                    )
-
-                    if len(sub_seq) == 0:
-                        poss_jumps.append(jump)
-                    else:
-                        for i in sub_seq:
-                            # Filtering out same seq (different mid landing for jumps over same opponent pieces)
-                            # If we want to remain jumping same dir -> the convention is that we land just before next piece
-                            x_next_jumped, y_next_jumped = get_coord_from_tile_id(-i[1])
-                            if (
-                                x_next_jumped - x_after_jump > 0
-                                and y_next_jumped - y_after_jump < 0
-                            ):
-                                if (
-                                    x_next_jumped - x_after_jump == 1
-                                    and y_next_jumped - y_after_jump == -1
-                                ):
-                                    full_sub_seq = jump + i[1:]
-                                    poss_jumps.append(full_sub_seq)
-                            else:
-                                full_sub_seq = jump + i[1:]
-                                poss_jumps.append(full_sub_seq)
-
-                    x_after_jump += 1
-                    y_after_jump -= 1
-
-            x_tmp += 1
-            y_tmp -= 1
-
-        # filter longest sequence(s) only
-        longest_num = 0
-        for s in poss_jumps:
-            longest_num = max(longest_num, len(s))
-        poss_jumps[:] = [s for s in poss_jumps if len(s) == longest_num]
-
-        return poss_jumps
+        return jumps
 
     @classmethod
-    def get_color_poss_opts(cls, color: Color, game_state: np.ndarray):
-        poss_opts: list = []
+    def get_color_poss_opts(
+        cls, color: Color, game_state: np.ndarray
+    ) -> List[List[int]]:
+        """Get all possible moves and jumps for a given color.
 
-        # gather all options disregarding their length or move/jump diff
-        for x, _ in enumerate(game_state):  # iterate all tiles for pieces
-            for y, _ in enumerate(game_state[x]):
-                tile_id: int = get_tile_id_from_coord(x, y)
+        Jumps take precedence over simple moves per standard checkers rules.
 
-                # if king -> check if jump or move of king possible
-                if color.value * game_state[x][y] == 2:
-                    # must be either ORANGE or BLUE king, depending on color given
-                    opts = CheckersGame._get_king_poss_jumps(tile_id, game_state)
-                    poss_opts += opts
+        Args:
+            color: Player color (ORANGE or BLUE).
+            game_state: Current board state.
 
-                    opts = CheckersGame._get_king_poss_moves(tile_id, game_state)
-                    poss_opts += opts
+        Returns:
+            List of possible move sequences.
+        """
+        all_moves = []
+        all_jumps = []
 
-                # if man -> check if jump or move of man possible
-                if color.value * game_state[x][y] == 1:
-                    # must be either ORANGE or BLUE king, depending on color given
-                    opts = CheckersGame._get_man_poss_jumps(tile_id, game_state)
-                    poss_opts += opts
+        for tile_id in range(1, 33):
+            x, y = tile_id_to_grid_coords(tile_id)
+            val = game_state[x][y]
 
-                    opts = CheckersGame._get_man_poss_moves(tile_id, game_state)
-                    poss_opts += opts
+            if (color == Color.ORANGE and val > 0) or (color == Color.BLUE and val < 0):
+                if abs(val) == 1:
+                    moves = cls._get_man_moves(tile_id, game_state)
+                    jumps = cls._get_man_jumps(tile_id, game_state)
+                else:
+                    moves = cls._get_king_moves(tile_id, game_state)
+                    jumps = cls._get_king_jumps(tile_id, game_state)
 
-        # filter longest sequence(s) only
-        longest_num = 0
-        for s in poss_opts:
-            longest_num = max(longest_num, len(s))
-        poss_opts[:] = [s for s in poss_opts if len(s) == longest_num]
+                if moves:
+                    all_moves.extend(moves)
+                if jumps:
+                    all_jumps.extend(jumps)
 
-        return poss_opts
+        return all_jumps if all_jumps else all_moves
 
     @classmethod
-    def get_outcome_of_move(cls, state: np.ndarray, move):
-        x_tmp, y_tmp = get_coord_from_tile_id(move[0])
-        val_of_piece = state[x_tmp][y_tmp]
-        state[x_tmp][y_tmp] = 0  # Remove moving piece from start position
+    def get_outcome_of_move(cls, game_state: np.ndarray, move: List[int]) -> np.ndarray:
+        """Apply a move to a game state and return the resulting state.
 
-        # Remove all jumped over pieces
-        for i in move:
-            if i < 0:
-                x_tmp, y_tmp = get_coord_from_tile_id(-i)
-                state[x_tmp][y_tmp] = 0
+        Args:
+            game_state: Current board state.
+            move: Sequence of tile IDs representing the move.
 
-        x_tmp, y_tmp = get_coord_from_tile_id(move[len(move) - 1])
-        if val_of_piece == 1 and y_tmp == 7:
-            # Crown if crowning needed, else just place at the end of sequence
-            state[x_tmp][y_tmp] = 2
-        elif val_of_piece == -1 and y_tmp == 0:
-            state[x_tmp][y_tmp] = -2
-        else:
-            state[x_tmp][y_tmp] = val_of_piece
+        Returns:
+            New game state after the move.
+        """
+        new_state = game_state.copy()
+        start_tile = move[0]
+        end_tile = move[-1]
 
-        return state
+        x_start, y_start = tile_id_to_grid_coords(start_tile)
+        x_end, y_end = tile_id_to_grid_coords(end_tile)
 
-    def get_game_state(self):
-        return deepcopy(self.game_state)
+        piece = new_state[x_start][y_start]
+        new_state[x_start][y_start] = EMPTY_TILE
+        new_state[x_end][y_end] = piece
 
-    def get_draw_criteria_log(self):
-        return deepcopy(self.draw_criteria_log)
+        # Remove captured pieces
+        for tile in move[1:-1]:
+            if tile < 0:
+                x, y = tile_id_to_grid_coords(-tile)
+                new_state[x][y] = EMPTY_TILE
 
-    def get_status(self):
+        # King promotion
+        if piece == ORANGE_MAN and y_end == BOARD_SIZE - 1:
+            new_state[x_end][y_end] = ORANGE_KING
+        elif piece == BLUE_MAN and y_end == 0:
+            new_state[x_end][y_end] = BLUE_KING
+
+        return new_state
+
+    def get_game_state(self) -> np.ndarray:
+        """Return a copy of the current game state."""
+        return self.game_state.copy()
+
+    def get_draw_criteria_log(self) -> List[Tuple[Color, np.ndarray]]:
+        """Return the log of states used for draw detection."""
+        return self.draw_criteria_log
+
+    def get_status(self) -> GameStatus:
+        """Return the current game status."""
         return self.status
 
-    def get_winning_player(self):
+    def get_winning_player(self) -> Optional[Color]:
+        """Return the color of the winning player, or None."""
         return self.winning_player
 
-    def get_points(self):
-        return {Color.ORANGE: self.orange_score, Color.BLUE: self.blue_score}
+    def get_points(self) -> Tuple[int, int]:
+        """Return the current scores as (orange_score, blue_score)."""
+        return self.orange_score, self.blue_score
 
-    def get_possible_opts(self):
-        return deepcopy(self.turn_player_opts)
+    def get_possible_opts(self) -> List[List[int]]:
+        """Return all possible moves for the current player."""
+        return self.turn_player_opts
 
-    def get_possible_outcomes(self):
-        # Returns a dict of pairs move: outcome
-        possible_outcomes = []
+    def get_possible_outcomes(self) -> List[Tuple[List[int], np.ndarray]]:
+        """Return all possible moves and their resulting board states."""
+        outcomes = []
+        for move in self.turn_player_opts:
+            new_state = self.get_outcome_of_move(self.game_state, move)
+            outcomes.append((move, new_state))
+        return outcomes
 
-        for i in self.get_possible_opts():
-            outcome = self.get_game_state()
-            outcome = CheckersGame.get_outcome_of_move(outcome, i)
-            possible_outcomes.append([i, outcome])
+    def get_turn_of(self) -> Color:
+        """Return the color of the player whose turn it is."""
+        return self.turn_of
 
-        return possible_outcomes
+    def perform_move(self, move: List[int]) -> None:
+        """Execute a move and update the game state.
 
-    def get_turn_of(self) -> Optional[Color]:
-        if self.status == Status.IN_PROGRESS:
-            return self.turn_of
-        return None
+        Args:
+            move: Sequence of tile IDs representing the move.
 
-    def perform_move(self, sequence):
-        if self.status != Status.IN_PROGRESS:
-            raise CheckersGameEndError("Game already ended")
+        Raises:
+            CheckersGameEndError: If the game has already ended.
+            CheckersGameNotPermittedMoveError: If the move is not valid.
+        """
+        if self.status != GameStatus.IN_PROGRESS:
+            raise CheckersGameEndError("Game has already ended.")
 
-        if sequence not in self.turn_player_opts:
-            raise CheckersGameNotPermittedMoveError("Movement not permitted")
+        if move not in self.turn_player_opts:
+            raise CheckersGameNotPermittedMoveError(f"Move {move} is not permitted.")
 
-        x_tmp, y_tmp = get_coord_from_tile_id(sequence[0])
-        val_of_piece = self.game_state[x_tmp][y_tmp]
-        self.game_state[x_tmp][y_tmp] = 0  # Remove moving piece from start position
-
-        has_jumped = False
-        # Remove all jumped over pieces
-        for i in sequence:
-            if i < 0:
-                x_tmp, y_tmp = get_coord_from_tile_id(-i)
-                self.game_state[x_tmp][y_tmp] = 0
-                if self.turn_of == Color.BLUE:
-                    self.blue_score += 1
-                else:
-                    self.orange_score += 1
-                has_jumped = True
-
-        # Jumping results in draw criteria log being restarted
-        if has_jumped:
-            self.draw_criteria_log = []
-
-        x_tmp, y_tmp = get_coord_from_tile_id(sequence[len(sequence) - 1])
-
-        # Crown if crowning needed, else just place at the end of sequence
-        if val_of_piece == 1 and y_tmp == 7:
-            self.game_state[x_tmp][y_tmp] = 2
-        elif val_of_piece == -1 and y_tmp == 0:
-            self.game_state[x_tmp][y_tmp] = -2
+        # Update scores for captured pieces
+        captured_count = sum(1 for tile in move[1:-1] if tile < 0)
+        if self.turn_of == Color.ORANGE:
+            self.orange_score += captured_count
         else:
-            self.game_state[x_tmp][y_tmp] = val_of_piece
+            self.blue_score += captured_count
 
-        self.log.append(sequence)  # log sequence
+        # Apply move
+        self.game_state = self.get_outcome_of_move(self.game_state, move)
+        self.log.append(move)
 
-        opponent: Color = Color.BLUE if self.turn_of == Color.ORANGE else Color.ORANGE
+        # Switch turns
+        self.turn_of = Color.BLUE if self.turn_of == Color.ORANGE else Color.ORANGE
+        self.turn_player_opts = self.get_color_poss_opts(self.turn_of, self.game_state)
 
-        # Check for draw criteria
-        self.draw_criteria_log.append((opponent, self.get_game_state()))
+        # Update draw log
+        self.draw_criteria_log.append((self.turn_of, self.game_state.copy()))
 
-        draw_criteria_count = 0
-        for i in self.draw_criteria_log:
-            if i[0] == opponent and np.array_equal(i[1], self.game_state):
-                draw_criteria_count += 1
-        if draw_criteria_count >= 3:
-            self.status = Status.DRAW
+        # Check for draw
+        self._check_draw_conditions()
 
-        # Check for winning criteria, if game still in progress
-        if self.status == Status.IN_PROGRESS:
-            self.turn_player_opts = CheckersGame.get_color_poss_opts(
-                opponent, self.game_state
+        # Check for win
+        if not self.turn_player_opts:
+            self.status = GameStatus.WON
+            self.winning_player = (
+                Color.BLUE if self.turn_of == Color.ORANGE else Color.ORANGE
             )
-            if len(self.turn_player_opts) == 0:
-                self.status = Status.WON
-                self.winning_player = self.turn_of
 
-        self.turn_of = opponent
-
-        return self.status
+    def _check_draw_conditions(self) -> None:
+        """Check if the game has ended in a draw based on repetition rules."""
+        current_state = self.game_state
+        repetitions = sum(
+            1
+            for color, state in self.draw_criteria_log
+            if color == self.turn_of and np.array_equal(state, current_state)
+        )
+        if repetitions >= MAX_DRAW_REPETITIONS:
+            self.status = GameStatus.DRAW
