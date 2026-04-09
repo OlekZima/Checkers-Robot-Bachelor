@@ -1,14 +1,29 @@
 [project]
 name = "checkers-robot-s24982"
 version = "0.1.0"
-description = "Add your description here"
+description = "Checkers robot project with a Qt-based desktop GUI."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "memory-profiler>=0.61.0",
     "numpy>=2.2.1",
     "opencv-python>=4.10.0.84",
+    "opencv-stubs>=0.1.3",
     "pillow>=11.1.0",
     "pydobotplus>=0.1.2",
-    "pysimplegui>=5.0.7",
+    "pyqt6>=6.10.2",
+    "pyserial>=3.4",
+]
+
+
+[tool.uv]
+exclude-newer = "1 week"
+
+[dependency-groups]
+dev = [
+    "memory-profiler>=0.61.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.3",
+    "ruff>=0.15.8",
+    "zensical>=0.0.29",
 ]
