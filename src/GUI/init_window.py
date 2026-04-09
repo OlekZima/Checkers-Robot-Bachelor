@@ -42,6 +42,7 @@ class ConfigurationWindow:
         self._robot_port: Optional[str] = None
         self._camera_port: Optional[int] = None
         self._configuration_file_path: Optional[Path] = None
+        self._base_config_path: Optional[Path] = None
 
         self._cap = None
         self._frame = None
@@ -305,17 +306,23 @@ class ConfigurationWindow:
         self._robot_position_label.setVisible(False)
 
         button_row = QHBoxLayout()
+        self._load_base_config_button = QPushButton("Load Base Config")
         self._load_config_button = QPushButton("Load config file and finish")
         self._next_step_button = QPushButton("Next Calibration Step")
         self._save_config_button = QPushButton("Save Calibration Config")
 
+        self._load_base_config_button.clicked.connect(
+            self._handle_load_base_config_event
+        )
         self._load_config_button.clicked.connect(self._handle_load_config_event)
         self._next_step_button.clicked.connect(self._handle_calibration_step_completion)
         self._save_config_button.clicked.connect(self._save_calibration_config)
 
+        self._load_base_config_button.setVisible(False)
         self._next_step_button.setVisible(False)
         self._save_config_button.setVisible(False)
 
+        button_row.addWidget(self._load_base_config_button)
         button_row.addWidget(self._load_config_button)
         button_row.addWidget(self._next_step_button)
         button_row.addWidget(self._save_config_button)
@@ -447,6 +454,44 @@ class ConfigurationWindow:
             return "white"
         return None
 
+    def _handle_load_base_config_event(self) -> None:
+        """Load a base configuration file to use as starting point for calibration."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self._window,
+            "Select a base configuration file.",
+            str(CONFIG_PATH),
+            "Configuration file (*.txt)",
+        )
+        if not file_path:
+            return
+
+        selected_path = Path(file_path)
+        try:
+            with selected_path.open("r", encoding="UTF-8") as config_file:
+                lines = config_file.readlines()
+                if len(lines) != 42:
+                    raise ValueError("Invalid configuration file length.")
+        except Exception as exc:
+            self._show_message(
+                f"Invalid configuration file: {exc}", QMessageBox.Icon.Critical
+            )
+            return
+
+        self._base_config_path = selected_path
+        self._show_message(
+            f"Base configuration file {selected_path.name} loaded successfully!",
+            QMessageBox.Icon.Information,
+        )
+
+        # Restart calibration with the loaded base config
+        if self._config_method == CalibrationMethod.ALL:
+            self._start_all_tiles_calibration()
+        else:
+            self._show_message(
+                "Base config loaded. Corner calibration will use it as reference.",
+                QMessageBox.Icon.Information,
+            )
+
     def _handle_load_config_event(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             self._window,
@@ -525,6 +570,7 @@ class ConfigurationWindow:
             self._robot_next_position_label.setVisible(True)
             self._robot_position_label.setVisible(True)
             self._load_config_button.setVisible(True)
+            self._load_base_config_button.setVisible(True)
             self._show_calibration_controller()
 
             if self._all_tiles_method_radio.isChecked():
@@ -549,22 +595,21 @@ class ConfigurationWindow:
         self._handle_graph_mouse_click_event(int(position.x()), int(position.y()))
 
     def _start_all_tiles_calibration(self) -> None:
-        if self._configuration_file_path is None:
-            self._show_message(
-                "No configuration file selected. Calibration aborted.",
-                QMessageBox.Icon.Critical,
-            )
-            return
         if self._controller is None:
             self._show_message(
                 "Calibration controller is not initialized.", QMessageBox.Icon.Warning
             )
             return
         try:
-            self._controller.start_tile_calibration(self._configuration_file_path)
+            self._controller.start_tile_calibration(self._base_config_path)
             self._update_calibration_instruction(CalibrationMethod.ALL)
             self._controller.move_to_current_position()
             self._next_step_button.setVisible(True)
+            if self._base_config_path:
+                self._show_message(
+                    f"Using base config: {self._base_config_path.name}. Adjust positions as needed.",
+                    QMessageBox.Icon.Information,
+                )
         except Exception as exc:
             self._show_message(
                 f"Error preparing all tiles calibration: {exc}",
@@ -698,7 +743,10 @@ class ConfigurationWindow:
             return
 
         try:
-            self._controller.save_tile_calibration(safe_name)
+            if self._config_method == CalibrationMethod.CORNER:
+                self._controller.save_calibration_data(safe_name)
+            else:
+                self._controller.save_tile_calibration(safe_name)
             self._configuration_file_path = Path(safe_name + ".txt")
             self._show_message(
                 f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",

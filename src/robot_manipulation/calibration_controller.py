@@ -15,14 +15,15 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from src.checkers_game.checkers_game import Color
+from src.common.exceptions import DobotError
 from src.common.utils import (
     CONFIG_PATH,
-    tile_id_to_grid_coords,
     lerp,
+    tile_id_to_grid_coords,
 )
-from src.common.exceptions import DobotError
 
 from .calibration_data import CalibrationData
+from .calibration_file_handler import CalibrationFileHandler
 from .dobot_arm import DobotArm
 from .robot_arm import RobotArm
 
@@ -126,7 +127,10 @@ class CalibrationController:
     def move_to_current_position(self) -> None:
         """Move the arm to the default position for the current calibration step."""
         if self._base_config is None:
-            raise ValueError("Base configuration not loaded. Load a config first.")
+            raise ValueError(
+                "Base configuration not initialized. "
+                "Call start_tile_calibration() first."
+            )
 
         if 0 <= self._tile_step_index < self._TOTAL_CALIBRATION_POINTS:
             default_pos = self._base_config[self._tile_step_index]
@@ -275,6 +279,27 @@ class CalibrationController:
                 file.write(f"{x};{y};{z}\n")
 
         logger.info("Tile calibration saved to %s", output_path)
+        return output_path
+
+    def save_calibration_data(self, filename: str) -> Path:
+        """Save calibration data to a file.
+
+        Args:
+            filename: Output filename (without extension).
+
+        Returns:
+            Path to the saved configuration file.
+
+        Raises:
+            ValueError: If calibration data is not available.
+        """
+        if self._calibration_data is None:
+            raise ValueError("Calibration data not available.")
+
+        handler = CalibrationFileHandler(CONFIG_PATH)
+        handler.save_calibration(self._calibration_data, filename)
+        output_path = CONFIG_PATH / f"{filename}.txt"
+        logger.info("Calibration data saved to %s", output_path)
         return output_path
 
     def load_calibration_data(self, filename: str) -> CalibrationData:
