@@ -3,43 +3,44 @@ import re
 from typing import Optional
 
 import cv2
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 from serial.tools import list_ports
 
 from src.common.configs import ColorConfig
 from src.common.enums import Color, CalibrationMethod
-from src.common.utils import CONFIG_PATH, list_camera_ports
+from src.common.utils import CONFIG_PATH, detect_available_camera_ports
 
 from src.robot_manipulation.calibration_controller import CalibrationController
+from src.robot_manipulation.calibration_file_handler import CalibrationFileHandler
 
 
 class ConfigurationWindow:
     """Configuration window for the checkers robot."""
 
     def __init__(self) -> None:
-        self._selected_color: Color = None
+        self._selected_color: Optional[Color] = None
         self._difficulty_level: int = 3
 
-        self._robot_port = None
-        self._camera_port = None
-        self._configuration_file_path: Path = None
+        self._robot_port: Optional[str] = None
+        self._camera_port: Optional[int] = None
+        self._configuration_filename: Optional[str] = None
 
-        self._cap = None
+        self._cap: Optional[cv2.VideoCapture] = None
         self._frame = None
         self._image_id = None
 
-        self._selected_config_color = None
+        self._selected_config_color: Optional[str] = None
 
-        self._config_method: CalibrationMethod = None
+        self._config_method: Optional[CalibrationMethod] = None
 
-        self._color_config: ColorConfig = {
-            "orange": (0, 0, 0),
-            "blue": (0, 0, 0),
-            "black": (0, 0, 0),
-            "white": (0, 0, 0),
-        }
+        self._color_config: ColorConfig = ColorConfig(
+            orange=(0, 0, 0),
+            blue=(0, 0, 0),
+            black=(0, 0, 0),
+            white=(0, 0, 0),
+        )
 
-        self._controller = None
+        self._controller: Optional[CalibrationController] = None
 
         self._window = sg.Window(
             "Configuration",
@@ -49,7 +50,7 @@ class ConfigurationWindow:
             use_default_focus=False,
         )
 
-    def _get_property_if_exist(self, property_name: str) -> bool:
+    def _get_property_if_exist(self, property_name: str):
         if getattr(self, property_name) is None:
             raise AttributeError(
                 f"No {property_name} property!\nLooks like you didn't run the `run` method."
@@ -64,7 +65,7 @@ class ConfigurationWindow:
         """Returns the selected port for the camera."""
         return self._get_property_if_exist("_camera_port")
 
-    def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
+    def get_config_colors_dict(self) -> ColorConfig:
         """
         Returns the selected colors dictionary for the game.
 
@@ -83,9 +84,9 @@ class ConfigurationWindow:
         """Returns the selected color as enum (Color.ORANGE or Color.BLUE) for the robot."""
         return self._get_property_if_exist("_selected_color")
 
-    def get_configuration_file_path(self) -> Path:
-        """Returns the selected configuration file path."""
-        return self._get_property_if_exist("_configuration_file_path")
+    def get_configuration_file_path(self) -> str:
+        """Returns the selected configuration filename (without extension)."""
+        return self._get_property_if_exist("_configuration_filename")
 
     def get_difficulty_level(self) -> int:
         """Returns selected difficulty level (original range is [1 ... 10])"""
@@ -207,13 +208,11 @@ class ConfigurationWindow:
                     values=list_ports.comports(),
                     key="-Robot_Port-",
                     expand_x=True,
-                    enable_events=True,
                 ),
                 sg.OptionMenu(
-                    values=list_camera_ports(),
+                    values=detect_available_camera_ports(15),
                     key="-Camera_Port-",
                     expand_x=True,
-                    enable_events=True,
                 ),
             ],
             [sg.VPush()],
@@ -421,7 +420,6 @@ class ConfigurationWindow:
         self._controller = CalibrationController(self.get_robot_port())
 
     def _show_calibration_controller(self) -> None:
-        self._controller = CalibrationController(self.get_robot_port())
         self._window["-Robot_XY_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Z_Movement_Controller-"].update(visible=True)
         self._window["-Robot_Position-"].update(visible=True)
@@ -445,60 +443,79 @@ class ConfigurationWindow:
         if 0 <= mouse_x <= frame_x and 0 <= mouse_y <= frame_y:
             b, g, r = self._frame[mouse_y, mouse_x]
             if values["-Step_Orange-"]:
-                self._selected_config_color = "Orange"
+                self._selected_config_color = "orange"
             elif values["-Step_Blue-"]:
-                self._selected_config_color = "Blue"
+                self._selected_config_color = "blue"
             elif values["-Step_Black-"]:
-                self._selected_config_color = "Black"
+                self._selected_config_color = "black"
             elif values["-Step_White-"]:
-                self._selected_config_color = "White"
+                self._selected_config_color = "white"
 
             if self._selected_config_color is not None:
-                self._color_config[self._selected_config_color] = (r, g, b)
+                color_tuple = (int(r), int(g), int(b))
+                if self._selected_config_color == "orange":
+                    self._color_config["orange"] = color_tuple
+                elif self._selected_config_color == "blue":
+                    self._color_config["blue"] = color_tuple
+                elif self._selected_config_color == "black":
+                    self._color_config["black"] = color_tuple
+                elif self._selected_config_color == "white":
+                    self._color_config["white"] = color_tuple
                 sg.popup(
-                    f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
+                    f"Selected color for {self._selected_config_color} is: {color_tuple}"
                 )
 
     def _handle_load_config_event(self) -> None:
-        self._configuration_file_path = Path(
-            sg.popup_get_file(
-                message="Select a configuration file.",
-                initial_folder="configs",
-                file_types=(("Configuration file", "*.txt"),),
-                keep_on_top=True,
-                no_window=True,
-            )
+        config_path_str = sg.popup_get_file(
+            message="Select a configuration file.",
+            initial_folder=str(CONFIG_PATH),
+            file_types=(("Configuration file", "*.txt"),),
+            keep_on_top=True,
+            no_window=True,
         )
 
-        with open(self._configuration_file_path, "r", encoding="UTF-8") as f:
+        if config_path_str is None or config_path_str == "":
+            return
+
+        config_path = Path(config_path_str)
+        self._configuration_filename = config_path.stem
+
+        with open(config_path, "r", encoding="UTF-8") as f:
             lines = f.readlines()
             if len(lines) != 42:
                 sg.popup(
-                    f"Invalid configuration faile named {self._configuration_file_path}"
+                    f"Invalid configuration file named {config_path.name}"
                 )
             else:
                 sg.popup(
-                    f"Configuration file {self._configuration_file_path.name} loaded successfully!"
+                    f"Configuration file {config_path.name} loaded successfully!"
                 )
-                # self._controller.m
 
     def _handle_end_color_configuration_event(self) -> None:
-        self._color_config = {
-            key: tuple(map(int, self._color_config[key]))
-            for key in self._color_config
-        }
+        o = self._color_config["orange"]
+        b = self._color_config["blue"]
+        bk = self._color_config["black"]
+        w = self._color_config["white"]
+        self._color_config = ColorConfig(
+            orange=(int(o[0]), int(o[1]), int(o[2])),
+            blue=(int(b[0]), int(b[1]), int(b[2])),
+            black=(int(bk[0]), int(bk[1]), int(bk[2])),
+            white=(int(w[0]), int(w[1]), int(w[2])),
+        )
 
         sg.popup(
             "Selected colors for the game [R, G, B]",
-            f"""Orange: {self._color_config["Orange"]}
-            Blue: {self._color_config["Blue"]}
-            Black: {self._color_config["Black"]}
-            White: {self._color_config["White"]}""",
+            f"""orange: {self._color_config["orange"]}
+            blue: {self._color_config["blue"]}
+            black: {self._color_config["black"]}
+            white: {self._color_config["white"]}""",
         )
 
         self._show_calibration_tab()
 
     def _handle_next_frame_event(self) -> None:
+        if self._cap is None:
+            return
         ret, frame = self._cap.read()
         if ret:
             self._frame = frame
@@ -510,6 +527,8 @@ class ConfigurationWindow:
             )
 
     def _handle_robot_movement_event(self, event) -> None:
+        if self._controller is None:
+            return
         if event in ("-Robot_Move_Forward-", "w:25"):
             self._controller.move_forward()
         elif event in ("-Robot_Move_Backward-", "s:39"):
@@ -527,41 +546,29 @@ class ConfigurationWindow:
         """Start the all tiles calibration process."""
         self._handle_load_config_event()
 
-        if self._configuration_file_path is None:
+        if self._configuration_filename is None:
             sg.popup_error("No configuration file selected. Calibration aborted.")
             return
 
         try:
-            self._controller.read_file_config(self._configuration_file_path)
+            assert self._controller is not None
+            config_path = CONFIG_PATH / f"{self._configuration_filename}.txt"
+            self._controller.start_tile_calibration(config_path)
 
             self._update_calibration_instruction(CalibrationMethod.ALL)
-            self._controller.move_to_current_all_tiles_calibration_position()
+            self._controller.move_to_current_position()
 
             self._window["-Next_Calibration_Step-"].update(visible=True)
 
         except Exception as e:
             sg.popup_error(f"Error preparing all tiles calibration: {str(e)}")
 
-    def _handle_calibration_step_completion(self):
-        """Handle the completion of the current calibration step."""
-        # Check which calibration method is active
-        if self._window["-Corner_Tiles_Method-"].get():
-            # Existing corner calibration logic
-            self._controller.save_current_all_tiles_calibration_position()
-            if not self._controller.is_all_tiles_calibration_complete():
-                self._update_calibration_instruction(CalibrationMethod.ALL)
-                self._controller.move_to_current_all_tiles_calibration_position()
-            else:
-                self._window["-Robot_Next_Position-"].update(
-                    "Corner Calibration complete."
-                )
-                self._window["-Next_Calibration_Step-"].update(visible=False)
-
     def _start_corner_calibration(self):
         """Start the calibration process when entering the Calibration tab."""
+        assert self._controller is not None
         self._controller.start_corner_calibration()
         self._update_calibration_instruction()
-        self._controller.move_to_current_corner_calibration_position()
+        self._controller.move_to_current_corner_position()
 
         # Show the Next Calibration Step button
         self._window["-Next_Calibration_Step-"].update(visible=True)
@@ -570,10 +577,11 @@ class ConfigurationWindow:
         self, calibration_method: Optional[CalibrationMethod] = CalibrationMethod.CORNER
     ):
         """Update the instruction displayed in the '-Robot_Next_Position-' Text element."""
+        assert self._controller is not None
         if calibration_method == CalibrationMethod.ALL:
-            instruction = self._controller.get_current_all_tiles_calibration_step()
+            instruction = self._controller.get_current_tile_step_description()
         else:
-            instruction = self._controller.get_current_corner_calibration_step()
+            instruction = self._controller.get_current_corner_step_description()
         if instruction:
             self._window["-Robot_Next_Position-"].update(instruction)
 
@@ -585,11 +593,12 @@ class ConfigurationWindow:
 
     def _handle_calibration_step_completion(self):
         """Handle the completion of the current calibration step."""
+        assert self._controller is not None
         if self._config_method == CalibrationMethod.CORNER:
-            self._controller.save_current_corner_calibration_position()
+            self._controller.save_current_corner_position()
             if not self._controller.is_corner_calibration_complete():
                 self._update_calibration_instruction()
-                self._controller.move_to_current_corner_calibration_position()
+                self._controller.move_to_current_corner_position()
             else:
                 self._window["-Robot_Next_Position-"].update("Calibration complete.")
                 self._window["-Next_Calibration_Step-"].update(visible=False)
@@ -600,13 +609,10 @@ class ConfigurationWindow:
                     keep_on_top=True,
                 )
         else:
-            # Check which calibration method is active
-            # if self._window["-Corner_Tiles_Method-"].get():
-            # Existing corner calibration logic
-            self._controller.save_current_all_tiles_calibration_position()
-            if not self._controller.is_all_tiles_calibration_complete():
+            self._controller.save_current_tile_position()
+            if not self._controller.is_tile_calibration_complete():
                 self._update_calibration_instruction(CalibrationMethod.ALL)
-                self._controller.move_to_current_all_tiles_calibration_position()
+                self._controller.move_to_current_position()
             else:
                 self._window["-Robot_Next_Position-"].update("Calibration complete.")
                 self._window["-Next_Calibration_Step-"].update(visible=False)
@@ -629,7 +635,7 @@ class ConfigurationWindow:
                     sg.popup_error("Invalid filename. Configuration not saved.")
                     return
 
-                self._controller.save_all_tiles_config(filename)
+                self._controller.save_tile_calibration(filename)
 
                 config_path = CONFIG_PATH / f"{filename}.txt"
                 sg.popup(
@@ -638,6 +644,7 @@ class ConfigurationWindow:
                     keep_on_top=True,
                 )
 
+                self._configuration_filename = filename
                 sg.popup(
                     "End of calibration. Starting the game.",
                     title="Configuration complete",
@@ -647,7 +654,7 @@ class ConfigurationWindow:
     def _save_calibration_config(self) -> None:
         """
         Save the calibration configuration to a file.
-        Uses the existing CalibrationController methods.
+        Uses CalibrationFileHandler for corner calibration data.
         """
         try:
             filename = sg.popup_get_text(
@@ -666,15 +673,23 @@ class ConfigurationWindow:
                 sg.popup_error("Invalid filename. Configuration not saved.")
                 return
 
-            self._controller.save_corners_config(filename)
+            assert self._controller is not None
+            calibration_data = self._controller.calibration_data
+            if calibration_data is None:
+                sg.popup_error("No calibration data available. Complete calibration first.")
+                return
 
-            config_path = self._controller.get_config_path() / f"{filename}.txt"
+            handler = CalibrationFileHandler(CONFIG_PATH)
+            handler.save_calibration(calibration_data, filename)
+
+            config_path = CONFIG_PATH / f"{filename}.txt"
             sg.popup(
                 f"Calibration configuration saved to {config_path}",
                 title="Configuration Saved",
                 keep_on_top=True,
             )
 
+            self._configuration_filename = filename
             sg.popup(
                 "End of calibration. Starting the game.",
                 title="Configuration complete",
@@ -754,18 +769,19 @@ class ConfigurationWindow:
                 self._config_method = CalibrationMethod.CORNER
                 self._start_corner_calibration()
 
-            if event in ("-Robot_Move_Forward-", "w:25"):
-                self._controller.move_forward()
-            elif event in ("-Robot_Move_Backward-", "s:39"):
-                self._controller.move_backward()
-            elif event in ("-Robot_Move_Left-", "a:38"):
-                self._controller.move_left()
-            elif event in ("-Robot_Move_Right-", "d:40"):
-                self._controller.move_right()
-            elif event in ("-Robot_Move_Up-", "e:26"):
-                self._controller.move_up()
-            elif event in ("-Robot_Move_Down-", "q:24"):
-                self._controller.move_down()
+            if self._controller is not None:
+                if event in ("-Robot_Move_Forward-", "w:25"):
+                    self._controller.move_forward()
+                elif event in ("-Robot_Move_Backward-", "s:39"):
+                    self._controller.move_backward()
+                elif event in ("-Robot_Move_Left-", "a:38"):
+                    self._controller.move_left()
+                elif event in ("-Robot_Move_Right-", "d:40"):
+                    self._controller.move_right()
+                elif event in ("-Robot_Move_Up-", "e:26"):
+                    self._controller.move_up()
+                elif event in ("-Robot_Move_Down-", "q:24"):
+                    self._controller.move_down()
 
             if self._cap is not None and self._cap.isOpened() and recording:
                 self._handle_next_frame_event()
@@ -799,8 +815,3 @@ class ConfigurationWindow:
         if self._cap:
             self._cap.release()
         self._window.close()
-
-
-if __name__ == "__main__":
-    app = ConfigurationWindow()
-    app.run()

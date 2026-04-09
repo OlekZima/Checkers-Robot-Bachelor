@@ -1,22 +1,15 @@
-from memory_profiler import profile
-import PySimpleGUI as sg
+from typing import List, cast
+
+import FreeSimpleGUI as sg
 import cv2
 import numpy as np
 
 from src.common.utils import CONFIG_PATH
-
 from src.common.configs import ColorConfig
-
-from src.computer_vision.board_recognition.contours import ContourProcessor
 from src.computer_vision.game_state_recognition import GameState
-from src.computer_vision.board_recognition.contours import ContourDetector
-from src.computer_vision.game_state_recognition import Game
-
-from src.robot_manipulation.dobot_controller import DobotController
-
+from src.robot_manipulation.robot_manipulator import RobotManipulator
 from src.checkers_game.game_controller import GameController
-
-from src.common.enums import Color, GameStateResult, RobotGameReportItem, Status
+from src.common.enums import Color, MoveValidationResult, GameReportField, GameStatus
 
 
 class GameWindow:
@@ -34,16 +27,10 @@ class GameWindow:
         self._cap = cv2.VideoCapture(self._camera_port)
 
         self._game = GameController(robot_color, depth_of_engine)
-        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
-        self._dobot = DobotController(robot_color, CONFIG_PATH / config_name, robot_port)
-        self._device = self._dobot.device
+        self._manipulator = RobotManipulator(robot_port, CONFIG_PATH, robot_color, config_name)
         self._board_recognition = GameState(color_config)
 
-        # self._board_image = None
-        # self._game_state_image = None
-
         self._layout = self._setup_main_layout()
-        self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
         self._window = sg.Window("Checkers Game", self._layout, resizable=False).Finalize()
 
     @staticmethod
@@ -134,7 +121,6 @@ class GameWindow:
         del imgbytes
         del frame
 
-    @profile
     def run(self):
         frame_skip = 20
 
@@ -157,56 +143,50 @@ class GameWindow:
 
             try:
                 # Process game state
-                _, game_state = self._board_recognition.update_game_state(image)
+                _, game_state = self._board_recognition.update(image)
                 update_game_state_result = self._game.update_game_state(game_state)
 
                 # Update game state view
-                self._game_state_image = self._board_recognition.get_game_state_image()
-                self._update_graph(self._game_state_image, "-Game_State_View-")
+                game_state_image = self._board_recognition.render_board()
+                self._update_graph(game_state_image, "-Game_State_View-")
 
                 # Update board view
-                self._board_image = self._board_recognition.get_board_image()
-                self._update_graph(self._board_image, "-Board_View-")
-
-                dilate_image = ContourDetector.image_dil
-                self._update_graph(dilate_image, "-Dilate_View-")
+                board_image = self._board_recognition.get_last_detected_frame()
+                self._update_graph(board_image, "-Board_View-")
 
                 # Handle game state results
                 if update_game_state_result in (
-                    GameStateResult.INVALID_OPPONENT_MOVE,
-                    GameStateResult.INVALID_ROBOT_MOVE,
+                    MoveValidationResult.INVALID_OPPONENT_MOVE,
+                    MoveValidationResult.INVALID_ROBOT_MOVE,
                 ):
                     self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
-                    self._window["-MOVE_STATUS-"].update("Invalid move! Please correct it.")
                     continue
 
-                if update_game_state_result == GameStateResult.VALID_WRONG_ROBOT_MOVE:
-                    self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
+                if update_game_state_result == MoveValidationResult.VALID_WRONG_ROBOT_MOVE:
                     self._window["-MOVE_STATUS-"].update("Wrong robot move! Please correct it.")
                     continue
 
-                game_state_report = self._game.report_state()
+                game_state_report = self._game.generate_report()
 
                 # Check game end conditions
-                if game_state_report[RobotGameReportItem.STATUS] != Status.IN_PROGRESS:
-                    if game_state_report[RobotGameReportItem.STATUS] == Status.DRAW:
+                if game_state_report[GameReportField.STATUS] != GameStatus.IN_PROGRESS:
+                    if game_state_report[GameReportField.STATUS] == GameStatus.DRAW:
                         self._window["-MOVE_STATUS-"].update("Game Over - DRAW!")
-                    elif game_state_report[RobotGameReportItem.WINNER] == Color.BLUE:
+                    elif game_state_report[GameReportField.WINNER] == Color.BLUE:
                         self._window["-MOVE_STATUS-"].update("Game Over - ROBOT WON!")
                     else:
-                        self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
                         self._window["-MOVE_STATUS-"].update("Game Over - OPPONENT WON!")
                     break
 
                 # Handle turns
                 if (
-                    game_state_report[RobotGameReportItem.TURN_OF]
-                    == game_state_report[RobotGameReportItem.ROBOT_COLOR]
+                    game_state_report[GameReportField.TURN_OF]
+                    == game_state_report[GameReportField.ROBOT_COLOR]
                 ):
                     self._window["-MOVE_STATUS-"].update("Robot's turn...")
-                    self._dobot.perform_move(
-                        game_state_report[RobotGameReportItem.ROBOT_MOVE],
-                        is_crown=game_state_report[RobotGameReportItem.IS_CROWNED],
+                    self._manipulator.execute_move(
+                        cast(List[int], game_state_report[GameReportField.ROBOT_MOVE]),
+                        is_crown=cast(bool, game_state_report[GameReportField.IS_CROWNED]),
                     )
                     frame_skip = 20
                 else:
@@ -223,12 +203,10 @@ class GameWindow:
 
 if __name__ == "__main__":
     color_config = ColorConfig(
-        {
-            "orange": (220, 70, 0),
-            "blue": (42, 113, 157),
-            "black": (107, 108, 101),
-            "white": (198, 205, 203),
-        }
+        orange=(220, 70, 0),
+        blue=(42, 113, 157),
+        black=(107, 108, 101),
+        white=(198, 205, 203),
     )
 
     game_window = GameWindow(Color.ORANGE, "/dev/ttyUSB0", 2, color_config, "guit_test_2.txt")
