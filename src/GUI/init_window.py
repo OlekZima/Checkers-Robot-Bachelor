@@ -6,7 +6,7 @@ from typing import Any, Optional, cast
 
 import cv2
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QImage, QIcon, QPixmap
+from PyQt6.QtGui import QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -656,6 +656,7 @@ class ConfigurationWindow:
             return
         try:
             self._controller.save_tile_calibration(safe_name)
+            self._configuration_file_path = Path(safe_name + ".txt")
             self._show_message(
                 f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
                 QMessageBox.Icon.Information,
@@ -663,6 +664,7 @@ class ConfigurationWindow:
             self._show_message(
                 "End of calibration. Starting the game.", QMessageBox.Icon.Information
             )
+            self._window.accept()
         except Exception as exc:
             self._show_message(
                 f"Error saving configuration: {exc}", QMessageBox.Icon.Critical
@@ -697,6 +699,7 @@ class ConfigurationWindow:
 
         try:
             self._controller.save_tile_calibration(safe_name)
+            self._configuration_file_path = Path(safe_name + ".txt")
             self._show_message(
                 f"Calibration configuration saved to {CONFIG_PATH / (safe_name + '.txt')}",
                 QMessageBox.Icon.Information,
