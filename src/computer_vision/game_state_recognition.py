@@ -343,7 +343,7 @@ if __name__ == "__main__":
     color_config: ColorConfig = {
         "orange": (40, 90, 245),
         "blue": (180, 112, 85),
-        "black": (45, 45, 45),
+        "black": (40, 40, 40),
         "white": (200, 200, 200),
     }
 
