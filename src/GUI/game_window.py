@@ -1,6 +1,6 @@
 from typing import List, cast
 
-import FreeSimpleGUI as sg
+import PySimpleGUI as sg
 import cv2
 import numpy as np
 

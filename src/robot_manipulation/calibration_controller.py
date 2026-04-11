@@ -54,7 +54,7 @@ class CalibrationController:
     step tracking, and configuration persistence.
     """
 
-    _HEIGHT_OFFSET: float = 10.0
+    _HEIGHT_OFFSET: float = 20.0
     _MOVEMENT_INCREMENT: float = 1.0
     _TOTAL_CALIBRATION_POINTS: int = 42
 
@@ -331,14 +331,14 @@ class CalibrationController:
     def _get_default_corner_positions() -> List[List[float]]:
         """Return default positions for corner calibration."""
         return [
-            [244, 73, -9],  # upper left board corner
-            [246, -71, -11],  # upper right board corner
-            [77, 54, -4],  # bottom left board corner
-            [77, -53, -4],  # bottom right board corner
-            [246, 106.5, -8.9],  # upper left side pocket
-            [84, 87, -5],  # bottom left side pocket
-            [246, -104, -9.2],  # upper right side pocket
-            [84, -85, -5],  # bottom right side pocket
+            [63, 66, -2.1],  # upper left board corner
+            [-41, 84, -3.8],  # upper right board corner
+            [105, 229, -7],  # bottom left board corner
+            [-35, 251, -6.8],  # bottom right board corner
+            [93, 67.9, -6],  # upper left side pocket
+            [140, 227, -10],  # bottom left side pocket
+            [140, 226, -7.8],  # upper right side pocket
+            [-68, 89, -8],  # bottom right side pocket
             [130, -150, 3],  # disposal area
             [90, -140, 0],  # home position
         ]

@@ -3,7 +3,7 @@ import re
 from typing import Optional
 
 import cv2
-import FreeSimpleGUI as sg
+import PySimpleGUI as sg
 from serial.tools import list_ports
 
 from src.common.configs import ColorConfig
@@ -207,11 +207,13 @@ class ConfigurationWindow:
                 sg.OptionMenu(
                     values=list_ports.comports(),
                     key="-Robot_Port-",
+                    enable_events=True,
                     expand_x=True,
                 ),
                 sg.OptionMenu(
                     values=detect_available_camera_ports(15),
                     key="-Camera_Port-",
+                    enable_events=True,
                     expand_x=True,
                 ),
             ],
@@ -483,13 +485,9 @@ class ConfigurationWindow:
         with open(config_path, "r", encoding="UTF-8") as f:
             lines = f.readlines()
             if len(lines) != 42:
-                sg.popup(
-                    f"Invalid configuration file named {config_path.name}"
-                )
+                sg.popup(f"Invalid configuration file named {config_path.name}")
             else:
-                sg.popup(
-                    f"Configuration file {config_path.name} loaded successfully!"
-                )
+                sg.popup(f"Configuration file {config_path.name} loaded successfully!")
 
     def _handle_end_color_configuration_event(self) -> None:
         o = self._color_config["orange"]
@@ -676,7 +674,9 @@ class ConfigurationWindow:
             assert self._controller is not None
             calibration_data = self._controller.calibration_data
             if calibration_data is None:
-                sg.popup_error("No calibration data available. Complete calibration first.")
+                sg.popup_error(
+                    "No calibration data available. Complete calibration first."
+                )
                 return
 
             handler = CalibrationFileHandler(CONFIG_PATH)

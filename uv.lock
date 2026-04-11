@@ -7,10 +7,6 @@ resolution-markers = [
     "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')",
 ]
 
-[options]
-exclude-newer = "2026-04-02T19:18:25.338084815Z"
-exclude-newer-span = "P7D"
-
 [[package]]
 name = "checkers-robot-s24982"
 version = "0.1.0"
@@ -25,6 +21,7 @@ dependencies = [
     { name = "pillow" },
     { name = "pydobotplus" },
     { name = "pyserial" },
+    { name = "pysimplegui" },
 ]
 
 [package.metadata]
@@ -38,6 +35,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=11.1.0" },
     { name = "pydobotplus", specifier = ">=0.1.2" },
     { name = "pyserial", specifier = ">=3.4" },
+    { name = "pysimplegui", git = "https://github.com/PySimpleGUI/PySimpleGUI" },
 ]
 
 [[package]]
@@ -406,6 +404,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/cc/74/11b04703ec416717b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/e4/2a744dd9e3be04a0c0907414e2a01a7c88bb3915cbe3c8cc06e209f59c30/pyserial-3.4-py2.py3-none-any.whl", hash = "sha256:e0770fadba80c31013896c7e6ef703f72e7834965954a78e71a3049488d4d7d8", size = 193717, upload-time = "2017-07-23T21:10:01.982Z" },
 ]
+
+[[package]]
+name = "pysimplegui"
+version = "6.0"
+source = { git = "https://github.com/PySimpleGUI/PySimpleGUI#9ef86bc3b19df3f3ed4b25e8acb2adf63b3eaf11" }
 
 [[package]]
 name = "python-dateutil"

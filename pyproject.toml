@@ -16,7 +16,9 @@ dependencies = [
     # "pysimplegui>=5.0.7",
     # "pysimplegui",
     "pyserial>=3.4",
+    "pysimplegui",
 ]
 
 [tool.uv.sources]
+pysimplegui = { git = "https://github.com/PySimpleGUI/PySimpleGUI" }
 # pysimplegui = { git = "https://github.com/PySimpleGUI/PySimpleGUI" }
