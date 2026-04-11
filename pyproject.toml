@@ -10,5 +10,8 @@ dependencies = [
     "opencv-python>=4.10.0.84",
     "pillow>=11.1.0",
     "pydobotplus>=0.1.2",
-    "pysimplegui>=5.0.7",
+    "pysimplegui",
 ]
+
+[tool.uv.sources]
+pysimplegui = { git = "https://github.com/PySimpleGUI/PySimpleGUI" }

@@ -38,7 +38,7 @@ class GameController:
 
     def update_game_state(
         self, board_state: np.ndarray, allow_different_robot_moves=False
-    ) -> GameStateResult:
+    ) -> tuple[GameStateResult, str]:
         is_robot_turn: bool = self.game.get_turn_of() == self.computer_color
 
         # Visual recognition doesn't recognise kings as different - so we must assume that kings are perceived as normal pieces by CV
@@ -82,8 +82,16 @@ class GameController:
                         self.is_crowned = True
                     else:
                         self.is_crowned = False
-                return GameStateResult.NO_ROBOT_MOVE
-            return GameStateResult.NO_OPPONENT_MOVE
+                    return (
+                        GameStateResult.NO_ROBOT_MOVE,
+                        "Robot move decided and is waiting for execution.",
+                    )
+
+                return (
+                    GameStateResult.NO_ROBOT_MOVE,
+                    "No change detected; robot is attempting the same move again.",
+                )
+            return GameStateResult.NO_OPPONENT_MOVE, "No opponent move detected."
 
         # 2 - checking if move was permitted, and if yes what was the exact move
         is_permitted = False
@@ -115,12 +123,22 @@ class GameController:
                     self.game.perform_move(move_performed)
                     self.robot_move = None
                     self.is_crowned = None
-                    return GameStateResult.VALID_RIGHT_ROBOT_MOVE
+                    return (
+                        GameStateResult.VALID_RIGHT_ROBOT_MOVE,
+                        "Robot move confirmed and accepted.",
+                    )
                 if allow_different_robot_moves:
                     self.game.perform_move(move_performed)
                     self.robot_move = None
                     self.is_crowned = None
-                return GameStateResult.VALID_WRONG_ROBOT_MOVE
+                    return (
+                        GameStateResult.VALID_WRONG_ROBOT_MOVE,
+                        "Robot made a different move than expected, but it was accepted.",
+                    )
+                return (
+                    GameStateResult.VALID_WRONG_ROBOT_MOVE,
+                    "Robot made a different move than expected.",
+                )
 
             self.game.perform_move(move_performed)
 
@@ -144,11 +162,12 @@ class GameController:
                 self.robot_move = None
                 self.is_crowned = None
 
-            return GameStateResult.VALID_OPPONENT_MOVE
+            return GameStateResult.VALID_OPPONENT_MOVE, "Opponent move accepted."
 
         # 3 - informing about invalid move
         return (
-            GameStateResult.INVALID_ROBOT_MOVE
+            GameStateResult.INVALID_ROBOT_MOVE,
+            "Illegal robot move detected."
             if is_robot_turn
-            else GameStateResult.INVALID_OPPONENT_MOVE
+            else "Illegal opponent move detected.",
         )

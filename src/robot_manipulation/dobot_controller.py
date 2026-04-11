@@ -30,7 +30,7 @@ class DobotController:
 
         self.read_calibration_file()
         # print(self.home_pos)
-        
+
         self.move_arm(
             self.home_pos[0], self.home_pos[1], self.home_pos[2] + 10, wait=True
         )

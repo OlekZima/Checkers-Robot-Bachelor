@@ -1,14 +1,15 @@
 from pathlib import Path
 import re
-from typing import Optional
+from typing import Optional, Any, Union
 
 import cv2
+import numpy as np
 import PySimpleGUI as sg
 from serial.tools import list_ports
 
 from src.common.configs import ColorConfig
 from src.common.enums import Color, CalibrationMethod
-from src.common.utils import CONFIG_PATH, list_camera_ports
+from src.common.utils import CONFIG_PATH, detect_available_camera_ports
 
 from src.robot_manipulation.calibration_controller import CalibrationController
 
@@ -49,7 +50,7 @@ class ConfigurationWindow:
             use_default_focus=False,
         )
 
-    def _get_property_if_exist(self, property_name: str) -> bool:
+    def _get_property_if_exist(self, property_name: str) -> Union[bool, Any]:
         if getattr(self, property_name) is None:
             raise AttributeError(
                 f"No {property_name} property!\nLooks like you didn't run the `run` method."
@@ -64,16 +65,16 @@ class ConfigurationWindow:
         """Returns the selected port for the camera."""
         return self._get_property_if_exist("_camera_port")
 
-    def get_config_colors_dict(self) -> dict[str, tuple[int, int, int]]:
+    def get_config_colors_dict(self) -> ColorConfig:
         """
         Returns the selected colors dictionary for the game.
 
         ```python
         {
-            "orange": (r, g, b),
-            "blue": (r, g, b),
-            "black": (r, g, b),
-            "white": (r, g, b),
+            "orange": (b, g, r),
+            "blue": (b, g, r),
+            "black": (b, g, r),
+            "white": (b, g, r),
         }
         ```
         """
@@ -210,7 +211,7 @@ class ConfigurationWindow:
                     enable_events=True,
                 ),
                 sg.OptionMenu(
-                    values=list_camera_ports(),
+                    values=detect_available_camera_ports(15),
                     key="-Camera_Port-",
                     expand_x=True,
                     enable_events=True,
@@ -443,20 +444,41 @@ class ConfigurationWindow:
         frame_y, frame_x, _ = self._frame.shape
 
         if 0 <= mouse_x <= frame_x and 0 <= mouse_y <= frame_y:
-            b, g, r = self._frame[mouse_y, mouse_x]
             if values["-Step_Orange-"]:
-                self._selected_config_color = "Orange"
+                self._selected_config_color = "orange"
             elif values["-Step_Blue-"]:
-                self._selected_config_color = "Blue"
+                self._selected_config_color = "blue"
             elif values["-Step_Black-"]:
-                self._selected_config_color = "Black"
+                self._selected_config_color = "black"
             elif values["-Step_White-"]:
-                self._selected_config_color = "White"
+                self._selected_config_color = "white"
 
             if self._selected_config_color is not None:
-                self._color_config[self._selected_config_color] = (r, g, b)
+                # Sample 7x7 region around click point for robust median color
+                radius = 3
+                x_min = max(0, mouse_x - radius)
+                x_max = min(frame_x, mouse_x + radius + 1)
+                y_min = max(0, mouse_y - radius)
+                y_max = min(frame_y, mouse_y + radius + 1)
+                
+                sample = self._frame[y_min:y_max, x_min:x_max]
+                
+                # Compute median BGR for robustness to noise
+                median_bgr = np.median(sample.reshape(-1, 3), axis=0).astype(int)
+                b, g, r = int(median_bgr[0]), int(median_bgr[1]), int(median_bgr[2])
+                
+                # Convert to HSV for user reference
+                from src.common.utils import convert_bgr_to_hsv
+                h, s, v = convert_bgr_to_hsv((b, g, r))
+                
+                # Store BGR in config
+                self._color_config[self._selected_config_color] = (b, g, r)
+                
+                # Show both BGR and HSV to user
                 sg.popup(
-                    f"Selected color for {self._selected_config_color} is: ({r}, {g}, {b})"
+                    f"Selected color for {self._selected_config_color.title()}:\n"
+                    f"BGR: ({b}, {g}, {r})\n"
+                    f"HSV: ({h}, {s}, {v})"
                 )
 
     def _handle_load_config_event(self) -> None:
@@ -484,16 +506,15 @@ class ConfigurationWindow:
 
     def _handle_end_color_configuration_event(self) -> None:
         self._color_config = {
-            key: tuple(map(int, self._color_config[key]))
-            for key in self._color_config
+            key: tuple(map(int, self._color_config[key])) for key in self._color_config
         }
 
         sg.popup(
-            "Selected colors for the game [R, G, B]",
-            f"""Orange: {self._color_config["Orange"]}
-            Blue: {self._color_config["Blue"]}
-            Black: {self._color_config["Black"]}
-            White: {self._color_config["White"]}""",
+            "Selected colors for the game [B, G, R]",
+            f"""Orange: {self._color_config["orange"]}
+            Blue: {self._color_config["blue"]}
+            Black: {self._color_config["black"]}
+            White: {self._color_config["white"]}""",
         )
 
         self._show_calibration_tab()
